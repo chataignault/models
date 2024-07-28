@@ -2,7 +2,6 @@ import torch
 import math
 from torch import nn
 from torch import Tensor
-import torch.nn.functional as F
 from torchvision.transforms import (
     CenterCrop,
 )
@@ -20,10 +19,12 @@ class SinusoidalPositionEmbeddings(nn.Module):
         n = len(time)
         position = torch.arange(n).unsqueeze(1)
         div_term_even = torch.exp(
-            torch.log(position) + torch.arange(0, self.dim, 2) * (-math.log(10000.0) / self.dim)
+            torch.log(position)
+            + torch.arange(0, self.dim, 2) * (-math.log(10000.0) / self.dim)
         )
         div_term_odd = torch.exp(
-            torch.log(position) + torch.arange(1, self.dim, 2) * (-math.log(10000.0) / self.dim)
+            torch.log(position)
+            + torch.arange(1, self.dim, 2) * (-math.log(10000.0) / self.dim)
         )
         pe = torch.zeros(n, self.dim)
         pe[:, 0::2] = torch.sin(div_term_even)
@@ -34,7 +35,12 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 class Block(nn.Module):
     def __init__(
-        self, in_ch: int, out_ch: int, time_emb_dim: int, up: bool = False, attention: bool = False
+        self,
+        in_ch: int,
+        out_ch: int,
+        time_emb_dim: int,
+        up: bool = False,
+        attention: bool = False,
     ):
         """
         in_ch refers to the number of channels in the input to the operation and out_ch how many should be in the output
@@ -45,7 +51,9 @@ class Block(nn.Module):
 
         if up:
             self.conv1 = nn.Conv2d(2 * in_ch, out_ch, 3, padding=1)
-            self.transform = nn.ConvTranspose2d(out_ch, out_ch, kernel_size=4, stride=2, padding=1)
+            self.transform = nn.ConvTranspose2d(
+                out_ch, out_ch, kernel_size=4, stride=2, padding=1
+            )
         else:
             self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1)
             self.transform = nn.Conv2d(out_ch, out_ch, 4, 2, 1)
@@ -125,7 +133,12 @@ class SimpleUnet(nn.Module):
 
         self.downsampling = nn.Sequential(
             *[
-                Block(down_channels[i], down_channels[i + 1], time_emb_dim, attention=(i == 1))
+                Block(
+                    down_channels[i],
+                    down_channels[i + 1],
+                    time_emb_dim,
+                    attention=(i == 1),
+                )
                 for i in range(len(down_channels) - 1)
             ]
         )
@@ -137,11 +150,19 @@ class SimpleUnet(nn.Module):
 
         self.upsampling = nn.Sequential(
             *[
-                Block(up_channels[i], up_channels[i + 1], time_emb_dim, up=True, attention=(i == 0))
+                Block(
+                    up_channels[i],
+                    up_channels[i + 1],
+                    time_emb_dim,
+                    up=True,
+                    attention=(i == 0),
+                )
                 for i in range(len(up_channels) - 1)
             ]
         )
-        self.out_conv = nn.Conv2d(in_channels=up_channels[-1], out_channels=out_dim, kernel_size=1)
+        self.out_conv = nn.Conv2d(
+            in_channels=up_channels[-1], out_channels=out_dim, kernel_size=1
+        )
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
