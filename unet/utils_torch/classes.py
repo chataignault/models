@@ -1,10 +1,8 @@
 import torch
-import math
-from torch import nn
 from torch import Tensor
-from torchvision.transforms import (
-    CenterCrop,
-)
+from torch import nn
+import numpy as np
+from torchvision.transforms import CenterCrop
 
 
 class SinusoidalPositionEmbeddings(nn.Module):
@@ -19,10 +17,10 @@ class SinusoidalPositionEmbeddings(nn.Module):
         n = len(time)
         position = torch.arange(n).unsqueeze(1)
         div_term_even = torch.exp(
-            torch.log(position) + torch.arange(0, self.dim, 2) * (-math.log(10000.0) / self.dim)
+            torch.log(position) + torch.arange(0, self.dim, 2) * (-np.log(10000.0) / self.dim)
         )
         div_term_odd = torch.exp(
-            torch.log(position) + torch.arange(1, self.dim, 2) * (-math.log(10000.0) / self.dim)
+            torch.log(position) + torch.arange(1, self.dim, 2) * (-np.log(10000.0) / self.dim)
         )
         pe = torch.zeros(n, self.dim)
         pe[:, 0::2] = torch.sin(div_term_even)
@@ -33,12 +31,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 class Block(nn.Module):
     def __init__(
-        self,
-        in_ch: int,
-        out_ch: int,
-        time_emb_dim: int,
-        up: bool = False,
-        attention: bool = False,
+        self, in_ch: int, out_ch: int, time_emb_dim: int, up: bool = False, attention: bool = False
     ):
         """
         in_ch refers to the number of channels in the input to the operation and out_ch how many should be in the output
@@ -50,23 +43,15 @@ class Block(nn.Module):
         if up:
             self.conv1 = nn.Conv2d(2 * in_ch, out_ch, 3, padding=1)
             self.transform = nn.ConvTranspose2d(out_ch, out_ch, kernel_size=4, stride=2, padding=1)
+
         else:
             self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1)
             self.transform = nn.Conv2d(out_ch, out_ch, 4, 2, 1)
 
-        self.attention = attention
-        if attention:
-            self.linq = nn.Linear(out_ch, out_ch)
-            self.link = nn.Linear(out_ch, out_ch)
-            self.mha = nn.MultiheadAttention(out_ch, 4)
-
         self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1)
-
         self.bnorm1 = nn.BatchNorm2d(out_ch)
         self.bnorm2 = nn.BatchNorm2d(out_ch)
-
         self.relu = nn.ReLU()
-
         self.dropout = nn.Dropout(0.05)
 
     def forward(self, x: Tensor, t: Tensor) -> Tensor:
@@ -129,12 +114,7 @@ class SimpleUnet(nn.Module):
 
         self.downsampling = nn.Sequential(
             *[
-                Block(
-                    down_channels[i],
-                    down_channels[i + 1],
-                    time_emb_dim,
-                    attention=(i == 1),
-                )
+                Block(down_channels[i], down_channels[i + 1], time_emb_dim, attention=(i == 1))
                 for i in range(len(down_channels) - 1)
             ]
         )
@@ -146,20 +126,18 @@ class SimpleUnet(nn.Module):
 
         self.upsampling = nn.Sequential(
             *[
-                Block(
-                    up_channels[i],
-                    up_channels[i + 1],
-                    time_emb_dim,
-                    up=True,
-                    attention=(i == 0),
-                )
+                Block(up_channels[i], up_channels[i + 1], time_emb_dim, up=True, attention=(i == 0))
                 for i in range(len(up_channels) - 1)
             ]
         )
+
         self.out_conv = nn.Conv2d(in_channels=up_channels[-1], out_channels=out_dim, kernel_size=1)
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
+        x = x + t.unsqueeze(1).unsqueeze(1).repeat(
+            (1, x.size(1), x.size(-1), x.size(-2) // t.shape[1])
+        )
 
         x = self.init_conv(x)
         x = self.relu(x)
@@ -172,11 +150,13 @@ class SimpleUnet(nn.Module):
         x = self.conv_int1(x)
         x = self.relu(x)
         x = self.bnorm(x)
+
         x = self.conv_int2(x)
         x = self.relu(x)
 
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
+            # crop residual to match x dimensions
             residual = CenterCrop(x.size(2))(residual)
             x_extended = torch.cat((x, residual), dim=1)
 
