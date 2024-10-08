@@ -1,0 +1,4 @@
+[dependencies]
+polars = { version = "0.35.0", features = ["lazy"] }
+hdf5 = "0.8.1"
+
