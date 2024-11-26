@@ -1,5 +1,7 @@
 __pycache__
-*.ipynb
-log
+logs
+notebooks
 out
 flax_ckpt
+*.ipynb
+*.csv
