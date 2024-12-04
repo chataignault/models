@@ -3,4 +3,10 @@ name = "pdevnet"
 version = "0.1.0"
 description = "Sequence regression and classification networks based on path developments"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "aeon>=0.0.0",
+    "matplotlib>=3.9.3",
+    "numpy>=2.1.3",
+    "torch>=2.5.1",
+    "tqdm>=4.67.1",
+]
