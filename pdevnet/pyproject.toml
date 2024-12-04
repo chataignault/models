@@ -1,0 +1,6 @@
+[project]
+name = "pdevnet"
+version = "0.1.0"
+description = "Sequence regression and classification networks based on path developments"
+requires-python = ">=3.11"
+dependencies = []
