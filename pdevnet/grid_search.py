@@ -6,7 +6,7 @@
 
 import os
 import pandas as pd
-from aeon.datasets import load_from_tsfile
+from aeon.datasets import load_from_ts_file
 from torch import (
     Tensor,
     device,
@@ -50,8 +50,8 @@ if __name__ == "__main__":
     train_file = "WalkingSittingStanding_TRAIN.ts"
     test_file = "WalkingSittingStanding_TEST.ts"
 
-    tsx_train, y_train_labels = load_from_tsfile(os.path.join(data_dir, train_file))
-    tsx_test, y_test_labels = load_from_tsfile(os.path.join(data_dir, test_file))
+    tsx_train, y_train_labels = load_from_ts_file(os.path.join(data_dir, train_file))
+    tsx_test, y_test_labels = load_from_ts_fileuv(os.path.join(data_dir, test_file))
     # Convert labels to one-hot encoded vectors
 
     device = device("cuda" if cuda.is_available() else "cpu")
