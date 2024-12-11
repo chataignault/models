@@ -1,4 +1,4 @@
-from torch import nn, Tensor, argmax
+from torch import nn, Tensor, argmax, sum
 from torch.optim import Adam
 from torch.utils.data import DataLoader
 from tqdm import tqdm

@@ -6,11 +6,12 @@
 
 import os
 import pandas as pd
+import logging
 from aeon.datasets import load_from_ts_file
 from torch import (
     Tensor,
     device,
-    set_default_device,
+    # set_default_device,
     tensor,
     logit,
     Generator,
@@ -21,6 +22,8 @@ from torch.utils.data import DataLoader, TensorDataset
 
 
 from development.so import so
+from development.go import go
+
 
 from src.attention_development import (
     AttentionDevelopmentConfig,
@@ -40,22 +43,24 @@ from src.training import (
 if __name__ == "__main__":
     log_dir = "logs"
     log_file_name = "SO_grid_search.log"
-    logger = initialise_logger(log_dir, log_file_name, log_file_name.split(".log")[0])
+    logger = initialise_logger(
+        log_dir, log_file_name, log_file_name.split(".log")[0], logging.INFO
+    )
 
     n_epochs = 1
     learning_rate = 1e-3
     batch_size = 256
 
-    data_dir = os.path.join(os.getcwd(), "..", "data", "WalkingSittingStanding")
+    data_dir = os.path.join(os.getcwd(), "data", "WalkingSittingStanding")
     train_file = "WalkingSittingStanding_TRAIN.ts"
     test_file = "WalkingSittingStanding_TEST.ts"
 
     tsx_train, y_train_labels = load_from_ts_file(os.path.join(data_dir, train_file))
-    tsx_test, y_test_labels = load_from_ts_fileuv(os.path.join(data_dir, test_file))
+    tsx_test, y_test_labels = load_from_ts_file(os.path.join(data_dir, test_file))
     # Convert labels to one-hot encoded vectors
 
     device = device("cuda" if cuda.is_available() else "cpu")
-    set_default_device(device)
+    # set_default_device(device)
 
     # Apply transformations
     y_train = to_soft_probabilities(to_one_hot(y_train_labels.astype(float)))
@@ -125,7 +130,10 @@ if __name__ == "__main__":
 
         multidev_config = AttentionDevelopmentConfig(
             n_heads=n_heads,
-            groups=[GroupConfig(group=so, dim=dim, channels=nchannels) for _ in range(n_heads)],
+            groups=[
+                GroupConfig(group=so, dim=dim, channels=nchannels)
+                for _ in range(n_heads)
+            ],
         )
 
         model = PDevBaggingBiLSTM(

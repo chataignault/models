@@ -4,7 +4,8 @@ from torch import nn
 from torch import Tensor
 from torch.nn import MultiheadAttention
 from development.nn import development_layer
-from development.param import param
+
+# from development.param import param
 from development.so import so
 
 
@@ -36,7 +37,8 @@ class AttentionDevelopment(nn.Module):
         input_size: int,
         hidden_size: int,
         channels: int,
-        param: param,
+        # param: param,
+        param: Any,
     ):
         super(AttentionDevelopment, self).__init__()
         self.attention = MultiheadAttention(

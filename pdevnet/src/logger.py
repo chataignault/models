@@ -2,7 +2,12 @@ import os
 import logging
 
 
-def initialise_logger(log_dir, log_file_name, logger_name, log_level):
+def initialise_logger(
+    log_dir: str = "logs",
+    log_file_name: str = "log.log",
+    logger_name: str = "logger",
+    log_level: int = logging.INFO,
+):
     if not os.path.exists(log_dir):
         os.makedirs(log_dir)
 
