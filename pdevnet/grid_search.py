@@ -43,9 +43,7 @@ from src.training import (
 if __name__ == "__main__":
     log_dir = "logs"
     log_file_name = "SO_grid_search.log"
-    logger = initialise_logger(
-        log_dir, log_file_name, log_file_name.split(".log")[0], logging.INFO
-    )
+    logger = initialise_logger(log_dir, log_file_name, log_file_name.split(".log")[0], logging.INFO)
 
     n_epochs = 1
     learning_rate = 1e-3
@@ -89,6 +87,7 @@ if __name__ == "__main__":
         generator=Generator(device=device),
     )
 
+    group_range = [so, go]
     channel_range = range(2, 5)
     dim_range = range(3, 10)
     hidden_size_range = [4, 6, 10, 15, 20]
@@ -105,22 +104,24 @@ if __name__ == "__main__":
         columns=["train_acc", "test_acc"],
         index=pd.MultiIndex.from_product(
             [
+                group_range,
                 channel_range,
                 dim_range,
                 heads_range,
                 hidden_size_range,
                 lstm_is_bidirectional,
             ],
-            names=["nchannels", "dim", "n_heads", "hidden_size", "bidirectional"],
+            names=["group", "nchannels", "dim", "n_heads", "hidden_size", "bidirectional"],
         ),
     )  # .iloc[:5]
 
-    for nchannels, dim, n_heads, hidden_size, bidirectional in res.index.to_series():
+    for group, nchannels, dim, n_heads, hidden_size, bidirectional in res.index.to_series():
         if not hidden_size % n_heads == 0:
             continue
 
         logger.info(
             f">>> Starting grid search with : "
+            f"group={group}, "
             f"nchannels={nchannels}, "
             f"dim={dim}, "
             f"hidden_size={hidden_size}, "
@@ -130,10 +131,7 @@ if __name__ == "__main__":
 
         multidev_config = AttentionDevelopmentConfig(
             n_heads=n_heads,
-            groups=[
-                GroupConfig(group=so, dim=dim, channels=nchannels)
-                for _ in range(n_heads)
-            ],
+            groups=[GroupConfig(group=group, dim=dim, channels=nchannels) for _ in range(n_heads)],
         )
 
         model = PDevBaggingBiLSTM(
@@ -155,9 +153,9 @@ if __name__ == "__main__":
 
         logger.info(f"Train accuracy: {train_acc} | Test accuracy: {test_acc}")
 
-        res.loc[(nchannels, dim, n_heads, hidden_size, bidirectional), :] = [
+        res.loc[(group, nchannels, dim, n_heads, hidden_size, bidirectional), :] = [
             train_acc,
             test_acc,
         ]
 
-    res.to_csv(os.path.join(log_dir, "grid_search_results.csv"))
+        res.to_csv(os.path.join(log_dir, "grid_search_results.csv"))
