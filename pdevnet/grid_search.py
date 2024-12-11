@@ -104,7 +104,7 @@ if __name__ == "__main__":
         columns=["train_acc", "test_acc"],
         index=pd.MultiIndex.from_product(
             [
-                group_range,
+                [g.__name__ for g in group_range],
                 channel_range,
                 dim_range,
                 heads_range,
@@ -115,13 +115,14 @@ if __name__ == "__main__":
         ),
     )  # .iloc[:5]
 
-    for group, nchannels, dim, n_heads, hidden_size, bidirectional in res.index.to_series():
+    for g_name, nchannels, dim, n_heads, hidden_size, bidirectional in res.index.to_series():
+        group = [g for g in group_range if g.__name__ == g_name][0]
         if not hidden_size % n_heads == 0:
             continue
 
         logger.info(
             f">>> Starting grid search with : "
-            f"group={group}, "
+            f"group={group.__name__}, "
             f"nchannels={nchannels}, "
             f"dim={dim}, "
             f"hidden_size={hidden_size}, "
@@ -153,7 +154,7 @@ if __name__ == "__main__":
 
         logger.info(f"Train accuracy: {train_acc} | Test accuracy: {test_acc}")
 
-        res.loc[(group, nchannels, dim, n_heads, hidden_size, bidirectional), :] = [
+        res.loc[(group.__name__, nchannels, dim, n_heads, hidden_size, bidirectional), :] = [
             train_acc,
             test_acc,
         ]
