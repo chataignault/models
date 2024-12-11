@@ -3,5 +3,10 @@ logs
 notebooks
 out
 flax_ckpt
+log
+pdevnet/data
+
 *.ipynb
 *.csv
+
+
