@@ -23,7 +23,7 @@ from torch.utils.data import DataLoader, TensorDataset
 
 from development.so import so
 from development.go import go
-
+from development.gl import gl
 
 from src.attention_development import (
     AttentionDevelopmentConfig,
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     log_file_name = "SO_grid_search.log"
     logger = initialise_logger(log_dir, log_file_name, log_file_name.split(".log")[0], logging.INFO)
 
-    n_epochs = 1
+    n_epochs = 10
     learning_rate = 1e-3
     batch_size = 256
 
@@ -87,18 +87,12 @@ if __name__ == "__main__":
         generator=Generator(device=device),
     )
 
-    group_range = [so, go]
+    group_range = [so, go, gl]
     channel_range = range(2, 5)
     dim_range = range(3, 10)
     hidden_size_range = [4, 6, 10, 15, 20]
     heads_range = range(2, 3)
     lstm_is_bidirectional = [True, False]
-
-    # nchannels = channel_range[0]
-    # dim = dim_range[0]
-    # n_heads = heads_range[0]
-    # hidden_size = hidden_size_range[0]
-    # bidirectional = lstm_is_bidirectional[0]
 
     res = pd.DataFrame(
         columns=["train_acc", "test_acc"],
@@ -113,7 +107,7 @@ if __name__ == "__main__":
             ],
             names=["group", "nchannels", "dim", "n_heads", "hidden_size", "bidirectional"],
         ),
-    )  # .iloc[:5]
+    )
 
     for g_name, nchannels, dim, n_heads, hidden_size, bidirectional in res.index.to_series():
         group = [g for g in group_range if g.__name__ == g_name][0]
