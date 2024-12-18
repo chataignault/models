@@ -7,7 +7,9 @@
 import os
 import pandas as pd
 import logging
-from aeon.datasets import load_from_ts_file
+
+# from aeon.datasets import load_from_ts_file
+from aeon.datasets import load_classification
 from torch import (
     Tensor,
     device,
@@ -45,16 +47,14 @@ if __name__ == "__main__":
     log_file_name = "SO_grid_search.log"
     logger = initialise_logger(log_dir, log_file_name, log_file_name.split(".log")[0], logging.INFO)
 
-    n_epochs = 10
+    n_epochs = 1
     learning_rate = 1e-3
     batch_size = 256
 
-    data_dir = os.path.join(os.getcwd(), "data", "WalkingSittingStanding")
-    train_file = "WalkingSittingStanding_TRAIN.ts"
-    test_file = "WalkingSittingStanding_TEST.ts"
+    data, labels = load_classification("WalkingSittingStanding")
 
-    tsx_train, y_train_labels = load_from_ts_file(os.path.join(data_dir, train_file))
-    tsx_test, y_test_labels = load_from_ts_file(os.path.join(data_dir, test_file))
+    tsx_train, y_train_labels = data[:7352], labels[:7352]
+    tsx_test, y_test_labels = data[7352:], labels[7352:]
     # Convert labels to one-hot encoded vectors
 
     device = device("cuda" if cuda.is_available() else "cpu")
