@@ -58,8 +58,9 @@ if __name__ == "__main__":
     # Convert labels to one-hot encoded vectors
 
     device = device("cuda" if cuda.is_available() else "cpu")
+    print(device)
     # set_default_device(device)
-
+    quit(1)
     # Apply transformations
     y_train = to_soft_probabilities(to_one_hot(y_train_labels.astype(float)))
     y_test = to_soft_probabilities(to_one_hot(y_test_labels.astype(float)))

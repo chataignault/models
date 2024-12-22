@@ -9,6 +9,17 @@ dependencies = [
     "numpy<2.0.0",
     "pandas",
     "pydantic",
-    "torch==1.9.0",
+    "torch<=1.9.1",
     "tqdm",
 ]
+
+
+[tool.uv.sources]
+torch = { index = "pytorch" }
+
+[[tool.uv.index]]
+name = "pytorch"
+url = "https://download.pytorch.org/whl/cu121"
+explicit = true
+
+
