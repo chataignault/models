@@ -1,6 +1,6 @@
 [project]
 name = "pdevnet"
-version = "0.1.0"
+version = "0.1.0+118"
 description = "Sequence regression and classification networks based on path developments"
 requires-python = "==3.9.0"
 dependencies = [
@@ -9,17 +9,17 @@ dependencies = [
     "numpy<2.0.0",
     "pandas",
     "pydantic",
-    "torch<=1.9.1",
+    "torch>=1.9.1",
     "tqdm",
 ]
 
 
 [tool.uv.sources]
-torch = { index = "pytorch" }
+torch = { index = "pytorch", marker = "platform_system == 'Windows'"}
 
 [[tool.uv.index]]
 name = "pytorch"
-url = "https://download.pytorch.org/whl/cu121"
+url = "https://download.pytorch.org/whl/cu118"
 explicit = true
 
 

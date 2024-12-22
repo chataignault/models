@@ -13,7 +13,7 @@ from aeon.datasets import load_classification
 from torch import (
     Tensor,
     device,
-    # set_default_device,
+    set_default_device,
     tensor,
     logit,
     Generator,
@@ -47,32 +47,31 @@ if __name__ == "__main__":
     log_file_name = "SO_grid_search.log"
     logger = initialise_logger(log_dir, log_file_name, log_file_name.split(".log")[0], logging.INFO)
 
-    n_epochs = 1
+    n_epochs = 10
     learning_rate = 1e-3
     batch_size = 256
 
     data, labels = load_classification("WalkingSittingStanding")
 
+    # as specified on UAE website
     tsx_train, y_train_labels = data[:7352], labels[:7352]
     tsx_test, y_test_labels = data[7352:], labels[7352:]
-    # Convert labels to one-hot encoded vectors
 
     device = device("cuda" if cuda.is_available() else "cpu")
     print(device)
-    # set_default_device(device)
-    quit(1)
-    # Apply transformations
+    set_default_device(device)
+    # labels to smoothed log-probs
     y_train = to_soft_probabilities(to_one_hot(y_train_labels.astype(float)))
     y_test = to_soft_probabilities(to_one_hot(y_test_labels.astype(float)))
 
     tsx_train = Tensor(tsx_train).swapaxes(1, 2).to(device)
     tsx_test = Tensor(tsx_test).swapaxes(1, 2).to(device)
 
-    # Convert back to PyTorch tensors
+    # Convert target to tensors
     y_train = logit(tensor(y_train, dtype=float32)).to(device)
     y_test = logit(tensor(y_test, dtype=float32)).to(device)
 
-    # Create DataLoader for training data
+    # Create train and test data loaders
     train_dataset = TensorDataset(tsx_train, y_train)
     train_loader = DataLoader(
         train_dataset,
@@ -88,6 +87,7 @@ if __name__ == "__main__":
         generator=Generator(device=device),
     )
 
+    # hyperparameters
     group_range = [so, go, gl]
     channel_range = range(2, 5)
     dim_range = range(3, 10)
@@ -109,6 +109,8 @@ if __name__ == "__main__":
             names=["group", "nchannels", "dim", "n_heads", "hidden_size", "bidirectional"],
         ),
     )
+
+    res = res.sample(frac=1)
 
     for g_name, nchannels, dim, n_heads, hidden_size, bidirectional in res.index.to_series():
         group = [g for g in group_range if g.__name__ == g_name][0]
