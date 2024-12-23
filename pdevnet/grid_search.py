@@ -7,8 +7,8 @@
 import os
 import pandas as pd
 import logging
+from argparse import ArgumentParser
 
-# from aeon.datasets import load_from_ts_file
 from aeon.datasets import load_classification
 from torch import (
     Tensor,
@@ -21,7 +21,7 @@ from torch import (
     float32,
 )
 from torch.utils.data import DataLoader, TensorDataset
-
+from enum import Enum
 
 from development.so import so
 from development.go import go
@@ -42,24 +42,53 @@ from src.training import (
 )
 
 
+class Datasets(Enum, str):
+    WalkingSittingStanding = "WalkingSittingStanding"
+
+
 if __name__ == "__main__":
-    log_dir = "logs"
-    log_file_name = "SO_grid_search.log"
-    logger = initialise_logger(log_dir, log_file_name, log_file_name.split(".log")[0], logging.INFO)
+    parser = ArgumentParser()
 
-    n_epochs = 10
-    learning_rate = 1e-3
-    batch_size = 256
+    parser.add_argument("--max_channels", type=int, default=4)
+    parser.add_argument("--max_dim", type=int, default=4)
+    parser.add_argument("--max_heads", type=int, default=4)
+    parser.add_argument("--max_hidden_size", type=int, default=10)
+    parser.add_argument("--n_epochs", type=int, default=10)
+    parser.add_argument("--learning_rate", type=float, default=1e-3)
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--logs_dir", type=str, default="logs")
+    parser.add_argument("--logs_filename", type=str, default="grid_search.log")
+    parser.add_argument(
+        "--dataset", type=Datasets, default=Datasets.WalkingSittingStanding
+    )
 
-    data, labels = load_classification("WalkingSittingStanding")
+    args = parser.parse_args()
+
+    max_channels = args.max_channels
+    max_dim = args.max_dim
+    max_heads = args.max_heads
+    max_hidden_size = args.max_hidden_size
+    n_epochs = args.n_epochs
+    learning_rate = args.learning_rate
+    batch_size = args.batch_size
+    logs_dir = args.logs_dir
+    logs_filename = args.logs_filename
+    dataset_name = parser.dataset
+
+    logger = initialise_logger(
+        logs_dir, logs_filename, logs_filename.split(".log")[0], logging.INFO
+    )
+
+    data, labels = load_classification(dataset_name)
 
     # as specified on UAE website
     tsx_train, y_train_labels = data[:7352], labels[:7352]
     tsx_test, y_test_labels = data[7352:], labels[7352:]
 
     device = device("cuda" if cuda.is_available() else "cpu")
-    print(device)
     set_default_device(device)
+    logger.info(f"Default device set to {device}")
+
     # labels to smoothed log-probs
     y_train = to_soft_probabilities(to_one_hot(y_train_labels.astype(float)))
     y_test = to_soft_probabilities(to_one_hot(y_test_labels.astype(float)))
@@ -89,10 +118,10 @@ if __name__ == "__main__":
 
     # hyperparameters
     group_range = [so, go, gl]
-    channel_range = range(2, 5)
-    dim_range = range(3, 10)
-    hidden_size_range = [4, 6, 10, 15, 20]
-    heads_range = range(2, 3)
+    channel_range = range(2, max_channels)
+    dim_range = range(3, max_dim)
+    hidden_size_range = range(4, max_hidden_size)
+    heads_range = range(2, max_heads)
     lstm_is_bidirectional = [True, False]
 
     res = pd.DataFrame(
@@ -106,13 +135,27 @@ if __name__ == "__main__":
                 hidden_size_range,
                 lstm_is_bidirectional,
             ],
-            names=["group", "nchannels", "dim", "n_heads", "hidden_size", "bidirectional"],
+            names=[
+                "group",
+                "nchannels",
+                "dim",
+                "n_heads",
+                "hidden_size",
+                "bidirectional",
+            ],
         ),
     )
 
     res = res.sample(frac=1)
 
-    for g_name, nchannels, dim, n_heads, hidden_size, bidirectional in res.index.to_series():
+    for (
+        g_name,
+        nchannels,
+        dim,
+        n_heads,
+        hidden_size,
+        bidirectional,
+    ) in res.index.to_series():
         group = [g for g in group_range if g.__name__ == g_name][0]
         if not hidden_size % n_heads == 0:
             continue
@@ -129,7 +172,10 @@ if __name__ == "__main__":
 
         multidev_config = AttentionDevelopmentConfig(
             n_heads=n_heads,
-            groups=[GroupConfig(group=group, dim=dim, channels=nchannels) for _ in range(n_heads)],
+            groups=[
+                GroupConfig(group=group, dim=dim, channels=nchannels)
+                for _ in range(n_heads)
+            ],
         )
 
         model = PDevBaggingBiLSTM(
@@ -151,9 +197,11 @@ if __name__ == "__main__":
 
         logger.info(f"Train accuracy: {train_acc} | Test accuracy: {test_acc}")
 
-        res.loc[(group.__name__, nchannels, dim, n_heads, hidden_size, bidirectional), :] = [
+        res.loc[
+            (group.__name__, nchannels, dim, n_heads, hidden_size, bidirectional), :
+        ] = [
             train_acc,
             test_acc,
         ]
 
-        res.to_csv(os.path.join(log_dir, "grid_search_results.csv"))
+        res.to_csv(os.path.join(logs_dir, "grid_search_results.csv"))
