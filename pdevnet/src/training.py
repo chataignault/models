@@ -5,11 +5,14 @@ from tqdm import tqdm
 import numpy as np
 
 
-from .logger import initialise_logger
+from .logger import get_logger
+
+logger = get_logger("training")
 
 
-def train_model(fm: nn.Module, train_loader: DataLoader, nepochs: int, learning_rate: float):
-    logger = initialise_logger()
+def train_model(
+    fm: nn.Module, train_loader: DataLoader, nepochs: int, learning_rate: float
+):
     fm.train()
     optimizer = Adam(fm.parameters(), lr=learning_rate)
     lossx = []

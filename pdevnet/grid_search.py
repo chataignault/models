@@ -1,12 +1,11 @@
 # TODO before running
-# - check the data path
 # - check that path develooment repo is locally installed
 
 # inf1.6xlarge 24 vCPUs, 48GB RAM
 
 import os
 import pandas as pd
-import logging
+from enum import Enum
 from argparse import ArgumentParser
 
 from aeon.datasets import load_classification
@@ -21,7 +20,6 @@ from torch import (
     float32,
 )
 from torch.utils.data import DataLoader, TensorDataset
-from enum import Enum
 
 from development.so import so
 from development.go import go
@@ -31,7 +29,7 @@ from src.attention_development import (
     AttentionDevelopmentConfig,
     GroupConfig,
 )
-from src.logger import initialise_logger
+from src.logger import get_logger
 from src.models import PDevBaggingBiLSTM
 from src.training import (
     train_model,
@@ -40,6 +38,8 @@ from src.training import (
     train_sample_accuracy,
     test_sample_accuracy,
 )
+
+logger = get_logger("grid_search")
 
 
 class Datasets(Enum, str):
@@ -56,11 +56,8 @@ if __name__ == "__main__":
     parser.add_argument("--n_epochs", type=int, default=10)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--logs_dir", type=str, default="logs")
-    parser.add_argument("--logs_filename", type=str, default="grid_search.log")
-    parser.add_argument(
-        "--dataset", type=Datasets, default=Datasets.WalkingSittingStanding
-    )
+    parser.add_argument("--dataset", type=Datasets, default=Datasets.WalkingSittingStanding)
+    parser.add_argument("--out_dir", type=str, default="logs")
 
     args = parser.parse_args()
 
@@ -71,13 +68,8 @@ if __name__ == "__main__":
     n_epochs = args.n_epochs
     learning_rate = args.learning_rate
     batch_size = args.batch_size
-    logs_dir = args.logs_dir
-    logs_filename = args.logs_filename
     dataset_name = parser.dataset
-
-    logger = initialise_logger(
-        logs_dir, logs_filename, logs_filename.split(".log")[0], logging.INFO
-    )
+    out_dir = parser.out_dir
 
     data, labels = load_classification(dataset_name)
 
@@ -158,6 +150,7 @@ if __name__ == "__main__":
     ) in res.index.to_series():
         group = [g for g in group_range if g.__name__ == g_name][0]
         if not hidden_size % n_heads == 0:
+            # invalid parameters
             continue
 
         logger.info(
@@ -172,10 +165,7 @@ if __name__ == "__main__":
 
         multidev_config = AttentionDevelopmentConfig(
             n_heads=n_heads,
-            groups=[
-                GroupConfig(group=group, dim=dim, channels=nchannels)
-                for _ in range(n_heads)
-            ],
+            groups=[GroupConfig(group=group, dim=dim, channels=nchannels) for _ in range(n_heads)],
         )
 
         model = PDevBaggingBiLSTM(
@@ -197,11 +187,9 @@ if __name__ == "__main__":
 
         logger.info(f"Train accuracy: {train_acc} | Test accuracy: {test_acc}")
 
-        res.loc[
-            (group.__name__, nchannels, dim, n_heads, hidden_size, bidirectional), :
-        ] = [
+        res.loc[(group.__name__, nchannels, dim, n_heads, hidden_size, bidirectional), :] = [
             train_acc,
             test_acc,
         ]
 
-        res.to_csv(os.path.join(logs_dir, "grid_search_results.csv"))
+        res.to_csv(os.path.join(out_dir, "grid_search_results.csv"))

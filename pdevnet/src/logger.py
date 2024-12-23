@@ -1,41 +1,67 @@
 import os
 import logging
+from functools import lru_cache
 
 
-def initialise_logger(
-    log_dir: str = "logs",
-    log_file_name: str = "log.log",
-    logger_name: str = "logger",
-    log_level: int = logging.INFO,
-):
-    if not os.path.exists(log_dir):
-        os.makedirs(log_dir)
+class LoggerConfig:
+    def __init__(
+        self,
+        log_dir: str = "logs",
+        log_file_name: str = "log.log",
+        log_level: int = logging.INFO,
+    ):
+        self.log_dir = log_dir
+        self.log_file_name = log_file_name
+        self.log_level = log_level
 
-    # Create the full path for the log file
-    log_file_path = os.path.join(log_dir, log_file_name)
+        if not os.path.exists(log_dir):
+            os.makedirs(log_dir)
 
-    # Create logger
-    logger = logging.getLogger(logger_name)
-    logger.setLevel(log_level)
-    file_formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
-    console_formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)-8s | %(message)s", datefmt="%H:%M:%S"
-    )
+        self.file_formatter = logging.Formatter(
+            "%(asctime)s | %(name)-12s | %(levelname)-8s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S",
+        )
+        self.console_formatter = logging.Formatter(
+            "%(asctime)s | %(name)-12s | %(levelname)-8s | %(message)s",
+            datefmt="%H:%M:%S",
+        )
 
-    # Create file handler
-    file_handler = logging.FileHandler(log_file_path)
-    file_handler.setLevel(log_level)
-    file_handler.setFormatter(file_formatter)
+    def _create_handlers(self):
+        file_handler = logging.FileHandler(
+            os.path.join(self.log_dir, self.log_file_name)
+        )
+        file_handler.setLevel(self.log_level)
+        file_handler.setFormatter(self.file_formatter)
 
-    # Create console handler
-    console_handler = logging.StreamHandler()
-    console_handler.setLevel(log_level)
-    console_handler.setFormatter(console_formatter)
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(self.log_level)
+        console_handler.setFormatter(self.console_formatter)
 
-    # Add handlers to logger
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+        return [file_handler, console_handler]
 
-    return logger
+    @lru_cache
+    def get_logger(self, name: str) -> logging.Logger:
+        """Get or create a logger with the given name."""
+        logger = logging.getLogger(name)
+
+        # Only add handlers if the logger doesn't have any
+        if not logger.handlers:
+            logger.setLevel(self.log_level)
+            for handler in self._create_handlers():
+                logger.addHandler(handler)
+
+        return logger
+
+
+default_config = LoggerConfig()
+
+
+def get_logger(name: str = None) -> logging.Logger:
+    """Get a logger using the default configuration."""
+    if name is None:
+        # Use the caller's module name if none provided
+        import inspect
+
+        frame = inspect.stack()[1]
+        name = frame.frame.f_globals["__name__"]
+    return default_config.get_logger(name)
