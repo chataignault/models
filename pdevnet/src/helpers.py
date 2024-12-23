@@ -5,7 +5,15 @@ from tqdm import tqdm
 from matplotlib import pyplot as plt
 
 
-def train_model(fm, nepochs, learning_rate, train_loader, test_loader):
+def train_model(
+    fm,
+    nepochs: int,
+    learning_rate: float,
+    train_loader,
+    test_loader,
+    alpha1: float = 0.0,
+    alpha2: float = 0.0,
+):
     fm.train()
     optimizer = optim.Adam(fm.parameters(), lr=learning_rate)
 
@@ -34,6 +42,33 @@ def train_model(fm, nepochs, learning_rate, train_loader, test_loader):
             optimizer.zero_grad()
             y_hat = fm(x)
             loss = torch.sum((y - y_hat) ** 2) / len(y)
+            if (alpha1 > 0.0) or (alpha2 > 0.0):
+                sx = fm.forward_partial(x)
+                n_lie_params = sum([np.prod(l.size()) for l in sx])
+                if alpha1 > 0.0:
+                    loss += (
+                        alpha1
+                        * sum(
+                            [
+                                torch.linalg.norm(
+                                    torch.linalg.norm(l, ord=1, dim=(2, 3)),
+                                    ord=1,
+                                    dim=(0, 1),
+                                )
+                                for l in sx
+                            ]
+                        )
+                        / n_lie_params
+                        / len(y)
+                    )
+                if alpha2 > 0.0:
+                    loss += (
+                        alpha2
+                        * sum([torch.linalg.norm(s) for s in sx])
+                        / n_lie_params
+                        / len(y)
+                    )
+
             loss.backward()
             lossx.append(loss.item())
             optimizer.step()

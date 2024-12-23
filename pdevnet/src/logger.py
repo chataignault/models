@@ -1,5 +1,6 @@
 import os
 import logging
+import datetime as dt
 from functools import lru_cache
 
 
@@ -7,7 +8,7 @@ class LoggerConfig:
     def __init__(
         self,
         log_dir: str = "logs",
-        log_file_name: str = "log.log",
+        log_file_name: str = f"log_{dt.date.today().strftime('%Y-%m-%d')}.log",
         log_level: int = logging.INFO,
     ):
         self.log_dir = log_dir

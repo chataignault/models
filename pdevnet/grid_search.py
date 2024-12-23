@@ -1,8 +1,13 @@
 # TODO before running
-# - check that path develooment repo is locally installed
+# - check that path development repo is locally installed
 
 # inf1.6xlarge 24 vCPUs, 48GB RAM
 
+import sys
+
+original_args = (
+    sys.argv.copy()
+)  # ! error disappearing args, potentially from some other import
 import os
 import pandas as pd
 from enum import Enum
@@ -11,7 +16,6 @@ from argparse import ArgumentParser
 from aeon.datasets import load_classification
 from torch import (
     Tensor,
-    device,
     set_default_device,
     tensor,
     logit,
@@ -42,24 +46,28 @@ from src.training import (
 logger = get_logger("grid_search")
 
 
-class Datasets(Enum, str):
+class Datasets(str, Enum):
     WalkingSittingStanding = "WalkingSittingStanding"
 
 
-if __name__ == "__main__":
+def main():
     parser = ArgumentParser()
 
+    res_file = "grid_search_results.csv"
+
+    parser.add_argument("--n_epochs", type=int, required=True)
     parser.add_argument("--max_channels", type=int, default=4)
     parser.add_argument("--max_dim", type=int, default=4)
     parser.add_argument("--max_heads", type=int, default=4)
     parser.add_argument("--max_hidden_size", type=int, default=10)
-    parser.add_argument("--n_epochs", type=int, default=10)
     parser.add_argument("--learning_rate", type=float, default=1e-3)
     parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--dataset", type=Datasets, default=Datasets.WalkingSittingStanding)
+    parser.add_argument(
+        "--dataset", type=str, default=Datasets.WalkingSittingStanding.value
+    )
     parser.add_argument("--out_dir", type=str, default="logs")
 
-    args = parser.parse_args()
+    args = parser.parse_args(args=original_args[1:])
 
     max_channels = args.max_channels
     max_dim = args.max_dim
@@ -68,8 +76,8 @@ if __name__ == "__main__":
     n_epochs = args.n_epochs
     learning_rate = args.learning_rate
     batch_size = args.batch_size
-    dataset_name = parser.dataset
-    out_dir = parser.out_dir
+    dataset_name = args.dataset
+    out_dir = args.out_dir
 
     data, labels = load_classification(dataset_name)
 
@@ -77,7 +85,7 @@ if __name__ == "__main__":
     tsx_train, y_train_labels = data[:7352], labels[:7352]
     tsx_test, y_test_labels = data[7352:], labels[7352:]
 
-    device = device("cuda" if cuda.is_available() else "cpu")
+    device = "cuda" if cuda.is_available() else "cpu"
     set_default_device(device)
     logger.info(f"Default device set to {device}")
 
@@ -109,15 +117,28 @@ if __name__ == "__main__":
     )
 
     # hyperparameters
-    group_range = [so, go, gl]
-    channel_range = range(2, max_channels)
+    group_range = [
+        # so,
+        go,
+        # gl
+    ]
+    channel_range = range(1, max_channels)
     dim_range = range(3, max_dim)
-    hidden_size_range = range(4, max_hidden_size)
+    hidden_size_range = range(3, max_hidden_size)
     heads_range = range(2, max_heads)
     lstm_is_bidirectional = [True, False]
 
+    index_names = [
+        "group",
+        "nchannels",
+        "dim",
+        "n_heads",
+        "hidden_size",
+        "bidirectional",
+    ]
+
     res = pd.DataFrame(
-        columns=["train_acc", "test_acc"],
+        columns=["train_acc", "test_acc", "n_epochs"],
         index=pd.MultiIndex.from_product(
             [
                 [g.__name__ for g in group_range],
@@ -127,18 +148,19 @@ if __name__ == "__main__":
                 hidden_size_range,
                 lstm_is_bidirectional,
             ],
-            names=[
-                "group",
-                "nchannels",
-                "dim",
-                "n_heads",
-                "hidden_size",
-                "bidirectional",
-            ],
+            names=index_names,
         ),
     )
-
+    if os.path.exists(os.path.join(out_dir, res_file)):
+        res = (
+            pd.read_csv(os.path.join(out_dir, res_file))
+            .dropna()
+            .set_index(index_names)
+            .pipe(lambda x: x.reindex(x.index.union(res.index)))
+        )
     res = res.sample(frac=1)
+
+    res.to_csv("test")
 
     for (
         g_name,
@@ -149,8 +171,12 @@ if __name__ == "__main__":
         bidirectional,
     ) in res.index.to_series():
         group = [g for g in group_range if g.__name__ == g_name][0]
+        i = (group.__name__, nchannels, dim, n_heads, hidden_size, bidirectional)
         if not hidden_size % n_heads == 0:
             # invalid parameters
+            continue
+        elif type(res.loc[i, "test_acc"]) is float:
+            # already computed
             continue
 
         logger.info(
@@ -165,7 +191,10 @@ if __name__ == "__main__":
 
         multidev_config = AttentionDevelopmentConfig(
             n_heads=n_heads,
-            groups=[GroupConfig(group=group, dim=dim, channels=nchannels) for _ in range(n_heads)],
+            groups=[
+                GroupConfig(group=group, dim=dim, channels=nchannels)
+                for _ in range(n_heads)
+            ],
         )
 
         model = PDevBaggingBiLSTM(
@@ -187,9 +216,10 @@ if __name__ == "__main__":
 
         logger.info(f"Train accuracy: {train_acc} | Test accuracy: {test_acc}")
 
-        res.loc[(group.__name__, nchannels, dim, n_heads, hidden_size, bidirectional), :] = [
-            train_acc,
-            test_acc,
-        ]
+        res.loc[i, :] = [train_acc, test_acc, n_epochs]
 
-        res.to_csv(os.path.join(out_dir, "grid_search_results.csv"))
+        res.to_csv(os.path.join(out_dir, res_file))
+
+
+if __name__ == "__main__":
+    main()
