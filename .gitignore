@@ -8,5 +8,6 @@ pdevnet/data
 
 *.ipynb
 *.csv
-
+*.lock
+*.whl
 

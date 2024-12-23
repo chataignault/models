@@ -4,7 +4,7 @@ repos:
   hooks:
   - id: ruff
   - id: ruff-format
-    args: [ --line-length=100 ]
+    args: [ --line-length=88 ]
 default_language_version:
   python: python3.12
 
