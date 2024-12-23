@@ -40,7 +40,12 @@ def train_model(fm, nepochs, learning_rate, train_loader, test_loader):
         lr = scheduler.get_last_lr()[0]
         lrx.append(lr)
         gradientx.append(
-            np.mean([torch.linalg.norm(p.grad).detach().cpu().numpy() for p in fm.parameters()])
+            np.mean(
+                [
+                    torch.linalg.norm(p.grad).detach().cpu().numpy()
+                    for p in fm.parameters()
+                ]
+            )
         )
         scheduler.step()
         print(
@@ -52,7 +57,10 @@ def train_model(fm, nepochs, learning_rate, train_loader, test_loader):
         new_params = list(fm.parameters())
         param_changes.append(
             [
-                (torch.linalg.norm(p - pn) / torch.linalg.norm(p)).detach().cpu().numpy()
+                (torch.linalg.norm(p - pn) / torch.linalg.norm(p))
+                .detach()
+                .cpu()
+                .numpy()
                 for (p, pn) in zip(params, new_params)
             ]
         )
@@ -71,11 +79,15 @@ def train_model(fm, nepochs, learning_rate, train_loader, test_loader):
 
 def plot_average_development(fm, n_samples, tsx_train, y_train_labels):
     for label_class in range(6):
-        tsx_train_class = tsx_train[y_train_labels.astype(float).astype(int) == label_class]
+        tsx_train_class = tsx_train[
+            y_train_labels.astype(float).astype(int) == label_class
+        ]
         sx = fm.forward_partial(tsx_train_class[:n_samples])
         k = len(sx)
         for i in range(k):
-            fig, axs = plt.subplots(ncols=4, nrows=2, figsize=(10, 4), sharex=True, sharey=True)
+            fig, axs = plt.subplots(
+                ncols=4, nrows=2, figsize=(10, 4), sharex=True, sharey=True
+            )
 
             axs[i, 0].imshow(torch.mean(sx[i], axis=0).cpu().detach().numpy()[0, :, :])
             axs[i, 0].set_title(

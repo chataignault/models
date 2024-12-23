@@ -70,7 +70,9 @@ class PDevBaggingClaffifierL1(nn.Module):
         return sx
 
     def lie_algebra_coefficients(self) -> List[Tensor]:
-        return [development.projection.A for development in self.atdev.development_layers]
+        return [
+            development.projection.A for development in self.atdev.development_layers
+        ]
 
     def forward(self, x: Tensor):
         sx = self.atdev(x)
@@ -93,7 +95,9 @@ class PDevBaggingBiLSTM(nn.Module):
         bidirectional: bool = False,
     ):
         super().__init__()
-        self.lstm = nn.LSTM(input_dim, hidden_dim, batch_first=True, bidirectional=bidirectional)
+        self.lstm = nn.LSTM(
+            input_dim, hidden_dim, batch_first=True, bidirectional=bidirectional
+        )
         self.atdev = MultiheadAttentionDevelopment(
             dropout=dropout,
             input_dim=(1 + int(bidirectional)) * hidden_dim,
@@ -110,7 +114,9 @@ class PDevBaggingBiLSTM(nn.Module):
         return sx
 
     def lie_algebra_coefficients(self) -> List[Tensor]:
-        return [development.projection.A for development in self.atdev.development_layers]
+        return [
+            development.projection.A for development in self.atdev.development_layers
+        ]
 
     def forward(self, x: Tensor):
         x, _ = self.lstm(x)

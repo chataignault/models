@@ -64,7 +64,9 @@ class AttentionDevelopment(nn.Module):
         # We don't need to explicitly create Q, K, V as MultiheadAttention does this internally
         attn_output, _ = self.attention(query=x, key=x, value=x)
 
-        attn_output = attn_output.transpose(0, 1)  # Change back to (batch, seq_len, embed_dim)
+        attn_output = attn_output.transpose(
+            0, 1
+        )  # Change back to (batch, seq_len, embed_dim)
 
         # Apply development layer
         x = self.development(attn_output)
@@ -119,7 +121,9 @@ class MultiheadAttentionDevelopment(nn.Module):
         xs = []
         for i in range(len(self.development_layers)):
             xs.append(
-                self.development_layers[i](x[..., i * self.head_dim : (i + 1) * self.head_dim])
+                self.development_layers[i](
+                    x[..., i * self.head_dim : (i + 1) * self.head_dim]
+                )
             )
         return xs
 
