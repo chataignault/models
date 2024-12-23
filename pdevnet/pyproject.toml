@@ -22,4 +22,9 @@ name = "pytorch"
 url = "https://download.pytorch.org/whl/cu118"
 explicit = true
 
+[dependency-groups]
+dev = [
+    "ruff>=0.8.4",
+]
+
 
