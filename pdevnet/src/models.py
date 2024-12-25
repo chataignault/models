@@ -84,6 +84,8 @@ class PDevBaggingClaffifierL1(nn.Module):
         return y
 
 
+from torch import clone
+
 class PDevBaggingBiLSTM(nn.Module):
     def __init__(
         self,
@@ -106,7 +108,7 @@ class PDevBaggingBiLSTM(nn.Module):
         )
         head_sizes = [g.channels * g.dim**2 for g in multidev_config.groups]
         inter_dim = sum(head_sizes)
-        self.lin1 = nn.Linear(inter_dim, out_dim)
+        self.lin1 = nn.Linear(inter_dim + input_dim, out_dim)
 
     def forward_partial(self, x: Tensor):
         x, _ = self.lstm(x)
@@ -119,9 +121,12 @@ class PDevBaggingBiLSTM(nn.Module):
         ]
 
     def forward(self, x: Tensor):
+        start = clone(x[:, 0, :])
         x, _ = self.lstm(x)
         sx = self.atdev(x)
         sx_flat = [s.view(len(s), -1) for s in sx]
         sc = cat(sx_flat, axis=-1)
-        y = self.lin1(sc)
+        # print(sc.shape, start.shape)
+        sc_start = cat([sc, start], axis=-1)
+        y = self.lin1(sc_start)
         return y

@@ -3,6 +3,7 @@ import torch.optim as optim
 import numpy as np
 from tqdm import tqdm
 from matplotlib import pyplot as plt
+from torch.nn import CrossEntropyLoss
 
 
 def train_model(
@@ -17,62 +18,76 @@ def train_model(
     fm.train()
     optimizer = optim.Adam(fm.parameters(), lr=learning_rate)
 
-    lin_scheduler = optim.lr_scheduler.LinearLR(
-        optimizer=optimizer,
-        start_factor=1 / 10,
-        end_factor=1.0,
-        total_iters=5,
-    )
-    cos_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
-        optimizer=optimizer,
-        T_0=10,
-        eta_min=2e-5,
-    )
-    exp_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.95)
-    scheduler = optim.lr_scheduler.SequentialLR(
-        optimizer=optimizer,
-        schedulers=[lin_scheduler, cos_scheduler, exp_scheduler],
-        milestones=[5, 25],
-    )
+    # lin_scheduler = optim.lr_scheduler.LinearLR(
+    #     optimizer=optimizer,
+    #     start_factor=1 / 10,
+    #     end_factor=1.0,
+    #     total_iters=5,
+    # )
+    # cos_scheduler = optim.lr_scheduler.CosineAnnealingWarmRestarts(
+    #     optimizer=optimizer,
+    #     T_0=10,
+    #     eta_min=2e-5,
+    # )
+    # exp_scheduler = optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.95)
+    # scheduler = optim.lr_scheduler.SequentialLR(
+    #     optimizer=optimizer,
+    #     schedulers=[lin_scheduler, cos_scheduler, exp_scheduler],
+    #     milestones=[5, 25],
+    # )
+    lr = learning_rate
 
     lossx, lossx_test, gradientx, lrx, param_changes = [], [], [], [], []
+    loss_function = CrossEntropyLoss()
     for epoch in tqdm(range(nepochs)):
         params = [torch.clone(p) for p in fm.parameters()]
         for x, y in train_loader:
             optimizer.zero_grad()
             y_hat = fm(x)
-            loss = torch.sum((y - y_hat) ** 2) / len(y)
+            # loss = torch.sum((y - y_hat) ** 2) / len(y)
+            loss = loss_function(y_hat, torch.softmax(y, axis=1))
             if (alpha1 > 0.0) or (alpha2 > 0.0):
-                sx = fm.forward_partial(x)
-                n_lie_params = sum([np.prod(l.size()) for l in sx])
+                # sx = fm.forward_partial(x)
+                # n_lie_params = sum([np.prod(l.size()) for l in sx])
                 if alpha1 > 0.0:
+                    dg = fm.atdev.development_layers.parameters()
+
+                    # loss += (
+                    #     alpha1
+                    #     * sum(
+                    #         [
+                    #             torch.linalg.norm(
+                    #                 torch.linalg.norm(l, ord=1, dim=(2, 3)),
+                    #                 ord=1,
+                    #                 dim=(0, 1),
+                    #             )
+                    #             for l in sx
+                    #         ]
+                    #     )
+                    #     / n_lie_params
+                    #     / len(y)
+                    # )
                     loss += (
-                        alpha1
-                        * sum(
-                            [
-                                torch.linalg.norm(
-                                    torch.linalg.norm(l, ord=1, dim=(2, 3)),
-                                    ord=1,
-                                    dim=(0, 1),
-                                )
-                                for l in sx
-                            ]
+                        alpha1 * 
+                        sum(
+                            torch.sum(
+                                torch.abs(d)
+                            ) / np.prod(list(d.shape))
+                            for d in dg
                         )
-                        / n_lie_params
-                        / len(y)
                     )
-                if alpha2 > 0.0:
-                    loss += (
-                        alpha2
-                        * sum([torch.linalg.norm(s) for s in sx])
-                        / n_lie_params
-                        / len(y)
-                    )
+                # if alpha2 > 0.0:
+                #     loss += (
+                #         alpha2
+                #         * sum([torch.linalg.norm(s) for s in sx])
+                #         / n_lie_params
+                #         / len(y)
+                #     )
 
             loss.backward()
             lossx.append(loss.item())
             optimizer.step()
-        lr = scheduler.get_last_lr()[0]
+        # lr = scheduler.get_last_lr()[0]
         lrx.append(lr)
         gradientx.append(
             np.mean(
@@ -82,7 +97,7 @@ def train_model(
                 ]
             )
         )
-        scheduler.step()
+        # scheduler.step()
         print(
             f"Epoch : {epoch:<2} | "
             f"Loss {np.round(lossx[-1], decimals=2):<5} | "
@@ -105,7 +120,8 @@ def train_model(
         fm.eval()
         for x, y in test_loader:
             y_hat = fm(x)
-            loss = torch.sum((y - y_hat) ** 2) / len(y)
+            # loss = torch.sum((y - y_hat) ** 2) / len(y)
+            loss = loss_function(y_hat, torch.softmax(y, axis=1))
             lossx_test.append(loss.item())
         fm.train()
 
@@ -119,13 +135,12 @@ def plot_average_development(fm, n_samples, tsx_train, y_train_labels):
         ]
         sx = fm.forward_partial(tsx_train_class[:n_samples])
         k = len(sx)
+        fig, axs = plt.subplots(
+            ncols=k, nrows=2, figsize=(10, 4), sharex=True, sharey=True
+        )
         for i in range(k):
-            fig, axs = plt.subplots(
-                ncols=4, nrows=2, figsize=(10, 4), sharex=True, sharey=True
-            )
-
-            axs[i, 0].imshow(torch.mean(sx[i], axis=0).cpu().detach().numpy()[0, :, :])
-            axs[i, 0].set_title(
+            axs[0, i].imshow(torch.mean(sx[i], axis=0).cpu().detach().numpy()[0, :, :])
+            axs[0, i].set_title(
                 f"Norm : {np.round(torch.mean(torch.linalg.norm(sx[i], dim=(1, 2))).item(), decimals=2)}"
             )
             im = axs[1, i].imshow(
