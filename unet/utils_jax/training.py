@@ -40,25 +40,31 @@ class TrainState(train_state.TrainState):
 
 def create_train_state(rng, model, learning_rate_fn, train: bool):
     rng, rng_tab = random.split(rng)
-    print(
-        model.tabulate(
-            rng_tab,
-            jnp.ones((1, 28, 28, 1)),
-            jnp.ones([1]),
-            train,
-            compute_flops=True,
-            compute_vjp_flops=True,
-        )
-    )
+    # print( # TODO
+    #     model.tabulate(
+    #         rng_tab,
+    #         jnp.ones((1, 28, 28, 1)),
+    #         jnp.ones([1]),
+    #         train,
+    #         compute_flops=True,
+    #         compute_vjp_flops=True,
+    #     )
+    # )
     rng, rng_init = random.split(rng)
-    variables = model.init(rng_init, jnp.ones([1, 28, 28, 1]), jnp.ones([1]), train=train)
+    variables = model.init(
+        rng_init, jnp.ones([1, 28, 28, 1]), jnp.ones([1]), train=train
+    )
     params = variables["params"]
     batch_stats = variables["batch_stats"]
     tx = optax.adam(learning_rate_fn)
-    return TrainState.create(apply_fn=model.apply, params=params, tx=tx, batch_stats=batch_stats)
+    return TrainState.create(
+        apply_fn=model.apply, params=params, tx=tx, batch_stats=batch_stats
+    )
 
 
-def linear_beta_schedule(timesteps: int, start: float = 0.0001, end: float = 0.02) -> jnp.ndarray:
+def linear_beta_schedule(
+    timesteps: int, start: float = 0.0001, end: float = 0.02
+) -> jnp.ndarray:
     """
     output a vector of size timesteps that is equally spaced between start and end; this will be the noise that is added in each time step.
     """
@@ -81,7 +87,9 @@ def train_step(state, batch, diff_params, rng, learning_rate_function):
             batch, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
         )
         eps = (
-            x_t - get_index_from_list(sqrt_alphas_cumprod, t, batch.shape) * jnp.array(batch)
+            x_t
+            - get_index_from_list(sqrt_alphas_cumprod, t, batch.shape)
+            * jnp.array(batch)
         ) / get_index_from_list(sqrt_one_minus_alphas_cumprod, t, batch.shape)
         predicted_eps, updates = state.apply_fn(
             {"params": params, "batch_stats": state.batch_stats},

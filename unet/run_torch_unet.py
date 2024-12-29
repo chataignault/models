@@ -1,5 +1,5 @@
 # example run
-# * python run_torch_unet.py --nepochs=2
+# * python run_torch_unet.py --nepochs=50 --device cuda
 
 import os
 import datetime as dt
@@ -99,7 +99,12 @@ if __name__ == "__main__":
             optimiser.zero_grad()
             lr_history.append(optimiser.param_groups[0]["lr"])
             loss = get_loss(
-                unet, x, timestep, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, device
+                unet,
+                x,
+                timestep,
+                sqrt_alphas_cumprod,
+                sqrt_one_minus_alphas_cumprod,
+                device,
             )
             loss_history.append(float(loss.detach().cpu().numpy()))
             loss.backward()
