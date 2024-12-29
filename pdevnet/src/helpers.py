@@ -49,9 +49,8 @@ def train_model(
             if (alpha1 > 0.0) or (alpha2 > 0.0):
                 # sx = fm.forward_partial(x)
                 # n_lie_params = sum([np.prod(l.size()) for l in sx])
+                dg = fm.atdev.development_layers.parameters()
                 if alpha1 > 0.0:
-                    dg = fm.atdev.development_layers.parameters()
-
                     # loss += (
                     #     alpha1
                     #     * sum(
@@ -67,22 +66,20 @@ def train_model(
                     #     / n_lie_params
                     #     / len(y)
                     # )
-                    loss += (
-                        alpha1 * 
-                        sum(
-                            torch.sum(
-                                torch.abs(d)
-                            ) / np.prod(list(d.shape))
-                            for d in dg
-                        )
+                    loss += alpha1 * sum(
+                        torch.sum(torch.abs(d)) / np.prod(list(d.shape)) for d in dg
                     )
-                # if alpha2 > 0.0:
-                #     loss += (
-                #         alpha2
-                #         * sum([torch.linalg.norm(s) for s in sx])
-                #         / n_lie_params
-                #         / len(y)
-                #     )
+                if alpha2 > 0.0:
+                    loss += alpha2 * sum(
+                        torch.sum(torch.linalg.norm(d)) / np.prod(list(d.shape))
+                        for d in dg
+                    )
+                    # loss += (
+                    #     alpha2
+                    #     * sum([torch.linalg.norm(s) for s in sx])
+                    #     / n_lie_params
+                    #     / len(y)
+                    # )
 
             loss.backward()
             lossx.append(loss.item())

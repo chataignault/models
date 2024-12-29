@@ -81,6 +81,7 @@ class MultiheadAttentionDevelopment(nn.Module):
         input_dim: int,
         hidden_dim: int,
         multidev_config: AttentionDevelopmentConfig,
+        bnorm: bool = True,
     ):
         super(MultiheadAttentionDevelopment, self).__init__()
 
@@ -108,6 +109,8 @@ class MultiheadAttentionDevelopment(nn.Module):
                 for grp_config in multidev_config.groups
             ]
         )
+        if bnorm:
+            self.bnorm = nn.BatchNorm2d()
 
     def forward(self, x: Tensor) -> List[Tensor]:
         q = self.q(x)
