@@ -31,7 +31,7 @@ if __name__ == "__main__":
     log_file = os.path.join(log_dir, script_name + ".log")
     date_format = "%Y-%m-%d %H:%M:%S"
     log_format = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-    logger_name = "run_jax_unet"
+    logger_name = "run_torch_unet"
 
     logger = get_logger(logger_name, log_format, date_format, log_file)
 

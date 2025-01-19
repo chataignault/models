@@ -12,7 +12,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
     def forward(self, time: Tensor) -> Tensor:
         """
-        Output shape is len(time)
+        Output shape len(time), self.dim
         """
         n = len(time)
         position = torch.arange(n).unsqueeze(1)
@@ -45,7 +45,11 @@ class Block(nn.Module):
         """
         super().__init__()
 
-        self.time_mlp = nn.Linear(time_emb_dim, time_emb_dim)
+        self.time_mlp = nn.Linear(
+            time_emb_dim,
+            1,
+            # time_emb_dim
+        )
 
         if up:
             self.conv1 = nn.Conv2d(2 * in_ch, out_ch, 3, padding=1)
@@ -74,9 +78,10 @@ class Block(nn.Module):
         t = self.time_mlp(t)
         x = self.conv1(x)
         x = self.relu(x)
-        x = x + t.unsqueeze(1).unsqueeze(1).repeat(
-            (1, x.size(1), x.size(-1), x.size(-2) // t.shape[1])
-        )
+        x = x + t.unsqueeze(1).unsqueeze(1)
+        # .repeat(
+        #     (1, x.size(1), x.size(-1), x.size(-2) // t.shape[1])
+        # )
         x = self.bnorm1(x)
         x = self.dropout(x)
         x = self.conv2(x)
@@ -110,8 +115,8 @@ class SimpleUnet(nn.Module):
 
         self.pos_emb = nn.Sequential(
             SinusoidalPositionEmbeddings(dim=time_emb_dim),
-            nn.Linear(time_emb_dim, time_emb_dim),
-            nn.ReLU(),
+            # nn.Linear(time_emb_dim, time_emb_dim),
+            # nn.ReLU(),
         )
 
         self.init_conv = nn.Conv2d(
