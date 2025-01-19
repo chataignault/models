@@ -84,7 +84,7 @@ if __name__ == "__main__":
     lr_history = []
 
     optimiser = Adam(unet.parameters(), lr=lr)
-    scheduler = CosineAnnealingWarmRestarts(optimiser, T_0=10, eta_min=5e-6)
+    # scheduler = CosineAnnealingWarmRestarts(optimiser, T_0=10, eta_min=5e-6)
 
     n_steps_refresh_progress_bar = 5
 
@@ -120,9 +120,9 @@ if __name__ == "__main__":
                 )
                 pbar_batch.set_description(description)
         logger.info(description)
-        scheduler.step()
+        # scheduler.step()
 
-    datetime_str = dt.date.today().strftime("%Y%m%d-%H%M")
+    datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
     _, ax = plt.subplots()
     ax.plot(range(len(loss_history)), loss_history)
@@ -138,6 +138,8 @@ if __name__ == "__main__":
     logger.info("Generate sample")
     unet.eval()
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
+    n_samp = 9
+    # for i in range(n_samp)
     samp = sample(
         unet,
         (1, 1, 28, 28),
@@ -147,20 +149,21 @@ if __name__ == "__main__":
         T,
     )
 
-    i = 0
-    for im in samp[:: (T // 4)]:
-        plt.imsave(
-            os.path.join(out_dir, sample_base_name + str(i) + ".png"),
-            im.reshape(28, 28),
-            cmap="gray",
-        )
-        i += 1
+    # i = 0
+    # for im in samp[:: (T // 4)]:
+    #     plt.imsave(
+    #         os.path.join(out_dir, sample_base_name + str(i) + ".png"),
+    #         im.reshape(28, 28),
+    #         cmap="gray",
+    #     )
+    #     i += 1
+
     plt.imsave(
         os.path.join(out_dir, sample_base_name + "final.png"),
         samp[-1].reshape(28, 28),
         cmap="gray",
     )
 
-    name = f"unet_{dt.date.today().strftime("%Y%m%d")}.pt"
+    name = f"unet_{dt.date.today().strftime("%Y%m%d-%H")}.pt"
     location = os.path.join(models_dir, name)
     torch.save(unet.state_dict(), location)

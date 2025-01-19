@@ -10,23 +10,22 @@ class SinusoidalPositionEmbeddings(nn.Module):
         super().__init__()
         self.dim = dim
 
-    def forward(self, time: Tensor) -> Tensor:
+    def forward(self, time: Tensor, dim: int = None) -> Tensor:
         """
         Output shape len(time), self.dim
         """
         n = len(time)
         position = torch.arange(n).unsqueeze(1)
+        dim = dim or self.dim
         div_term_even = torch.exp(
-            torch.log(position)
-            + torch.arange(0, self.dim, 2) * (-np.log(10000.0) / self.dim)
+            torch.log(position) + torch.arange(0, dim, 2) * (-np.log(10000.0) / dim)
         )
         div_term_odd = torch.exp(
-            torch.log(position)
-            + torch.arange(1, self.dim, 2) * (-np.log(10000.0) / self.dim)
+            torch.log(position) + torch.arange(1, dim, 2) * (-np.log(10000.0) / dim)
         )
-        pe = torch.zeros(n, self.dim)
+        pe = torch.zeros(n, dim)
         pe[:, 0::2] = torch.sin(div_term_even)
-        if self.dim > 1:
+        if dim > 1:
             pe[:, 1::2] = torch.cos(div_term_odd)
         return pe
 
@@ -45,11 +44,11 @@ class Block(nn.Module):
         """
         super().__init__()
 
-        self.time_mlp = nn.Linear(
-            time_emb_dim,
-            1,
-            # time_emb_dim
-        )
+        # self.time_mlp = nn.Linear(
+        #     time_emb_dim,
+        #     1,
+        #     # time_emb_dim
+        # )
 
         if up:
             self.conv1 = nn.Conv2d(2 * in_ch, out_ch, 3, padding=1)
@@ -75,10 +74,12 @@ class Block(nn.Module):
         The time embedding should get added the output from the input convolution
         A second convolution should be applied and finally passed through the self.transform.
         """
-        t = self.time_mlp(t)
+        # t = self.time_mlp(t)
+        # print(x.shape)
+        # print(t.shape)
+        x = x + t  # unsqueeze(1).unsqueeze(1)
         x = self.conv1(x)
         x = self.relu(x)
-        x = x + t.unsqueeze(1).unsqueeze(1)
         # .repeat(
         #     (1, x.size(1), x.size(-1), x.size(-2) // t.shape[1])
         # )
@@ -113,8 +114,9 @@ class SimpleUnet(nn.Module):
         out_dim = 1
         time_emb_dim = 7
 
-        self.pos_emb = nn.Sequential(
-            SinusoidalPositionEmbeddings(dim=time_emb_dim),
+        # self.pos_emb = nn.Sequential(
+        self.pos_emb = (
+            SinusoidalPositionEmbeddings(dim=time_emb_dim)
             # nn.Linear(time_emb_dim, time_emb_dim),
             # nn.ReLU(),
         )
@@ -132,7 +134,7 @@ class SimpleUnet(nn.Module):
                     down_channels[i],
                     down_channels[i + 1],
                     time_emb_dim,
-                    attention=(i == 1),
+                    # attention=(i == 1),
                 )
                 for i in range(len(down_channels) - 1)
             ]
@@ -150,7 +152,7 @@ class SimpleUnet(nn.Module):
                     up_channels[i + 1],
                     time_emb_dim,
                     up=True,
-                    attention=(i == 0),
+                    # attention=(i == 0),
                 )
                 for i in range(len(up_channels) - 1)
             ]
@@ -161,17 +163,23 @@ class SimpleUnet(nn.Module):
         )
 
     def forward(self, x: Tensor, t: Tensor):
-        t = self.pos_emb(t)
-        x = x + t.unsqueeze(1).unsqueeze(1).repeat(
-            (1, x.size(1), x.size(-1), x.size(-2) // t.shape[1])
-        )
+        # print(x.shape)
+        t_ = self.pos_emb(t, dim=x.size(-1) * x.size(-2))
+        # print(t_.shape)
+        # print((t_.unsqueeze(1).reshape((x.size(0), 1, x.size(2), x.size(3)))).shape)
+        x = x + t_.unsqueeze(1).reshape((x.size(0), 1, x.size(2), x.size(3)))
+        # t.unsqueeze(1).unsqueeze(1).repeat(
+        #     (1, x.size(1), x.size(-1), x.size(-2) // t.shape[1])
+        # )
 
         x = self.init_conv(x)
         x = self.relu(x)
 
         x_down_ = []
         for block in self.downsampling.children():
-            x = block(x, t)
+            t_ = self.pos_emb(t, dim=(x.size(-1) * x.size(-2)))
+            t_ = t_.unsqueeze(1).reshape((x.size(0), 1, x.size(-1), x.size(-2)))
+            x = block(x, t_)
             x_down_.append(x)
 
         x = self.conv_int1(x)
@@ -186,8 +194,11 @@ class SimpleUnet(nn.Module):
             # crop residual to match x dimensions
             residual = CenterCrop(x.size(2))(residual)
             x_extended = torch.cat((x, residual), dim=1)
-
-            x = block(x_extended, t)
+            t_ = self.pos_emb(t, dim=(x_extended.size(-1) * x_extended.size(-2)))
+            t_ = t_.unsqueeze(1).reshape(
+                (x_extended.size(0), 1, x_extended.size(-1), x_extended.size(-2))
+            )
+            x = block(x_extended, t_)
 
         x = self.out_conv(x)
 

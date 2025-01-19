@@ -1,4 +1,6 @@
 from datasets import load_dataset
+
+# from torchtune import ConcatDataset
 from torchvision.transforms import (
     Compose,
     ToTensor,
@@ -39,7 +41,9 @@ def get_dataloader(batch_size: int, device: str, channels_last: bool = True):
     transformed_dataset = dataset.with_transform(transforms_dev).remove_columns("label")
 
     dataloader = DataLoader(
-        transformed_dataset["train"],
+        torch.utils.data.ConcatDataset(
+            [transformed_dataset["train"], transformed_dataset["test"]]
+        ),
         batch_size=batch_size,
         shuffle=True,
         drop_last=True,
