@@ -139,29 +139,26 @@ if __name__ == "__main__":
     unet.eval()
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
     n_samp = 9
-    # for i in range(n_samp)
-    samp = sample(
-        unet,
-        (1, 1, 28, 28),
-        posterior_variance,
-        sqrt_one_minus_alphas_cumprod,
-        sqrt_recip_alphas,
-        T,
-    )
 
-    # i = 0
-    # for im in samp[:: (T // 4)]:
-    #     plt.imsave(
-    #         os.path.join(out_dir, sample_base_name + str(i) + ".png"),
-    #         im.reshape(28, 28),
-    #         cmap="gray",
-    #     )
-    #     i += 1
+    _, axs = plt.subplots(nrows=n_samp // 3 + ((n_samp % 3) > 0), ncols=3)
 
-    plt.imsave(
-        os.path.join(out_dir, sample_base_name + "final.png"),
-        samp[-1].reshape(28, 28),
-        cmap="gray",
+    for i in range(n_samp):
+        samp = sample(
+            unet,
+            (1, 1, 28, 28),
+            posterior_variance,
+            sqrt_one_minus_alphas_cumprod,
+            sqrt_recip_alphas,
+            T,
+        )
+        r, c = i // 3, i % 3
+        axs[r, c].imshow(samp[-1][0, 0, :, :], cmap="gray")
+
+    plt.axis("off")
+    plt.tight_layout()
+
+    plt.savefig(
+        os.path.join(out_dir, sample_base_name + ".png"),
     )
 
     name = f"unet_{dt.date.today().strftime("%Y%m%d-%H")}.pt"
