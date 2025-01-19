@@ -20,7 +20,8 @@ def transforms_(examples, device: str, channels_last: bool = True):
     )
     if channels_last:
         examples["pixel_values"] = [
-            transform(image.convert("L")).to(device).permute(1, 2, 0) for image in examples["image"]
+            transform(image.convert("L")).to(device).permute(1, 2, 0)
+            for image in examples["image"]
         ]
     else:
         examples["pixel_values"] = [
