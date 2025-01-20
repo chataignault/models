@@ -153,8 +153,8 @@ if __name__ == "__main__":
         )
         r, c = i // 3, i % 3
         axs[r, c].imshow(samp[-1][0, 0, :, :], cmap="gray")
+        axs[r, c].axis("off")
 
-    plt.axis("off")
     plt.tight_layout()
 
     plt.savefig(
