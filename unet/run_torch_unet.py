@@ -119,7 +119,7 @@ if __name__ == "__main__":
                     f'learning rate {optimiser.param_groups[0]["lr"]:.9f}'
                 )
                 pbar_batch.set_description(description)
-        logger.info(description)
+        logger.debug(description)
         # scheduler.step()
 
     datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
