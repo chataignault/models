@@ -2,7 +2,6 @@ import torch
 from torch import Tensor
 from torch import nn
 import numpy as np
-from torchvision.transforms import CenterCrop
 
 
 class SinusoidalPositionEmbeddings(nn.Module):
@@ -31,16 +30,13 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 
 class ResBlock(nn.Module):
-    def __init__(
-        self,
-        in_ch: int,
-    ):
+    def __init__(self, in_ch: int, time_emb_dim: int):
         """
         in_ch refers to the number of channels in the input to the operation and out_ch how many should be in the output
         """
         super().__init__()
 
-        self.lintemb = nn.Linear(16, in_ch)
+        self.lintemb = nn.Linear(time_emb_dim, in_ch)
         self.conv1 = nn.Conv2d(in_ch, in_ch, 3, padding=1, stride=1)
         self.conv2 = nn.Conv2d(in_ch, in_ch, 3, padding=1, stride=1)
         self.bnorm1 = nn.BatchNorm2d(in_ch)
@@ -75,6 +71,7 @@ class Block(nn.Module):
         self,
         in_ch: int,
         out_ch: int,
+        time_emb_dim: int,
         up: bool = False,
     ):
         """
@@ -84,12 +81,14 @@ class Block(nn.Module):
 
         self.up = up
 
-        self.lintemb = nn.Linear(16, in_ch)
+        self.lintemb = nn.Linear(time_emb_dim, in_ch)
 
         if up:
             self.bnorm1 = nn.BatchNorm2d(2 * in_ch)
             self.conv1 = nn.Conv2d(2 * in_ch, in_ch, 3, padding=1, stride=1)
-            self.squish_conv = nn.Conv2d(2*in_ch, in_ch, kernel_size=3, padding=1, stride=1)
+            self.squish_conv = nn.Conv2d(
+                2 * in_ch, in_ch, kernel_size=3, padding=1, stride=1
+            )
             self.transform = nn.ConvTranspose2d(
                 in_ch, out_ch, kernel_size=4, stride=2, padding=1
             )
@@ -166,24 +165,22 @@ class SimpleUnet(nn.Module):
 
         self.downsampling = nn.Sequential(
             *[
-                Block(
-                    down_channels[i],
-                    down_channels[i + 1],
-                )
+                Block(down_channels[i], down_channels[i + 1], time_emb_dim)
                 for i in range(len(down_channels) - 1)
             ]
         )
 
-        self.resint1 = ResBlock(down_channels[-1])
+        self.resint1 = ResBlock(down_channels[-1], time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.relu = nn.ReLU()
-        self.resint2 = ResBlock(down_channels[-1])
+        self.resint2 = ResBlock(down_channels[-1], time_emb_dim)
 
         self.upsampling = nn.Sequential(
             *[
                 Block(
                     up_channels[i],
                     up_channels[i + 1],
+                    time_emb_dim,
                     up=True,
                 )
                 for i in range(len(up_channels) - 1)
