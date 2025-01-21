@@ -19,6 +19,7 @@ def get_logger(logger_name, log_format, date_format, log_file):
     file_handler.setFormatter(formatter)
 
     stream_handler = logging.StreamHandler(sys.stdout)
+    stream_handler.setLevel(logging.INFO)
     stream_handler.setFormatter(formatter)
 
     logger.addHandler(file_handler)
