@@ -34,18 +34,17 @@ class ResBlock(nn.Module):
     def __init__(
         self,
         in_ch: int,
-        out_ch: int,
     ):
         """
         in_ch refers to the number of channels in the input to the operation and out_ch how many should be in the output
         """
         super().__init__()
 
-        self.lintemb = nn.Linear(in_ch, out_ch)
-        self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1, stride=1)
-        self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1, stride=1)
+        self.lintemb = nn.Linear(16, in_ch)
+        self.conv1 = nn.Conv2d(in_ch, in_ch, 3, padding=1, stride=1)
+        self.conv2 = nn.Conv2d(in_ch, in_ch, 3, padding=1, stride=1)
         self.bnorm1 = nn.BatchNorm2d(in_ch)
-        self.bnorm2 = nn.BatchNorm2d(out_ch)
+        self.bnorm2 = nn.BatchNorm2d(in_ch)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.05)
 
@@ -61,14 +60,13 @@ class ResBlock(nn.Module):
         x = self.bnorm1(x)
         x = self.relu(x)
         x = self.conv1(x)
-        t = self.lintemb(self.relu(t))
+        t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t
         x = self.bnorm2(x)
         x = self.dropout(x)
         x = self.conv2(x)
         x = self.relu(x)
         x = x + h
-
         return x
 
 
@@ -84,21 +82,22 @@ class Block(nn.Module):
         """
         super().__init__()
 
-        self.lintemb = nn.Linear(in_ch, out_ch)
+        self.lintemb = nn.Linear(16, in_ch)
 
         if up:
-            self.conv1 = nn.Conv2d(2 * in_ch, out_ch, 3, padding=1)
+            self.bnorm1 = nn.BatchNorm2d(2 * in_ch)
+            self.conv1 = nn.Conv2d(2 * in_ch, in_ch, 3, padding=1, stride=1)
             self.transform = nn.ConvTranspose2d(
-                out_ch, out_ch, kernel_size=4, stride=2, padding=1
+                in_ch, out_ch, kernel_size=4, stride=2, padding=1
             )
 
         else:
-            self.conv1 = nn.Conv2d(in_ch, out_ch, 3, padding=1, stride=1)
-            self.transform = nn.Conv2d(out_ch, out_ch, 4, 2, 1)
+            self.bnorm1 = nn.BatchNorm2d(in_ch)
+            self.conv1 = nn.Conv2d(in_ch, in_ch, 3, padding=1, stride=1)
+            self.transform = nn.Conv2d(in_ch, out_ch, 4, 2, 1)
 
-        self.conv2 = nn.Conv2d(out_ch, out_ch, 3, padding=1, stride=1)
-        self.bnorm1 = nn.BatchNorm2d(in_ch)
-        self.bnorm2 = nn.BatchNorm2d(out_ch)
+        self.conv2 = nn.Conv2d(in_ch, in_ch, 3, padding=1, stride=1)
+        self.bnorm2 = nn.BatchNorm2d(in_ch)
         self.relu = nn.ReLU()
         self.dropout = nn.Dropout(0.05)
 
@@ -110,16 +109,17 @@ class Block(nn.Module):
         The time embedding should get added the output from the input convolution
         A second convolution should be applied and finally passed through the self.transform.
         """
-        h = x
         x = self.bnorm1(x)
         x = self.relu(x)
         x = self.conv1(x)
-        t = self.lintemb(self.relu(t))
+        h = x
+        t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t
         x = self.bnorm2(x)
         x = self.dropout(x)
         x = self.conv2(x)
         x = self.relu(x)
+
         x = x + h
 
         return self.transform(x), x
@@ -131,9 +131,9 @@ class SimpleUnet(nn.Module):
     """
 
     def __init__(
-            self,
-            time_emb_dim:int=4,
-            ):
+        self,
+        time_emb_dim: int = 4,
+    ):
         super().__init__()
         image_channels = 1
         down_channels = [
@@ -142,14 +142,14 @@ class SimpleUnet(nn.Module):
             128,
         ]
         up_channels = down_channels[::-1]
-        
+
         self.time_emb_dim = time_emb_dim
 
         self.pos_emb = nn.Sequential(
             SinusoidalPositionEmbeddings(dim=time_emb_dim),
             nn.Linear(time_emb_dim, 4 * time_emb_dim),
             nn.ReLU(),
-            nn.Linear(4 * time_emb_dim, 4 * time_emb_dim)
+            nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
         )
 
         self.init_conv = nn.Conv2d(
@@ -170,10 +170,10 @@ class SimpleUnet(nn.Module):
             ]
         )
 
-        self.resint1 = ResBlock(down_channels[-1], 64)
-        self.bnorm = nn.BatchNorm2d(64)
+        self.resint1 = ResBlock(down_channels[-1])
+        self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.relu = nn.ReLU()
-        self.resint2 = ResBlock(64, up_channels[0])
+        self.resint2 = ResBlock(down_channels[-1])
 
         self.upsampling = nn.Sequential(
             *[
@@ -192,22 +192,21 @@ class SimpleUnet(nn.Module):
         )
 
     def forward(self, x: Tensor, t: Tensor):
-        t = self.pos_emb(t, dim=self.time_emb_dim)
+        t = self.pos_emb(t)
         x = self.init_conv(x)
         x_down_ = [x]
         for block in self.downsampling.children():
             x, h = block(x, t)
             x_down_.append(h)
-        x = self.resint1(x)
+        x_down_.append(x)
+        x = self.resint1(x, t)
         x = self.bnorm(x)
         x = self.relu(x)
-        x = self.resint2(x)
+        x = self.resint2(x, t)
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
-            # crop residual to match x dimensions
-            # residual = CenterCrop(x.size(2))(residual)
-            x_extended = torch.cat((x, residual), dim=1)
-            x = block(x_extended, t)
+            x_extended = torch.cat([x, residual], dim=1)
+            x, _ = block(x_extended, t)
         x = self.bnorm_out(x)
         x = self.relu(x)
         x = self.out_conv(x)
