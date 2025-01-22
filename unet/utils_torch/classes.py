@@ -123,9 +123,40 @@ class Block(nn.Module):
         x = self.relu(x)
         if self.up:
             h = self.squish_conv(h)
+        x = self.relu(x) # ! check
         x = x + h
 
         return self.transform(x), x
+
+class AttentionBlock(nn.Module):
+    """
+    
+    """
+    def __init__(self, in_ch:int, hidden_dim:int, time_embed_dim:int):
+        super().__init__()
+        self.lintemb = nn.Linear(time_embed_dim, in_ch)
+        self.relu = nn.ReLU()
+        self.bnorm = nn.BatchNorm2d(in_ch)
+        self.k = nn.Linear(in_ch * 49, 49 * hidden_dim)
+        self.q = nn.Linear(in_ch * 49, 49 * hidden_dim)
+        self.v = nn.Linear(in_ch * 49, 49 * in_ch)
+        self.attention = nn.MultiheadAttention(hidden_dim * 49, 1, batch_first=True)
+
+    def forward(self, x, t):
+        t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
+        x = x + t
+        x = self.bnorm(x)
+        x = self.relu(x)
+        N, B, D, _ = x.shape
+        x = x.reshape((N, B * D * D))
+        print(x.shape)
+        query = self.q(x)
+        key = self.k(x)
+        value = self.v(x)
+        x, _ = self.attention(query, key, value)
+        x = x.reshape((N, B, D, D))
+        return x
+
 
 
 class SimpleUnet(nn.Module):
@@ -165,22 +196,23 @@ class SimpleUnet(nn.Module):
 
         self.downsampling = nn.Sequential(
             *[
-                Block(down_channels[i], down_channels[i + 1], time_emb_dim)
+                Block(down_channels[i], down_channels[i + 1], 4 * time_emb_dim)
                 for i in range(len(down_channels) - 1)
             ]
         )
 
-        self.resint1 = ResBlock(down_channels[-1], time_emb_dim)
-        self.bnorm = nn.BatchNorm2d(down_channels[-1])
+        self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        # self.bnorm = nn.BatchNorm2d(down_channels[-1])
+        self.attention_int = AttentionBlock(down_channels[-1], down_channels[-1], 4 * time_emb_dim)
         self.relu = nn.ReLU()
-        self.resint2 = ResBlock(down_channels[-1], time_emb_dim)
+        self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
 
         self.upsampling = nn.Sequential(
             *[
                 Block(
                     up_channels[i],
                     up_channels[i + 1],
-                    time_emb_dim,
+                    4 * time_emb_dim,
                     up=True,
                 )
                 for i in range(len(up_channels) - 1)
@@ -201,8 +233,9 @@ class SimpleUnet(nn.Module):
             x_down_.append(h)
         x_down_.append(x)
         x = self.resint1(x, t)
-        x = self.bnorm(x)
-        x = self.relu(x)
+        x = self.attention_int(x, t)
+        # x = self.bnorm(x)
+        # x = self.relu(x)
         x = self.resint2(x, t)
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
