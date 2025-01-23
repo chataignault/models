@@ -171,8 +171,8 @@ class SimpleUnet(nn.Module):
         super().__init__()
         image_channels = 1
         down_channels = [
-            4,
-            16,
+            8,
+            32,
             128,
         ]
         up_channels = down_channels[::-1]
@@ -241,6 +241,8 @@ class SimpleUnet(nn.Module):
             residual = x_down_[-k]
             x_extended = torch.cat([x, residual], dim=1)
             x, _ = block(x_extended, t)
+        # add the ultimate residual from the initial convolution
+        x = x + x_down_[0]
         x = self.bnorm_out(x)
         x = self.relu(x)
         x = self.out_conv(x)
