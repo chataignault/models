@@ -137,10 +137,10 @@ class AttentionBlock(nn.Module):
         self.lintemb = nn.Linear(time_embed_dim, in_ch)
         self.relu = nn.ReLU()
         self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_ch * 49, 49 * hidden_dim)
-        self.q = nn.Linear(in_ch * 49, 49 * hidden_dim)
-        self.v = nn.Linear(in_ch * 49, 49 * in_ch)
-        self.attention = nn.MultiheadAttention(hidden_dim * 49, 1, batch_first=True)
+        self.k = nn.Linear(49, 49)
+        self.q = nn.Linear(49, 49)
+        self.v = nn.Linear(49, 49)
+        self.attention = nn.MultiheadAttention(49, 7, batch_first=True)
 
     def forward(self, x, t):
         t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
@@ -148,12 +148,12 @@ class AttentionBlock(nn.Module):
         x = self.bnorm(x)
         x = self.relu(x)
         N, B, D, _ = x.shape
-        x = x.reshape((N, B * D * D))
-        print(x.shape)
+        x = x.reshape((N, B, D * D))
         query = self.q(x)
         key = self.k(x)
         value = self.v(x)
         x, _ = self.attention(query, key, value)
+        # x, _ = self.attention(x, x, x)
         x = x.reshape((N, B, D, D))
         return x
 
@@ -202,7 +202,7 @@ class SimpleUnet(nn.Module):
         )
 
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
-        # self.bnorm = nn.BatchNorm2d(down_channels[-1])
+        self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.attention_int = AttentionBlock(down_channels[-1], down_channels[-1], 4 * time_emb_dim)
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
@@ -234,8 +234,8 @@ class SimpleUnet(nn.Module):
         x_down_.append(x)
         x = self.resint1(x, t)
         x = self.attention_int(x, t)
-        # x = self.bnorm(x)
-        # x = self.relu(x)
+        x = self.bnorm(x)
+        x = self.relu(x)
         x = self.resint2(x, t)
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
