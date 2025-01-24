@@ -123,16 +123,16 @@ class Block(nn.Module):
         x = self.relu(x)
         if self.up:
             h = self.squish_conv(h)
-        x = self.relu(x) # ! check
+        x = self.relu(x)  # ! check
         x = x + h
 
         return self.transform(x), x
 
+
 class AttentionBlock(nn.Module):
-    """
-    
-    """
-    def __init__(self, in_ch:int, hidden_dim:int, time_embed_dim:int):
+    """ """
+
+    def __init__(self, in_ch: int, hidden_dim: int, time_embed_dim: int):
         super().__init__()
         self.lintemb = nn.Linear(time_embed_dim, in_ch)
         self.relu = nn.ReLU()
@@ -156,7 +156,6 @@ class AttentionBlock(nn.Module):
         # x, _ = self.attention(x, x, x)
         x = x.reshape((N, B, D, D))
         return x
-
 
 
 class SimpleUnet(nn.Module):
@@ -203,7 +202,9 @@ class SimpleUnet(nn.Module):
 
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
-        self.attention_int = AttentionBlock(down_channels[-1], down_channels[-1], 4 * time_emb_dim)
+        self.attention_int = AttentionBlock(
+            down_channels[-1], down_channels[-1], 4 * time_emb_dim
+        )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
 

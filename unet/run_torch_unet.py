@@ -161,6 +161,6 @@ if __name__ == "__main__":
         os.path.join(out_dir, sample_base_name + ".png"),
     )
 
-    name = f"unet_{dt.date.today().strftime("%Y%m%d-%H")}.pt"
+    name = f"unet_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
     location = os.path.join(models_dir, name)
     torch.save(unet.state_dict(), location)
