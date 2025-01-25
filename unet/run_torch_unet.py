@@ -135,6 +135,10 @@ if __name__ == "__main__":
     ax.set_title("Learning Rate evolution")
     plt.savefig(os.path.join(out_dir, img_base_name + "_lr.png"), bbox_inches="tight")
 
+    name = f"unet_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
+    location = os.path.join(models_dir, name)
+    torch.save(unet.state_dict(), location)
+
     logger.info("Generate sample")
     unet.eval()
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
@@ -161,6 +165,3 @@ if __name__ == "__main__":
         os.path.join(out_dir, sample_base_name + ".png"),
     )
 
-    name = f"unet_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
-    location = os.path.join(models_dir, name)
-    torch.save(unet.state_dict(), location)
