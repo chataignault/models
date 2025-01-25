@@ -14,7 +14,7 @@ import numpy as np
 
 from utils.fashion_mnist_dataloader import get_dataloader
 from utils.logger import get_logger
-from utils_torch.classes import SimpleUnet
+from utils_torch.classes import SimpleUnet, Unet
 from utils_torch.diffusion import sample, linear_beta_schedule
 from utils_torch.training import get_loss
 
@@ -43,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--load_checkpoint", type=str, default="")
+    parser.add_argument("--model_name", type=str, default="Unet")
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -54,6 +55,7 @@ if __name__ == "__main__":
     lr = args.lr
     T = args.timesteps
     load_checkpoint = args.load_checkpoint
+    model_name = args.model_name
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = False
@@ -69,7 +71,13 @@ if __name__ == "__main__":
 
     logger.info(f"Checkpoint directory : {models_dir}")
 
-    unet = SimpleUnet().to(device)
+    match model_name:
+        case "Unet":
+            unet = Unet().to(device)
+        case "SimpleUnet":
+            unet = SimpleUnet().to(device)
+        case _:
+            raise ValueError(f"{model_name} is not implemented")
 
     if load_checkpoint:
         unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
@@ -119,7 +127,7 @@ if __name__ == "__main__":
                     f'learning rate {optimiser.param_groups[0]["lr"]:.9f}'
                 )
                 pbar_batch.set_description(description)
-        logger.info(description)
+        logger.debug(description)
         # scheduler.step()
 
     datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
@@ -135,35 +143,32 @@ if __name__ == "__main__":
     ax.set_title("Learning Rate evolution")
     plt.savefig(os.path.join(out_dir, img_base_name + "_lr.png"), bbox_inches="tight")
 
+    name = f"unet_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
+    location = os.path.join(models_dir, name)
+    torch.save(unet.state_dict(), location)
+
     logger.info("Generate sample")
     unet.eval()
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
     n_samp = 9
-    # for i in range(n_samp)
-    samp = sample(
-        unet,
-        (1, 1, 28, 28),
-        posterior_variance,
-        sqrt_one_minus_alphas_cumprod,
-        sqrt_recip_alphas,
-        T,
+
+    _, axs = plt.subplots(nrows=n_samp // 3 + ((n_samp % 3) > 0), ncols=3)
+
+    for i in range(n_samp):
+        samp = sample(
+            unet,
+            (1, 1, 28, 28),
+            posterior_variance,
+            sqrt_one_minus_alphas_cumprod,
+            sqrt_recip_alphas,
+            T,
+        )
+        r, c = i // 3, i % 3
+        axs[r, c].imshow(samp[-1][0, 0, :, :], cmap="gray")
+        axs[r, c].axis("off")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        os.path.join(out_dir, sample_base_name + ".png"),
     )
-
-    # i = 0
-    # for im in samp[:: (T // 4)]:
-    #     plt.imsave(
-    #         os.path.join(out_dir, sample_base_name + str(i) + ".png"),
-    #         im.reshape(28, 28),
-    #         cmap="gray",
-    #     )
-    #     i += 1
-
-    plt.imsave(
-        os.path.join(out_dir, sample_base_name + "final.png"),
-        samp[-1].reshape(28, 28),
-        cmap="gray",
-    )
-
-    name = f"unet_{dt.date.today().strftime("%Y%m%d-%H")}.pt"
-    location = os.path.join(models_dir, name)
-    torch.save(unet.state_dict(), location)
