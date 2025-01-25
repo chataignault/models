@@ -14,7 +14,7 @@ import numpy as np
 
 from utils.fashion_mnist_dataloader import get_dataloader
 from utils.logger import get_logger
-from utils_torch.classes import SimpleUnet
+from utils_torch.classes import SimpleUnet, Unet
 from utils_torch.diffusion import sample, linear_beta_schedule
 from utils_torch.training import get_loss
 
@@ -43,6 +43,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--load_checkpoint", type=str, default="")
+    parser.add_argument("--model_name", type=str, default="Unet")
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -54,6 +55,7 @@ if __name__ == "__main__":
     lr = args.lr
     T = args.timesteps
     load_checkpoint = args.load_checkpoint
+    model_name = args.model_name
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = False
@@ -69,7 +71,13 @@ if __name__ == "__main__":
 
     logger.info(f"Checkpoint directory : {models_dir}")
 
-    unet = SimpleUnet().to(device)
+    match model_name:
+        case "Unet":
+            unet = Unet().to(device)
+        case "SimpleUnet":
+            unet = SimpleUnet().to(device)
+        case _:
+            raise ValueError(f"{model_name} is not implemented")
 
     if load_checkpoint:
         unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
@@ -164,4 +172,3 @@ if __name__ == "__main__":
     plt.savefig(
         os.path.join(out_dir, sample_base_name + ".png"),
     )
-
