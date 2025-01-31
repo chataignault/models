@@ -144,48 +144,11 @@ class AttentionBlock(nn.Module):
         self.lintemb = nn.Linear(time_embed_dim, in_ch)
         self.relu = nn.ReLU()
         self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_dim, hidden_dim, biais=False)
-        self.q = nn.Linear(in_dim, hidden_dim, biais=False)
-        self.v = nn.Linear(in_dim, hidden_dim, biais=False)
+        self.k = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.q = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.v = nn.Linear(in_ch, hidden_dim, bias=False)
         self.attention = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
         self.proj = nn.Linear(hidden_dim, in_ch)
-
-    def forward(self, x, t):
-        t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
-        x = x + t
-        x = self.bnorm(x)
-        x = self.relu(x)
-        N, B, D, _ = x.shape
-        x = x.reshape((N, B, D * D))
-        query = self.q(x)
-        key = self.k(x)
-        value = self.v(x)
-        x, _ = self.attention(query, key, value)
-        x = self.proj(x)
-        x = x.reshape((N, B, D, D))
-        return x
-
-
-class AttentionBlock2(nn.Module):
-    """ """
-
-    def __init__(
-        self,
-        in_ch: int,
-        in_dim: int,
-        hidden_dim: int,
-        time_embed_dim: int,
-        nheads: int = 4,
-    ):
-        super().__init__()
-        self.lintemb = nn.Linear(time_embed_dim, in_ch)
-        self.relu = nn.ReLU()
-        self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_dim**2, hidden_dim)
-        self.q = nn.Linear(in_dim**2, hidden_dim)
-        self.v = nn.Linear(in_dim**2, hidden_dim)
-        self.attention = nn.MultiheadAttention(hidden_dim, nheads, batch_first=True)
-        self.proj = nn.Linear(hidden_dim, in_dim**2)
 
     def forward(self, x, t):
         t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
@@ -199,8 +162,7 @@ class AttentionBlock2(nn.Module):
         value = self.v(x)
         x, _ = self.attention(query, key, value)
         x = self.proj(x)
-        x = x.transpose(1, 2).view(N, D, D, D)
-        x = x.reshape((N, B, D, D))
+        x = x.transpose(1, 2).reshape((N, B, D, D))
         return x
 
 
@@ -249,7 +211,7 @@ class SimpleUnet(nn.Module):
         # self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.attention_int = AttentionBlock(
-            down_channels[-1], down_channels[-1], 4 * time_emb_dim
+            down_channels[-1], 7, 32, 4, 4 * time_emb_dim
         )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
@@ -432,7 +394,7 @@ class Unet2(nn.Module):
 
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
-        self.attention_int = AttentionBlock2(down_channels[-1], 7, 24, 4 * time_emb_dim)
+        self.attention_int = AttentionBlock(down_channels[-1], 7, 24, 4 * time_emb_dim)
         self.relu = nn.ReLU()
         self.silu = nn.SiLU()
 
