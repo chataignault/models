@@ -211,7 +211,7 @@ class SimpleUnet(nn.Module):
         # self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.attention_int = AttentionBlock(
-            down_channels[-1], 7, 32, 4, 4 * time_emb_dim
+            down_channels[-1], 7, 32, 8, 4 * time_emb_dim
         )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
@@ -303,7 +303,7 @@ class Unet(nn.Module):
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.attention_int = AttentionBlock(
-            down_channels[-1], down_channels[-1], 4 * time_emb_dim
+            down_channels[-1], 7, 32, 4, 4 * time_emb_dim
         )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
@@ -333,11 +333,13 @@ class Unet(nn.Module):
             x, h = block(x, t)
             x_down_.append(h)
         x_down_.append(x)
+        h = x
         x = self.resint1(x, t)
         x = self.attention_int(x, t)
         x = self.bnorm(x)
         x = self.relu(x)
         x = self.resint2(x, t)
+        x = x + h
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
             x_extended = torch.cat([x, residual], dim=1)

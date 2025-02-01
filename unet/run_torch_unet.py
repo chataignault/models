@@ -5,7 +5,12 @@ import os
 import datetime as dt
 import torch
 from torch.optim import Adam
-from torch.optim.lr_scheduler import CosineAnnealingWarmRestarts
+from torch.optim.lr_scheduler import (
+    LinearLR,
+    ConstantLR,
+    ExponentialLR,
+    ChainedScheduler,
+)
 
 from tqdm import tqdm
 from argparse import ArgumentParser
@@ -58,8 +63,8 @@ if __name__ == "__main__":
     model_name = args.model_name
 
     torch.set_default_device(device)
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32 = False
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
     betas = linear_beta_schedule(timesteps=T, device=device)
     sqrt_alphas_cumprod = torch.sqrt(torch.cumprod(1.0 - betas, -1))
@@ -92,7 +97,13 @@ if __name__ == "__main__":
     lr_history = []
 
     optimiser = Adam(unet.parameters(), lr=lr)
-    # scheduler = CosineAnnealingWarmRestarts(optimiser, T_0=10, eta_min=5e-6)
+    scheduler = ChainedScheduler(
+        [
+            LinearLR(optimiser, 0.1, 1.0, 5),
+            ConstantLR(optimiser, 1.0, 10),
+            ExponentialLR(optimiser, 0.98),
+        ]
+    )
 
     n_steps_refresh_progress_bar = 5
 
@@ -119,16 +130,15 @@ if __name__ == "__main__":
 
             optimiser.step()
             if k % n_steps_refresh_progress_bar == 0:
-                new_loss = float(loss.detach().cpu().mean().numpy())
                 description = (
                     f'Epoch {epoch} | Step {k} | '
-                    f'Loss {new_loss / n_steps_refresh_progress_bar:.4f} | '
+                    f'Loss {(sum(loss_history[-n_steps_refresh_progress_bar:]) / n_steps_refresh_progress_bar):.4f} | '
                     f'grad norm {np.array(torch.nn.utils.clip_grad_norm_(unet.parameters(), 1.).cpu()).mean():.2f} | '
                     f'learning rate {optimiser.param_groups[0]["lr"]:.9f}'
                 )
                 pbar_batch.set_description(description)
         logger.debug(description)
-        # scheduler.step()
+        scheduler.step()
 
     datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
@@ -136,12 +146,16 @@ if __name__ == "__main__":
     ax.plot(range(len(loss_history)), loss_history)
     ax.grid()
     ax.set_title("Batch loss evolution")
-    plt.savefig(os.path.join(out_dir, img_base_name + "_loss.png"), bbox_inches="tight")
+    plt.savefig(
+        os.path.join(out_dir, "loss_" + img_base_name + ".png"), bbox_inches="tight"
+    )
     _, ax = plt.subplots()
     ax.plot(range(len(lr_history)), lr_history)
     ax.grid()
     ax.set_title("Learning Rate evolution")
-    plt.savefig(os.path.join(out_dir, img_base_name + "_lr.png"), bbox_inches="tight")
+    plt.savefig(
+        os.path.join(out_dir, "lr_" + img_base_name + ".png"), bbox_inches="tight"
+    )
 
     name = f"unet_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
     location = os.path.join(models_dir, name)
