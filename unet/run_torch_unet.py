@@ -1,6 +1,3 @@
-# example run
-# * python run_torch_unet.py --nepochs=50 --device cuda
-
 import os
 import datetime as dt
 import torch
@@ -88,6 +85,8 @@ if __name__ == "__main__":
 
     if load_checkpoint:
         unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
+
+    print(unet)
 
     unet.train()
 

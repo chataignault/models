@@ -144,13 +144,14 @@ class AttentionBlock(nn.Module):
         self.lintemb = nn.Linear(time_embed_dim, in_ch)
         self.relu = nn.ReLU()
         self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_ch, hidden_dim, bias=False)
-        self.q = nn.Linear(in_ch, hidden_dim, bias=False)
-        self.v = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.k = nn.Linear(in_ch, hidden_dim, bias=True)
+        self.q = nn.Linear(in_ch, hidden_dim, bias=True)
+        self.v = nn.Linear(in_ch, hidden_dim, bias=True)
         self.attention = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
         self.proj = nn.Linear(hidden_dim, in_ch)
 
     def forward(self, x, t):
+        h = x
         t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t
         x = self.bnorm(x)
@@ -163,7 +164,7 @@ class AttentionBlock(nn.Module):
         x, _ = self.attention(query, key, value)
         x = self.proj(x)
         x = x.transpose(1, 2).reshape((N, B, D, D))
-        return x
+        return x + h
 
 
 class SimpleUnet(nn.Module):
@@ -302,9 +303,15 @@ class Unet(nn.Module):
 
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
+        # self.attention_down = AttentionBlock(
+        #     down_channels[-2], 14, 16, 4, 4 * time_emb_dim
+        # )
         self.attention_int = AttentionBlock(
-            down_channels[-1], 7, 32, 4, 4 * time_emb_dim
+            down_channels[-1], 7, 128, 8, 4 * time_emb_dim
         )
+        # self.attention_up = AttentionBlock(
+        #     down_channels[-2], 14, 16, 4, 4 * time_emb_dim
+        # )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
 
@@ -329,9 +336,11 @@ class Unet(nn.Module):
         t = self.pos_emb(t)
         x = self.init_conv(x)
         x_down_ = [x]
-        for block in self.downsampling.children():
+        for i, block in enumerate(self.downsampling.children()):
             x, h = block(x, t)
             x_down_.append(h)
+            # if i == 0:
+            #     x = self.attention_down(x, t)
         x_down_.append(x)
         h = x
         x = self.resint1(x, t)
@@ -344,8 +353,10 @@ class Unet(nn.Module):
             residual = x_down_[-k]
             x_extended = torch.cat([x, residual], dim=1)
             x, _ = block(x_extended, t)
+            # if k == 1:
+            #     x = self.attention_up(x, t)
         # add the ultimate residual from the initial convolution
-        x = x + x_down_[0]
+        # x = x + x_down_[0]
         x = self.bnorm_out(x)
         x = self.relu(x)
         x = self.out_conv(x)
