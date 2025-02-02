@@ -48,6 +48,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--load_checkpoint", type=str, default="")
+    parser.add_argument("--model_tag", type=str, default="")
     parser.add_argument("--model_name", type=str, default="Unet")
 
     args = parser.parse_args()
@@ -61,6 +62,7 @@ if __name__ == "__main__":
     T = args.timesteps
     load_checkpoint = args.load_checkpoint
     model_name = args.model_name
+    model_tag = args.model_tag
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -100,7 +102,7 @@ if __name__ == "__main__":
     scheduler = ChainedScheduler(
         [
             LinearLR(optimiser, 0.1, 1.0, 5),
-            ConstantLR(optimiser, 1.0, 10),
+            ConstantLR(optimiser, 1.0, 10, 15),
             ExponentialLR(optimiser, 0.98),
         ]
     )
@@ -157,7 +159,9 @@ if __name__ == "__main__":
         os.path.join(out_dir, "lr_" + img_base_name + ".png"), bbox_inches="tight"
     )
 
-    name = f"unet_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
+    name = (
+        f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
+    )
     location = os.path.join(models_dir, name)
     torch.save(unet.state_dict(), location)
 
