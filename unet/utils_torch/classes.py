@@ -80,7 +80,6 @@ class Block(nn.Module):
         super().__init__()
 
         self.up = up
-
         self.lintemb = nn.Linear(time_emb_dim, in_ch)
 
         if up:
@@ -105,7 +104,6 @@ class Block(nn.Module):
 
     def forward(self, x: Tensor, t: Tensor) -> Tensor:
         """
-        Define the forward pass making use of the components above.
         Time t should get mapped through the time_mlp layer + a relu
         The input x should get mapped through a convolutional layer with relu / batchnorm
         The time embedding should get added the output from the input convolution
@@ -151,7 +149,6 @@ class AttentionBlock(nn.Module):
         self.proj = nn.Linear(hidden_dim, in_ch)
 
     def forward(self, x, t):
-        h = x
         t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t
         x = self.bnorm(x)
@@ -164,7 +161,7 @@ class AttentionBlock(nn.Module):
         x, _ = self.attention(query, key, value)
         x = self.proj(x)
         x = x.transpose(1, 2).reshape((N, B, D, D))
-        return x + h
+        return x
 
 
 class SimpleUnet(nn.Module):
@@ -174,7 +171,7 @@ class SimpleUnet(nn.Module):
 
     def __init__(
         self,
-        time_emb_dim: int = 4,
+        time_emb_dim: int = 2,
     ):
         super().__init__()
         image_channels = 1
@@ -209,10 +206,10 @@ class SimpleUnet(nn.Module):
             ]
         )
 
-        # self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.attention_int = AttentionBlock(
-            down_channels[-1], 7, 32, 8, 4 * time_emb_dim
+            down_channels[-1], 7, 128, 8, 4 * time_emb_dim
         )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
@@ -242,7 +239,7 @@ class SimpleUnet(nn.Module):
             x, h = block(x, t)
             x_down_.append(h)
         x_down_.append(x)
-        # x = self.resint1(x, t)
+        x = self.resint1(x, t)
         x = self.attention_int(x, t)
         x = self.bnorm(x)
         x = self.relu(x)
@@ -356,7 +353,7 @@ class Unet(nn.Module):
             # if k == 1:
             #     x = self.attention_up(x, t)
         # add the ultimate residual from the initial convolution
-        # x = x + x_down_[0]
+        x = x + x_down_[0]
         x = self.bnorm_out(x)
         x = self.relu(x)
         x = self.out_conv(x)
