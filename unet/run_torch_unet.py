@@ -6,7 +6,7 @@ from torch.optim.lr_scheduler import (
     LinearLR,
     ConstantLR,
     ExponentialLR,
-    ChainedScheduler,
+    SequentialLR,
 )
 
 from tqdm import tqdm
@@ -98,12 +98,14 @@ if __name__ == "__main__":
     lr_history = []
 
     optimiser = Adam(unet.parameters(), lr=lr)
-    scheduler = ChainedScheduler(
-        [
+    scheduler = SequentialLR(
+        optimiser,
+        schedulers=[
             LinearLR(optimiser, 0.1, 1.0, 5),
-            ConstantLR(optimiser, 1.0, 10, 15),
+            ConstantLR(optimiser, 1.0, 10),
             ExponentialLR(optimiser, 0.98),
-        ]
+        ],
+        milestones=[5, 15],
     )
 
     n_steps_refresh_progress_bar = 5

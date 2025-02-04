@@ -185,7 +185,7 @@ class SimpleUnet(nn.Module):
         down_channels = [
             8,
             32,
-            64,
+            128,
         ]
         up_channels = down_channels[::-1]
 
