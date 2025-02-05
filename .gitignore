@@ -12,3 +12,6 @@ pdevnet/data
 *.whl
 *.txt
 *.pt
+*.gif
+*.png
+
