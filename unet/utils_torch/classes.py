@@ -3,6 +3,10 @@ from torch import Tensor
 from torch import nn
 import numpy as np
 
+# try adding one more layer in the U
+# try initial residual block ok two convolutions
+# to progressively increase the number of channels
+
 
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim: int):
