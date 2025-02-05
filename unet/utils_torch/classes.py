@@ -34,7 +34,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_ch: int, time_emb_dim: int):
+    def __init__(self, in_ch: int, time_emb_dim: int, dropout: float = 0.01):
         """
         in_ch refers to the number of channels in the input to the operation and out_ch how many should be in the output
         """
@@ -46,7 +46,7 @@ class ResBlock(nn.Module):
         self.bnorm1 = nn.BatchNorm2d(in_ch)
         self.bnorm2 = nn.BatchNorm2d(in_ch)
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.05)
+        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: Tensor, t: Tensor) -> Tensor:
         """
@@ -189,7 +189,7 @@ class SimpleUnet(nn.Module):
         down_channels = [
             8,
             32,
-            128,
+            64,
         ]
         up_channels = down_channels[::-1]
 
@@ -204,6 +204,16 @@ class SimpleUnet(nn.Module):
 
         self.init_conv = nn.Conv2d(
             in_channels=image_channels,
+            out_channels=down_channels[0] // 2,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+        )
+
+        self.init_res = ResBlock(down_channels[0] // 2, 4 * time_emb_dim)
+
+        self.init_conv2 = nn.Conv2d(
+            in_channels=down_channels[0] // 2,
             out_channels=down_channels[0],
             kernel_size=3,
             padding=1,
@@ -249,8 +259,9 @@ class SimpleUnet(nn.Module):
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
         x = self.init_conv(x)
-        # x_down_ = [x]
-        x_down_ = []
+        x = self.init_res(x, t)
+        x = self.init_conv2(x)
+        x_down_ = [x]
         for block in self.downsampling.children():
             x, h = block(x, t)
             x_down_.append(h)
@@ -265,7 +276,7 @@ class SimpleUnet(nn.Module):
             x_extended = torch.cat([x, residual], dim=1)
             x, _ = block(x_extended, t)
         # add the ultimate residual from the initial convolution
-        # x = x + x_down_[0]
+        x = x + x_down_[0]
         x = self.bnorm_out(x)
         x = self.relu(x)
         x = self.out_conv(x)
@@ -301,6 +312,16 @@ class Unet(nn.Module):
 
         self.init_conv = nn.Conv2d(
             in_channels=image_channels,
+            out_channels=down_channels[0] // 2,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+        )
+
+        self.init_res = ResBlock(down_channels[0] // 2, 4 * time_emb_dim)
+
+        self.init_conv2 = nn.Conv2d(
+            in_channels=down_channels[0] // 2,
             out_channels=down_channels[0],
             kernel_size=3,
             padding=1,
@@ -316,13 +337,7 @@ class Unet(nn.Module):
 
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
-        # self.attention_down = AttentionBlock(
-        #     down_channels[-2], 14, 16, 4, 4 * time_emb_dim
-        # )
         self.attention_int = AttentionBlock(down_channels[-1], 128, 8, 4 * time_emb_dim)
-        # self.attention_up = AttentionBlock(
-        #     down_channels[-2], 14, 16, 4, 4 * time_emb_dim
-        # )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
 
@@ -346,12 +361,13 @@ class Unet(nn.Module):
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
         x = self.init_conv(x)
+        x = self.init_res(x, t)
+        x = self.init_conv2(x)
         x_down_ = [x]
-        for i, block in enumerate(self.downsampling.children()):
+        for block in self.downsampling.children():
             x, h = block(x, t)
             x_down_.append(h)
-            # if i == 0:
-            #     x = self.attention_down(x, t)
+
         x_down_.append(x)
         h = x
         x = self.resint1(x, t)
@@ -364,8 +380,7 @@ class Unet(nn.Module):
             residual = x_down_[-k]
             x_extended = torch.cat([x, residual], dim=1)
             x, _ = block(x_extended, t)
-            # if k == 1:
-            #     x = self.attention_up(x, t)
+
         # add the ultimate residual from the initial convolution
         x = x + x_down_[0]
         x = self.bnorm_out(x)
