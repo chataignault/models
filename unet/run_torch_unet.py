@@ -20,6 +20,8 @@ from utils_torch.classes import SimpleUnet, Unet
 from utils_torch.diffusion import sample, linear_beta_schedule
 from utils_torch.training import get_loss
 
+DEFAULT_IMG_SIZE = 28
+
 if __name__ == "__main__":
     script_name = "torch_unet"
 
@@ -38,9 +40,13 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--img_size", type=int, default=28)
-    parser.add_argument("--channel_dims", nargs="+", type=int, default=[8, 16, 32])
+    parser.add_argument("--down_channels", nargs="+", type=int, default=[8, 16, 32])
     parser.add_argument("--time_emb_dim", type=int, default=4)
+    parser.add_argument(
+        "--zero_pad",
+        action="store_true",
+        help="Extend the iamge size to 32x32 to allow deeper network",
+    )
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--nepochs", type=int, default=20)
@@ -53,9 +59,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger.info(f"{args}")
 
-    IMG_SIZE = args.img_size
-    channel_dims = args.channel_dims
+    down_channels = args.down_channels
     time_emb_dim = args.time_emb_dim
+    zero_pad_images = args.zero_pad
     device = args.device
     BATCH_SIZE = args.batch_size
     nepochs = args.nepochs
@@ -75,19 +81,21 @@ if __name__ == "__main__":
     posterior_variance = betas
     sqrt_recip_alphas = 1.0 / torch.sqrt(1 - betas)
 
-    dataloader = get_dataloader(BATCH_SIZE, device, channels_last=False)
+    dataloader = get_dataloader(
+        BATCH_SIZE, device, channels_last=False, zero_pad_images=zero_pad_images
+    )
 
     logger.info(f"Checkpoint directory : {models_dir}")
 
     match model_name:
         case "Unet":
-            unet = Unet(down_channels=channel_dims, time_emb_dim=time_emb_dim).to(
+            unet = Unet(down_channels=down_channels, time_emb_dim=time_emb_dim).to(
                 device
             )
         case "SimpleUnet":
-            unet = SimpleUnet(down_channels=channel_dims, time_emb_dim=time_emb_dim).to(
-                device
-            )
+            unet = SimpleUnet(
+                down_channels=down_channels, time_emb_dim=time_emb_dim
+            ).to(device)
         case _:
             raise ValueError(f"{model_name} is not implemented")
 
@@ -181,10 +189,11 @@ if __name__ == "__main__":
 
     _, axs = plt.subplots(nrows=n_samp // 3 + ((n_samp % 3) > 0), ncols=3)
 
+    IMG_SHAPE = (1, 1, 32, 32) if zero_pad_images else (1, 1, 28, 28)
     for i in range(n_samp):
         samp = sample(
             unet,
-            (1, 1, 28, 28),
+            IMG_SHAPE,
             posterior_variance,
             sqrt_one_minus_alphas_cumprod,
             sqrt_recip_alphas,

@@ -4,9 +4,6 @@ import torch
 from torch import nn
 from torch import Tensor
 
-# try adding one more layer in the U
-# try initial residual block ok two convolutions
-# to progressively increase the number of channels
 # write the attention manually, no biais or heads
 
 
