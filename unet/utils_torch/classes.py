@@ -144,34 +144,68 @@ class AttentionBlock(nn.Module):
         self,
         in_ch: int,
         hidden_dim: int,
-        n_heads: int,
         time_embed_dim: int,
     ):
         super().__init__()
         self.lintemb = nn.Linear(time_embed_dim, in_ch)
         self.relu = nn.ReLU()
         self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_ch, hidden_dim, bias=True)
-        self.q = nn.Linear(in_ch, hidden_dim, bias=True)
-        self.v = nn.Linear(in_ch, hidden_dim, bias=True)
-        self.attention = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
+        self.k = nn.Linear(in_ch, hidden_dim, biais=False)
+        self.q = nn.Linear(in_ch, hidden_dim, biais=False)
+        self.v = nn.Linear(in_ch, hidden_dim, biais=False)
+        self.sm = nn.Softmax(hidden_dim)
         self.proj = nn.Linear(hidden_dim, in_ch)
 
     def forward(self, x, t):
         h = x
-        # t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
-        # x = x + t
-        # x = self.bnorm(x)
-        # x = self.relu(x)
         N, B, D, _ = x.shape
         x = x.reshape((N, B, D * D)).transpose(1, 2)
         query = self.q(x)
         key = self.k(x)
+        n = x.size(1)
+        qk = torch.tensordot(query, key, dims=1) / torch.sqrt(n)
         value = self.v(x)
-        x, _ = self.attention(query, key, value)
+        qk = self.sm(qk)
+        x = torch.tensordot(qk, value, dims=2)
         x = self.proj(x)
         x = x.transpose(1, 2).reshape((N, B, D, D))
         return x + h
+
+# class AttentionBlock(nn.Module):
+#     """ """
+
+#     def __init__(
+#         self,
+#         in_ch: int,
+#         hidden_dim: int,
+#         n_heads: int,
+#         time_embed_dim: int,
+#     ):
+#         super().__init__()
+#         self.lintemb = nn.Linear(time_embed_dim, in_ch)
+#         self.relu = nn.ReLU()
+#         self.bnorm = nn.BatchNorm2d(in_ch)
+#         self.k = nn.Linear(in_ch, hidden_dim, bias=True)
+#         self.q = nn.Linear(in_ch, hidden_dim, bias=True)
+#         self.v = nn.Linear(in_ch, hidden_dim, bias=True)
+#         self.attention = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
+#         self.proj = nn.Linear(hidden_dim, in_ch)
+
+#     def forward(self, x, t):
+#         h = x
+#         # t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
+#         # x = x + t
+#         # x = self.bnorm(x)
+#         # x = self.relu(x)
+#         N, B, D, _ = x.shape
+#         x = x.reshape((N, B, D * D)).transpose(1, 2)
+#         query = self.q(x)
+#         key = self.k(x)
+#         value = self.v(x)
+#         x, _ = self.attention(query, key, value)
+#         x = self.proj(x)
+#         x = x.transpose(1, 2).reshape((N, B, D, D))
+#         return x + h
 
 
 class SimpleUnet(nn.Module):
