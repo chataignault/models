@@ -1,11 +1,13 @@
-import torch
-from torch import Tensor
-from torch import nn
 import numpy as np
+from typing import List
+import torch
+from torch import nn
+from torch import Tensor
 
 # try adding one more layer in the U
 # try initial residual block ok two convolutions
 # to progressively increase the number of channels
+# write the attention manually, no biais or heads
 
 
 class SinusoidalPositionEmbeddings(nn.Module):
@@ -182,15 +184,11 @@ class SimpleUnet(nn.Module):
 
     def __init__(
         self,
+        down_channels: List[int],
         time_emb_dim: int = 4,
     ):
         super().__init__()
         image_channels = 1
-        down_channels = [
-            8,
-            32,
-            64,
-        ]
         up_channels = down_channels[::-1]
 
         self.time_emb_dim = time_emb_dim
@@ -284,21 +282,19 @@ class SimpleUnet(nn.Module):
 
 
 class Unet(nn.Module):
-    """
-    A simplified variant of the Unet architecture.
-    """
+    """ """
 
     def __init__(
         self,
         time_emb_dim: int = 4,
-    ):
-        super().__init__()
-        image_channels = 1
-        down_channels = [
+        down_channels=[
             8,
             32,
             128,
-        ]
+        ],
+    ):
+        super().__init__()
+        image_channels = 1
         up_channels = down_channels[::-1]
 
         self.time_emb_dim = time_emb_dim
@@ -390,9 +386,7 @@ class Unet(nn.Module):
 
 
 class Unet2(nn.Module):
-    """
-    A simplified variant of the Unet architecture.
-    """
+    """ """
 
     def __init__(
         self,

@@ -38,21 +38,25 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--img_size", type=int, default=28)
-    parser.add_argument("--batch_size", type=int, default=64)
+    parser.add_argument("--channel_dims", nargs="+", type=int, default=[8, 16, 32])
+    parser.add_argument("--time_emb_dim", type=int, default=4)
+    parser.add_argument("--device", type=str, default="cpu")
+    parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--nepochs", type=int, default=20)
-    parser.add_argument("--lr", type=float, default=1e-4)
+    parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--timesteps", type=int, default=1000)
-    parser.add_argument("--load_checkpoint", type=str, default="")
     parser.add_argument("--model_tag", type=str, default="")
     parser.add_argument("--model_name", type=str, default="Unet")
+    parser.add_argument("--load_checkpoint", type=str, default="")
 
     args = parser.parse_args()
     logger.info(f"{args}")
 
-    device = args.device
     IMG_SIZE = args.img_size
+    channel_dims = args.channel_dims
+    time_emb_dim = args.time_emb_dim
+    device = args.device
     BATCH_SIZE = args.batch_size
     nepochs = args.nepochs
     lr = args.lr
@@ -77,9 +81,13 @@ if __name__ == "__main__":
 
     match model_name:
         case "Unet":
-            unet = Unet().to(device)
+            unet = Unet(down_channels=channel_dims, time_emb_dim=time_emb_dim).to(
+                device
+            )
         case "SimpleUnet":
-            unet = SimpleUnet().to(device)
+            unet = SimpleUnet(down_channels=channel_dims, time_emb_dim=time_emb_dim).to(
+                device
+            )
         case _:
             raise ValueError(f"{model_name} is not implemented")
 
