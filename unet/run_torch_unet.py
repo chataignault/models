@@ -133,7 +133,7 @@ if __name__ == "__main__":
     for epoch in range(nepochs):
         pbar_batch = tqdm(enumerate(dataloader), total=len(dataloader), leave=True)
         for k, x in pbar_batch:
-            x = x["pixel_values"]
+            x = x["pixel_values"].to(self.dev)
             timestep = torch.randint(1, T, (x.shape[0],))
             optimiser.zero_grad()
             lr_history.append(optimiser.param_groups[0]["lr"])

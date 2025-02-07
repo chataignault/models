@@ -520,20 +520,21 @@ class Unet2(nn.Module):
 class LitUnet(L.LightningModule):
     def __init__(
         self,
+        unet,
         sqrt_alphas_cumprod,
         sqrt_one_minus_alphas_cumprod,
         T,
         device,
     ):
         super().__init__()
-        self.unet = SimpleUnet(down_channels=[6, 16, 32], time_emb_dim=4)
+        self.unet = unet
         self.sqrt_alphas_cumprod = sqrt_alphas_cumprod
         self.sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod
         self.T = T
-        self.device = device
+        self.dev = device
 
     def training_step(self, batch, batch_idx):
-        x, _ = batch
+        x = batch
         x = x["pixel_values"]
         timestep = torch.randint(1, self.T, (x.shape[0],))
         loss = get_loss(
@@ -542,7 +543,7 @@ class LitUnet(L.LightningModule):
             timestep,
             self.sqrt_alphas_cumprod,
             self.sqrt_one_minus_alphas_cumprod,
-            self.device,
+            self.dev,
         )
         writer.add_scalar("Loss/train", loss, batch_idx)
         writer.flush()
