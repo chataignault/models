@@ -3,7 +3,12 @@ from typing import List
 import torch
 from torch import nn
 from torch import Tensor
+from torch.optim import Adam
+import lightning as L
+from torch.utils.tensorboard import SummaryWriter
 
+writer = SummaryWriter()
+from .training import get_loss
 # write the attention manually, no biais or heads
 
 
@@ -59,12 +64,13 @@ class ResBlock(nn.Module):
         x = self.bnorm1(x)
         x = self.relu(x)
         x = self.conv1(x)
-        # t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
-        # x = x + t
+        t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
+        x = x + t
         x = self.bnorm2(x)
+        x = self.relu(x)
         x = self.dropout(x)
         x = self.conv2(x)
-        x = self.relu(x)
+        # x = self.relu(x)
         x = x + h
         return x
 
@@ -120,8 +126,8 @@ class Block(nn.Module):
         x = self.bnorm1(x)
         x = self.relu(x)
         x = self.conv1(x)
-        t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
-        x = x + t
+        t_ = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
+        x = x + t_
         x = self.bnorm2(x)
         x = self.dropout(x)
         x = self.conv2(x)
@@ -195,8 +201,8 @@ class AttentionBlock(nn.Module):
 
     def forward(self, x, t):
         h = x
-        # t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
-        # x = x + t
+        t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
+        x = x + t
         # x = self.bnorm(x)
         # x = self.relu(x)
         N, B, D, _ = x.shape
@@ -509,3 +515,40 @@ class Unet2(nn.Module):
         x = self.silu(x)
         x = self.out_conv(x)
         return x
+
+
+class LitUnet(L.LightningModule):
+    def __init__(
+        self,
+        sqrt_alphas_cumprod,
+        sqrt_one_minus_alphas_cumprod,
+        T,
+        device,
+    ):
+        super().__init__()
+        self.unet = SimpleUnet(down_channels=[6, 16, 32], time_emb_dim=4)
+        self.sqrt_alphas_cumprod = sqrt_alphas_cumprod
+        self.sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod
+        self.T = T
+        self.device = device
+
+    def training_step(self, batch, batch_idx):
+        x, _ = batch
+        x = x["pixel_values"]
+        timestep = torch.randint(1, self.T, (x.shape[0],))
+        loss = get_loss(
+            self.unet,
+            x,
+            timestep,
+            self.sqrt_alphas_cumprod,
+            self.sqrt_one_minus_alphas_cumprod,
+            self.device,
+        )
+        writer.add_scalar("Loss/train", loss, batch_idx)
+        writer.flush()
+        self.log("train_loss", loss)
+        return loss
+
+    def configure_optimizers(self):
+        optimizer = Adam(self.parameters(), lr=1e-3)
+        return optimizer
