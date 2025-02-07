@@ -59,8 +59,8 @@ class ResBlock(nn.Module):
         x = self.bnorm1(x)
         x = self.relu(x)
         x = self.conv1(x)
-        t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
-        x = x + t
+        # t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
+        # x = x + t
         x = self.bnorm2(x)
         x = self.dropout(x)
         x = self.conv2(x)
@@ -137,40 +137,6 @@ class Block(nn.Module):
         return self.transform(x), x
 
 
-class AttentionBlock(nn.Module):
-    """ """
-
-    def __init__(
-        self,
-        in_ch: int,
-        hidden_dim: int,
-        time_embed_dim: int,
-    ):
-        super().__init__()
-        self.lintemb = nn.Linear(time_embed_dim, in_ch)
-        self.relu = nn.ReLU()
-        self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_ch, hidden_dim, biais=False)
-        self.q = nn.Linear(in_ch, hidden_dim, biais=False)
-        self.v = nn.Linear(in_ch, hidden_dim, biais=False)
-        self.sm = nn.Softmax(hidden_dim)
-        self.proj = nn.Linear(hidden_dim, in_ch)
-
-    def forward(self, x, t):
-        h = x
-        N, B, D, _ = x.shape
-        x = x.reshape((N, B, D * D)).transpose(1, 2)
-        query = self.q(x)
-        key = self.k(x)
-        n = x.size(1)
-        qk = torch.tensordot(query, key, dims=1) / torch.sqrt(n)
-        value = self.v(x)
-        qk = self.sm(qk)
-        x = torch.tensordot(qk, value, dims=2)
-        x = self.proj(x)
-        x = x.transpose(1, 2).reshape((N, B, D, D))
-        return x + h
-
 # class AttentionBlock(nn.Module):
 #     """ """
 
@@ -178,34 +144,70 @@ class AttentionBlock(nn.Module):
 #         self,
 #         in_ch: int,
 #         hidden_dim: int,
-#         n_heads: int,
+#         n_heads:int,
 #         time_embed_dim: int,
 #     ):
 #         super().__init__()
 #         self.lintemb = nn.Linear(time_embed_dim, in_ch)
 #         self.relu = nn.ReLU()
 #         self.bnorm = nn.BatchNorm2d(in_ch)
-#         self.k = nn.Linear(in_ch, hidden_dim, bias=True)
-#         self.q = nn.Linear(in_ch, hidden_dim, bias=True)
-#         self.v = nn.Linear(in_ch, hidden_dim, bias=True)
-#         self.attention = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
+#         self.k = nn.Linear(in_ch, hidden_dim, bias=False)
+#         self.q = nn.Linear(in_ch, hidden_dim, bias=False)
+#         self.v = nn.Linear(in_ch, hidden_dim, bias=False)
+#         self.sm = nn.Softmax(hidden_dim)
 #         self.proj = nn.Linear(hidden_dim, in_ch)
 
 #     def forward(self, x, t):
 #         h = x
-#         # t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
-#         # x = x + t
-#         # x = self.bnorm(x)
-#         # x = self.relu(x)
 #         N, B, D, _ = x.shape
 #         x = x.reshape((N, B, D * D)).transpose(1, 2)
 #         query = self.q(x)
 #         key = self.k(x)
+#         n = x.size(1)
+#         qk = torch.tensordot(query, key, dims=1) / torch.sqrt(n)
 #         value = self.v(x)
-#         x, _ = self.attention(query, key, value)
+#         qk = self.sm(qk)
+#         x = torch.tensordot(qk, value, dims=2)
 #         x = self.proj(x)
 #         x = x.transpose(1, 2).reshape((N, B, D, D))
 #         return x + h
+
+
+class AttentionBlock(nn.Module):
+    """ """
+
+    def __init__(
+        self,
+        in_ch: int,
+        hidden_dim: int,
+        n_heads: int,
+        time_embed_dim: int,
+    ):
+        super().__init__()
+        self.lintemb = nn.Linear(time_embed_dim, in_ch)
+        self.relu = nn.ReLU()
+        self.bnorm = nn.BatchNorm2d(in_ch)
+        self.k = nn.Linear(in_ch, hidden_dim, bias=True)
+        self.q = nn.Linear(in_ch, hidden_dim, bias=True)
+        self.v = nn.Linear(in_ch, hidden_dim, bias=True)
+        self.attention = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
+        self.proj = nn.Linear(hidden_dim, in_ch)
+
+    def forward(self, x, t):
+        h = x
+        # t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
+        # x = x + t
+        # x = self.bnorm(x)
+        # x = self.relu(x)
+        N, B, D, _ = x.shape
+        x = x.reshape((N, B, D * D)).transpose(1, 2)
+        query = self.q(x)
+        key = self.k(x)
+        value = self.v(x)
+        x, _ = self.attention(query, key, value)
+        x = self.proj(x)
+        x = x.transpose(1, 2).reshape((N, B, D, D))
+        return x + h
 
 
 class SimpleUnet(nn.Module):
@@ -249,13 +251,15 @@ class SimpleUnet(nn.Module):
             stride=1,
         )
 
+        attention_depth = (len(down_channels) - 1) // 2
+
         self.downsampling = nn.Sequential(
             *[
                 Block(
                     down_channels[i],
                     down_channels[i + 1],
                     4 * time_emb_dim,
-                    attention=(i == 1),
+                    attention=(i == attention_depth),
                 )
                 for i in range(len(down_channels) - 1)
             ]
@@ -274,7 +278,7 @@ class SimpleUnet(nn.Module):
                     up_channels[i + 1],
                     4 * time_emb_dim,
                     up=True,
-                    attention=(i == 0),
+                    attention=(i == (len(down_channels) - 2 - attention_depth)),
                 )
                 for i in range(len(up_channels) - 1)
             ]
@@ -300,6 +304,7 @@ class SimpleUnet(nn.Module):
         x = self.attention_int(x, t)
         # x = self.relu(x)
         x = self.resint2(x, t)
+
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
             x_extended = torch.cat([x, residual], dim=1)

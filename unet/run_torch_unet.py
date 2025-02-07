@@ -117,11 +117,12 @@ if __name__ == "__main__":
     scheduler = SequentialLR(
         optimiser,
         schedulers=[
-            LinearLR(optimiser, 0.1, 1.0, 5),
-            ConstantLR(optimiser, 1.0, 10),
+            # LinearLR(optimiser, 0.1, 1.0, 5),
+            ConstantLR(optimiser, 1.0),
             ExponentialLR(optimiser, 0.98),
         ],
-        milestones=[5, 15],
+        # milestones=[5, 15],
+        milestones=[20],
     )
 
     n_steps_refresh_progress_bar = 5
