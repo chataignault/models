@@ -545,7 +545,7 @@ class LitUnet(L.LightningModule):
             self.sqrt_one_minus_alphas_cumprod,
             self.dev,
         )
-        writer.add_scalar("Loss/train", loss, batch_idx)
+        writer.add_scalar("Loss/train", loss, self.global_step)
         writer.flush()
         self.log("train_loss", loss)
         return loss

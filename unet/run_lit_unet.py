@@ -106,13 +106,17 @@ if __name__ == "__main__":
         T=T,
         device=device,
     )
-    trainer = L.Trainer(limit_train_batches=100, max_epochs=1)
+    trainer = L.Trainer(
+        # limit_train_batches=100,
+        max_epochs=nepochs,
+        accelerator="auto",
+    )
     trainer.fit(model=unet, train_dataloaders=dataloader)
 
     datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
 
-    unet = unet.unet
+    unet = unet.unet.to(device)
     unet.eval()
     name = (
         f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
