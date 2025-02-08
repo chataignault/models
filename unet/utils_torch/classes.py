@@ -7,9 +7,15 @@ from torch.optim import Adam
 import lightning as L
 from torch.utils.tensorboard import SummaryWriter
 
-writer = SummaryWriter()
 from .training import get_loss
-# write the attention manually, no biais or heads
+from torch.optim.lr_scheduler import (
+    LinearLR,
+    ConstantLR,
+    ExponentialLR,
+    SequentialLR,
+)
+
+writer = SummaryWriter()
 
 
 class SinusoidalPositionEmbeddings(nn.Module):
@@ -224,7 +230,9 @@ class SimpleUnet(nn.Module):
     def __init__(
         self,
         down_channels: List[int],
-        time_emb_dim: int = 4,
+        time_emb_dim: int = 16,
+        hidden_dim: int = 128,
+        n_heads: int = 2,
     ):
         super().__init__()
         image_channels = 1
@@ -273,7 +281,9 @@ class SimpleUnet(nn.Module):
 
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
-        self.attention_int = AttentionBlock(down_channels[-1], 64, 4, 4 * time_emb_dim)
+        self.attention_int = AttentionBlock(
+            down_channels[-1], hidden_dim, n_heads, 4 * time_emb_dim
+        )
         self.relu = nn.ReLU()
         self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
 
@@ -519,12 +529,7 @@ class Unet2(nn.Module):
 
 class LitUnet(L.LightningModule):
     def __init__(
-        self,
-        unet,
-        sqrt_alphas_cumprod,
-        sqrt_one_minus_alphas_cumprod,
-        T,
-        device,
+        self, unet, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, T, device, lr
     ):
         super().__init__()
         self.unet = unet
@@ -532,10 +537,10 @@ class LitUnet(L.LightningModule):
         self.sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod
         self.T = T
         self.dev = device
+        self.lr = lr
 
     def training_step(self, batch, batch_idx):
-        x = batch
-        x = x["pixel_values"]
+        x = batch["pixel_values"]
         timestep = torch.randint(1, self.T, (x.shape[0],))
         loss = get_loss(
             self.unet,
@@ -545,11 +550,27 @@ class LitUnet(L.LightningModule):
             self.sqrt_one_minus_alphas_cumprod,
             self.dev,
         )
-        writer.add_scalar("Loss/train", loss, self.global_step)
+        writer.add_scalar("Loss", loss, self.global_step)
+        writer.add_scalar("Learning Rate", self.lr)
         writer.flush()
         self.log("train_loss", loss)
         return loss
 
     def configure_optimizers(self):
-        optimizer = Adam(self.parameters(), lr=1e-3)
-        return optimizer
+        optimiser = Adam(self.parameters(), lr=self.lr)
+        stepping_batches = self.trainer.estimated_stepping_batches
+        # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5*self.lr, total_steps=stepping_batches)
+        scheduler = SequentialLR(
+            optimiser,
+            schedulers=[
+                # LinearLR(optimiser, 0.1, 1.0, 5),
+                ConstantLR(optimiser, 1.0),
+                ExponentialLR(optimiser, 0.98),
+            ],
+            # milestones=[5, 15],
+            milestones=[20],
+        )
+        return {
+            "optimizer": optimiser,
+            "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"},
+        }

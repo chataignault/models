@@ -3,6 +3,8 @@ import torch
 import numpy as np
 import datetime as dt
 import lightning as L
+from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
+from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 
@@ -105,11 +107,13 @@ if __name__ == "__main__":
         sqrt_one_minus_alphas_cumprod=sqrt_one_minus_alphas_cumprod,
         T=T,
         device=device,
+        lr=lr,
     )
     trainer = L.Trainer(
-        # limit_train_batches=100,
         max_epochs=nepochs,
         accelerator="auto",
+        callbacks=[LearningRateMonitor(), DeviceStatsMonitor()],
+        logger=TensorBoardLogger("tb_logs", name=model_name, log_graph=True),
     )
     trainer.fit(model=unet, train_dataloaders=dataloader)
 
