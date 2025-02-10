@@ -1,24 +1,18 @@
 import os
-import datetime as dt
 import torch
-from torch.optim import Adam
-from torch.optim.lr_scheduler import (
-    LinearLR,
-    ConstantLR,
-    ExponentialLR,
-    SequentialLR,
-)
-
-from tqdm import tqdm
+import numpy as np
+import datetime as dt
+import lightning as L
+from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
+from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
-import numpy as np
 
-from utils.fashion_mnist_dataloader import get_dataloader
 from utils.logger import get_logger
+from utils_torch.classes import LitUnet
 from utils_torch.classes import SimpleUnet, Unet
+from utils.fashion_mnist_dataloader import get_dataloader
 from utils_torch.diffusion import sample, linear_beta_schedule
-from utils_torch.training import get_loss
 
 DEFAULT_IMG_SIZE = 28
 
@@ -45,7 +39,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--zero_pad",
         action="store_true",
-        help="Extend the iamge size to 32x32 to allow deeper network",
+        help="Extend the image size to 32x32 to allow deeper network",
     )
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--batch_size", type=int, default=512)
@@ -55,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_tag", type=str, default="")
     parser.add_argument("--model_name", type=str, default="Unet")
     parser.add_argument("--load_checkpoint", type=str, default="")
+    parser.add_argument("--only_generate_sample", action="store_true")
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -70,6 +65,7 @@ if __name__ == "__main__":
     load_checkpoint = args.load_checkpoint
     model_name = args.model_name
     model_tag = args.model_tag
+    only_generate_sample = args.only_generate_sample
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -103,80 +99,32 @@ if __name__ == "__main__":
         unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
 
     print(unet)
-
-    unet.train()
-
     logger.info(
         f"Number of parameters : {np.sum([np.prod(t.shape) for t in list(unet.parameters())])}"
     )
 
-    loss_history = []
-    lr_history = []
-
-    optimiser = Adam(unet.parameters(), lr=lr)
-    scheduler = SequentialLR(
-        optimiser,
-        schedulers=[
-            # LinearLR(optimiser, 0.1, 1.0, 5),
-            ConstantLR(optimiser, 1.0),
-            ExponentialLR(optimiser, 0.98),
-        ],
-        # milestones=[5, 15],
-        milestones=[20],
+    unet = LitUnet(
+        unet=unet,
+        sqrt_alphas_cumprod=sqrt_alphas_cumprod,
+        sqrt_one_minus_alphas_cumprod=sqrt_one_minus_alphas_cumprod,
+        T=T,
+        device=device,
+        lr=lr,
     )
-
-    n_steps_refresh_progress_bar = 5
-
-    loss_history = []
-    lr_history = []
-
-    for epoch in range(nepochs):
-        pbar_batch = tqdm(enumerate(dataloader), total=len(dataloader), leave=True)
-        for k, x in pbar_batch:
-            x = x["pixel_values"].to(self.dev)
-            timestep = torch.randint(1, T, (x.shape[0],))
-            optimiser.zero_grad()
-            lr_history.append(optimiser.param_groups[0]["lr"])
-            loss = get_loss(
-                unet,
-                x,
-                timestep,
-                sqrt_alphas_cumprod,
-                sqrt_one_minus_alphas_cumprod,
-                device,
-            )
-            loss_history.append(float(loss.detach().cpu().numpy()))
-            loss.backward()
-
-            optimiser.step()
-            if k % n_steps_refresh_progress_bar == 0:
-                description = (
-                    f'Epoch {epoch} | Step {k} | '
-                    f'Loss {(sum(loss_history[-n_steps_refresh_progress_bar:]) / n_steps_refresh_progress_bar):.4f} | '
-                    f'grad norm {np.array(torch.nn.utils.clip_grad_norm_(unet.parameters(), 1.).cpu()).mean():.2f} | '
-                    f'learning rate {optimiser.param_groups[0]["lr"]:.9f}'
-                )
-                pbar_batch.set_description(description)
-        logger.debug(description)
-        scheduler.step()
+    trainer = L.Trainer(
+        max_epochs=nepochs,
+        accelerator="auto",
+        callbacks=[LearningRateMonitor(), DeviceStatsMonitor()],
+        logger=TensorBoardLogger("tb_logs", name=model_name, log_graph=True),
+    )
+    if not only_generate_sample:
+        trainer.fit(model=unet, train_dataloaders=dataloader)
 
     datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
-    _, ax = plt.subplots()
-    ax.plot(range(len(loss_history)), loss_history)
-    ax.grid()
-    ax.set_title("Batch loss evolution")
-    plt.savefig(
-        os.path.join(out_dir, "loss_" + img_base_name + ".png"), bbox_inches="tight"
-    )
-    _, ax = plt.subplots()
-    ax.plot(range(len(lr_history)), lr_history)
-    ax.grid()
-    ax.set_title("Learning Rate evolution")
-    plt.savefig(
-        os.path.join(out_dir, "lr_" + img_base_name + ".png"), bbox_inches="tight"
-    )
 
+    unet = unet.unet.to(device)
+    unet.eval()
     name = (
         f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
     )
@@ -184,7 +132,6 @@ if __name__ == "__main__":
     torch.save(unet.state_dict(), location)
 
     logger.info("Generate sample")
-    unet.eval()
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
     n_samp = 9
 

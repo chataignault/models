@@ -1,14 +1,21 @@
 __pycache__
 logs
+lightning_logs
 notebooks
 out
+runs
 flax_ckpt
+tb_logs
 log
 pdevnet/data
+
 
 *.ipynb
 *.csv
 */*.lock
 *.whl
 *.txt
+*.pt
+*.gif
+*.png
 

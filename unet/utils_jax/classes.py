@@ -13,10 +13,12 @@ class SinusoidalPositionEmbeddings(nn.Module):
         position = jnp.arange(n).reshape(-1, 1)
 
         div_term_even = jnp.exp(
-            jnp.log(position) + jnp.arange(0, self.dim, 2) * (-jnp.log(10000.0) / self.dim)
+            jnp.log(position)
+            + jnp.arange(0, self.dim, 2) * (-jnp.log(10000.0) / self.dim)
         )
         div_term_odd = jnp.exp(
-            jnp.log(position) + jnp.arange(1, self.dim, 2) * (-jnp.log(10000.0) / self.dim)
+            jnp.log(position)
+            + jnp.arange(1, self.dim, 2) * (-jnp.log(10000.0) / self.dim)
         )
 
         pe = jnp.zeros((n, self.dim))
@@ -69,6 +71,7 @@ class UNet(nn.Module):
         t = SinusoidalPositionEmbeddings(shape[1] * shape[2])(t)
         t = t.reshape((shape[0], shape[1], shape[2], 1))
         x = x + t
+
         # Downsampling path
         x1 = UNetBlock(1, 16)(x, train)
         p1 = nn.max_pool(x1, (2, 2), strides=(2, 2))

@@ -20,7 +20,9 @@ def linear_beta_schedule(
     """
     output a vector of size timesteps that is equally spaced between start and end; this will be the noise that is added in each time step.
     """
-    return torch.linspace(start=start, end=end, steps=timesteps, requires_grad=False, device=device)
+    return torch.linspace(
+        start=start, end=end, steps=timesteps, requires_grad=False, device=device
+    )
 
 
 def forward_diffusion_sample(
@@ -69,7 +71,12 @@ def sample_timestep(
 
 @torch.no_grad()
 def sample(
-    model, shape: Tuple, posterior_variance, sqrt_one_minus_alphas_cumprod, sqrt_recip_alphas, T
+    model,
+    shape: Tuple,
+    posterior_variance,
+    sqrt_one_minus_alphas_cumprod,
+    sqrt_recip_alphas,
+    T,
 ) -> Tensor:
     device = next(model.parameters()).device
     b = shape[0]

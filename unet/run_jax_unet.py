@@ -87,7 +87,9 @@ if __name__ == "__main__":
     else:
         state = create_train_state(rng_init, unet, learning_rate_fn, train=False)
 
-    logger.info(f"Number of parameters : {sum([p.size for p in jax.tree.leaves(state.params)])}")
+    logger.info(
+        f"Number of parameters : {sum([p.size for p in jax.tree.leaves(state.params)])}"
+    )
 
     loss_history = []
     lr_history = []
@@ -112,7 +114,9 @@ if __name__ == "__main__":
             loss_history.append(train_loss)
             lr_history.append(lr)
             description = (
-                f"Epoch {epoch} | " f"Step {k} | " f"Loss {train_loss:.7f} | Learning rate {lr:.5f}"
+                f"Epoch {epoch} | "
+                f"Step {k} | "
+                f"Loss {train_loss:.7f} | Learning rate {lr:.5f}"
             )
             pbar_batch.set_description(description)
 
@@ -162,4 +166,4 @@ if __name__ == "__main__":
         shutil.rmtree(ckpt_dir)
     ckpt = {"model": state, "sample": samp}
     save_args = orbax_utils.save_args_from_target(ckpt)
-    orbax_checkpointer.save(save_path, ckpt, save_args=save_args)
+    # orbax_checkpointer.save(save_path, ckpt, save_args=save_args) # TODO
