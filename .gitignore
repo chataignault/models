@@ -5,6 +5,7 @@ notebooks
 out
 runs
 flax_ckpt
+tb_logs
 log
 pdevnet/data
 
