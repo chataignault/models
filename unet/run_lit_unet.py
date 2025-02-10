@@ -3,6 +3,8 @@ import torch
 import numpy as np
 import datetime as dt
 import lightning as L
+from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
+from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 
@@ -47,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_tag", type=str, default="")
     parser.add_argument("--model_name", type=str, default="Unet")
     parser.add_argument("--load_checkpoint", type=str, default="")
+    parser.add_argument("--only_generate_sample", action="store_true")
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -62,6 +65,7 @@ if __name__ == "__main__":
     load_checkpoint = args.load_checkpoint
     model_name = args.model_name
     model_tag = args.model_tag
+    only_generate_sample = args.only_generate_sample
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -105,14 +109,21 @@ if __name__ == "__main__":
         sqrt_one_minus_alphas_cumprod=sqrt_one_minus_alphas_cumprod,
         T=T,
         device=device,
+        lr=lr,
     )
-    trainer = L.Trainer(limit_train_batches=100, max_epochs=1)
-    trainer.fit(model=unet, train_dataloaders=dataloader)
+    trainer = L.Trainer(
+        max_epochs=nepochs,
+        accelerator="auto",
+        callbacks=[LearningRateMonitor(), DeviceStatsMonitor()],
+        logger=TensorBoardLogger("tb_logs", name=model_name, log_graph=True),
+    )
+    if not only_generate_sample:
+        trainer.fit(model=unet, train_dataloaders=dataloader)
 
     datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
 
-    unet = unet.unet
+    unet = unet.unet.to(device)
     unet.eval()
     name = (
         f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
