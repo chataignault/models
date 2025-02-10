@@ -110,6 +110,7 @@ if __name__ == "__main__":
     sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - torch.cumprod(1.0 - betas, -1))
     posterior_variance = betas
     sqrt_recip_alphas = 1.0 / torch.sqrt(1 - betas)
+    IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
 
     dataloader = get_dataloader(
         BATCH_SIZE, device, channels_last=False, zero_pad_images=zero_pad_images
@@ -148,6 +149,8 @@ if __name__ == "__main__":
         device=device,
         lr=lr,
         writer=writer,
+        posterior_variance=posterior_variance,
+        img_size=IMG_SIZE,
     )
     trainer = L.Trainer(
         max_epochs=nepochs,
@@ -174,16 +177,15 @@ if __name__ == "__main__":
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
     n_samp = 16
     n_cols = 8
+    SAMP_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
 
     _, axs = plt.subplots(
         nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 4)
     )
 
-    IMG_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
-
     samp = sample(
         unet,
-        IMG_SHAPE,
+        SAMP_SHAPE,
         posterior_variance,
         sqrt_one_minus_alphas_cumprod,
         sqrt_recip_alphas,

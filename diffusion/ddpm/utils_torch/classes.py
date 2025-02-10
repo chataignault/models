@@ -1,6 +1,8 @@
 import numpy as np
 from typing import List
+from matplotlib.pyplot import imshow
 import torch
+import torchvision
 from torch import nn
 from torch import Tensor
 from torch.optim import Adam
@@ -8,6 +10,7 @@ import lightning as L
 from torch.utils.tensorboard import SummaryWriter
 
 from .training import get_loss
+from .diffusion import sample
 from torch.optim.lr_scheduler import (
     LinearLR,
     ConstantLR,
@@ -447,6 +450,8 @@ class LitUnet(L.LightningModule):
         device: str,
         lr: float,
         writer: SummaryWriter,
+        img_size: int,
+        posterior_variance: Tensor,
     ):
         super().__init__()
         self.unet = unet
@@ -456,6 +461,8 @@ class LitUnet(L.LightningModule):
         self.dev = device
         self.lr = lr
         self.writer = writer
+        self.img_size = img_size
+        self.posterior_variance = posterior_variance
 
     def training_step(self, batch, batch_idx):
         x = batch["pixel_values"]
@@ -470,7 +477,29 @@ class LitUnet(L.LightningModule):
         )
         self.writer.add_scalar("Loss", loss, self.global_step)
         self.writer.add_scalar("Learning Rate", self.lr, self.global_step)
-        # writer.flush()
+        if self.global_step % 500 == 0:
+            self.unet.eval()
+            samp = sample(
+                self.unet,
+                (16, 1, self.img_size, self.img_size),
+                self.posterior_variance,
+                self.sqrt_one_minus_alphas_cumprod,
+                1.0 / torch.sqrt(1 - self.posterior_variance),
+                self.T,
+            )[-1]
+            # normalize
+            # ? clip instead
+            samp = samp - samp.min(dim=0)[0]
+            samp = samp / samp.max(dim=0)[0]
+
+            # log samples to board
+            img_grid = torchvision.utils.make_grid(samp)
+            imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
+            self.writer.add_image(
+                f"generated samples step={self.global_step}", img_grid
+            )
+            self.unet.train()
+
         self.log("train_loss", loss)
         return loss
 
