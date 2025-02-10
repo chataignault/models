@@ -176,7 +176,7 @@ if __name__ == "__main__":
     n_cols = 8
 
     _, axs = plt.subplots(
-        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols
+        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 4)
     )
 
     IMG_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
@@ -190,8 +190,9 @@ if __name__ == "__main__":
         T,
     )[-1]
     # normalize
-    samp = samp - samp.min(dim=0)
-    samp = samp / samp.max(dim=0)
+    samp = samp - samp.min(dim=0)[0]
+    samp = samp / samp.max(dim=0)[0]
+
     # log samples to board
     img_grid = torchvision.utils.make_grid(samp)
     imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
