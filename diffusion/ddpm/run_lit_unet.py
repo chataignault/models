@@ -1,12 +1,15 @@
 import os
 import torch
+import torchvision
 import numpy as np
 import datetime as dt
+from torch.utils.tensorboard import SummaryWriter
 import lightning as L
 from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
+from matplotlib.pyplot import imshow
 
 from utils.logger import get_logger
 from utils_torch.classes import LitUnet
@@ -15,6 +18,37 @@ from utils.fashion_mnist_dataloader import get_dataloader
 from utils_torch.diffusion import sample, linear_beta_schedule
 
 DEFAULT_IMG_SIZE = 28
+
+
+def load_model(
+    models_dir, logger, down_channels, time_emb_dim, device, load_checkpoint, model_name
+):
+    """
+    Load appropriate backbone model
+    """
+    match model_name:
+        case "Unet":
+            unet = Unet(down_channels=down_channels, time_emb_dim=time_emb_dim).to(
+                device
+            )
+        case "SimpleUnet":
+            unet = SimpleUnet(
+                down_channels=down_channels, time_emb_dim=time_emb_dim
+            ).to(device)
+        case _:
+            raise ValueError(f"{model_name} is not implemented")
+
+    if load_checkpoint:
+        unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
+
+    print(unet)
+
+    logger.info(
+        f"Number of parameters : {np.sum([np.prod(t.shape) for t in list(unet.parameters())])}"
+    )
+
+    return unet
+
 
 if __name__ == "__main__":
     script_name = "torch_unet"
@@ -83,26 +117,29 @@ if __name__ == "__main__":
 
     logger.info(f"Checkpoint directory : {models_dir}")
 
-    match model_name:
-        case "Unet":
-            unet = Unet(down_channels=down_channels, time_emb_dim=time_emb_dim).to(
-                device
-            )
-        case "SimpleUnet":
-            unet = SimpleUnet(
-                down_channels=down_channels, time_emb_dim=time_emb_dim
-            ).to(device)
-        case _:
-            raise ValueError(f"{model_name} is not implemented")
-
-    if load_checkpoint:
-        unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
-
-    print(unet)
-    logger.info(
-        f"Number of parameters : {np.sum([np.prod(t.shape) for t in list(unet.parameters())])}"
+    unet = load_model(
+        models_dir,
+        logger,
+        down_channels,
+        time_emb_dim,
+        device,
+        load_checkpoint,
+        model_name,
     )
 
+    # plot original samples to board
+    writer = SummaryWriter()
+    dataiter = iter(dataloader)
+    images = next(dataiter)
+    images = images["pixel_values"]
+    img_grid = torchvision.utils.make_grid(images[:16])
+    imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
+    writer.add_image("original fMNIST samples", img_grid)
+
+    # add model infrastructure to board
+    writer.add_graph(unet, [images, torch.ones(BATCH_SIZE)])
+
+    # train
     unet = LitUnet(
         unet=unet,
         sqrt_alphas_cumprod=sqrt_alphas_cumprod,
@@ -110,6 +147,7 @@ if __name__ == "__main__":
         T=T,
         device=device,
         lr=lr,
+        writer=writer,
     )
     trainer = L.Trainer(
         max_epochs=nepochs,
@@ -131,24 +169,39 @@ if __name__ == "__main__":
     location = os.path.join(models_dir, name)
     torch.save(unet.state_dict(), location)
 
+    # generate samples
     logger.info("Generate sample")
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
-    n_samp = 9
+    n_samp = 16
+    n_cols = 8
 
-    _, axs = plt.subplots(nrows=n_samp // 3 + ((n_samp % 3) > 0), ncols=3)
+    _, axs = plt.subplots(
+        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols
+    )
 
-    IMG_SHAPE = (1, 1, 32, 32) if zero_pad_images else (1, 1, 28, 28)
+    IMG_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
+
+    samp = sample(
+        unet,
+        IMG_SHAPE,
+        posterior_variance,
+        sqrt_one_minus_alphas_cumprod,
+        sqrt_recip_alphas,
+        T,
+    )[-1]
+    # normalize
+    samp = samp - samp.min(dim=0)
+    samp = samp / samp.max(dim=0)
+    # log samples to board
+    img_grid = torchvision.utils.make_grid(samp)
+    imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
+    writer.add_image("generated samples", img_grid)
+    writer.close()
+
+    samp = samp.cpu().numpy()
     for i in range(n_samp):
-        samp = sample(
-            unet,
-            IMG_SHAPE,
-            posterior_variance,
-            sqrt_one_minus_alphas_cumprod,
-            sqrt_recip_alphas,
-            T,
-        )
-        r, c = i // 3, i % 3
-        axs[r, c].imshow(samp[-1][0, 0, :, :], cmap="gray")
+        r, c = i // n_cols, i % n_cols
+        axs[r, c].imshow(samp[i, 0, :, :], cmap="gray")
         axs[r, c].axis("off")
 
     plt.tight_layout()

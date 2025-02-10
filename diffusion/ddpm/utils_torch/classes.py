@@ -15,8 +15,6 @@ from torch.optim.lr_scheduler import (
     SequentialLR,
 )
 
-writer = SummaryWriter()
-
 
 class SinusoidalPositionEmbeddings(nn.Module):
     def __init__(self, dim: int):
@@ -441,7 +439,14 @@ class Unet(nn.Module):
 
 class LitUnet(L.LightningModule):
     def __init__(
-        self, unet, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, T, device, lr
+        self,
+        unet: nn.Module,
+        sqrt_alphas_cumprod: Tensor,
+        sqrt_one_minus_alphas_cumprod: Tensor,
+        T: int,
+        device: str,
+        lr: float,
+        writer: SummaryWriter,
     ):
         super().__init__()
         self.unet = unet
@@ -450,6 +455,7 @@ class LitUnet(L.LightningModule):
         self.T = T
         self.dev = device
         self.lr = lr
+        self.writer = writer
 
     def training_step(self, batch, batch_idx):
         x = batch["pixel_values"]
@@ -462,15 +468,15 @@ class LitUnet(L.LightningModule):
             self.sqrt_one_minus_alphas_cumprod,
             self.dev,
         )
-        writer.add_scalar("Loss", loss, self.global_step)
-        writer.add_scalar("Learning Rate", self.lr)
-        writer.flush()
+        self.writer.add_scalar("Loss", loss, self.global_step)
+        self.writer.add_scalar("Learning Rate", self.lr, self.global_step)
+        # writer.flush()
         self.log("train_loss", loss)
         return loss
 
     def configure_optimizers(self):
         optimiser = Adam(self.parameters(), lr=self.lr)
-        stepping_batches = self.trainer.estimated_stepping_batches
+        # stepping_batches = self.trainer.estimated_stepping_batches
         # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5*self.lr, total_steps=stepping_batches)
         scheduler = SequentialLR(
             optimiser,

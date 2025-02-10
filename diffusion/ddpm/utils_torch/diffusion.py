@@ -1,7 +1,8 @@
+from tqdm import tqdm
+from typing import Tuple, List
 import torch
 from torch import Tensor
-from typing import Tuple
-from tqdm import tqdm
+from torch.nn import Module
 
 
 def get_index_from_list(vals, t, x_shape):
@@ -71,17 +72,20 @@ def sample_timestep(
 
 @torch.no_grad()
 def sample(
-    model,
+    model: Module,
     shape: Tuple,
-    posterior_variance,
-    sqrt_one_minus_alphas_cumprod,
-    sqrt_recip_alphas,
-    T,
-) -> Tensor:
+    posterior_variance: Tensor,
+    sqrt_one_minus_alphas_cumprod: Tensor,
+    sqrt_recip_alphas: Tensor,
+    T: int,
+    pseudo_video: bool = False,
+) -> List[Tensor]:
     device = next(model.parameters()).device
     b = shape[0]
     # start from pure noise (for each example in the batch)
-    img = torch.randn(shape, device=device)
+    img = torch.randn(
+        shape, device=device
+    )  # ! check whether the variance corresponds to forward pass
     imgs = []
     for i in tqdm(
         reversed(range(1, T)), desc="sampling loop time step", total=T
@@ -97,5 +101,7 @@ def sample(
             sqrt_recip_alphas,
             device,
         )
-        imgs.append(img.cpu().numpy())
+        if pseudo_video:
+            imgs.append(img)
+    imgs.append(img)
     return imgs
