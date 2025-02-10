@@ -63,5 +63,6 @@ def get_dataloader(
         shuffle=True,
         drop_last=True,
         generator=torch.Generator(device=device),
+        # num_workers=15
     )
     return dataloader

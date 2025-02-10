@@ -49,6 +49,7 @@ if __name__ == "__main__":
     parser.add_argument("--model_tag", type=str, default="")
     parser.add_argument("--model_name", type=str, default="Unet")
     parser.add_argument("--load_checkpoint", type=str, default="")
+    parser.add_argument("--only_generate_sample", action="store_true")
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -64,6 +65,7 @@ if __name__ == "__main__":
     load_checkpoint = args.load_checkpoint
     model_name = args.model_name
     model_tag = args.model_tag
+    only_generate_sample = args.only_generate_sample
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -115,7 +117,8 @@ if __name__ == "__main__":
         callbacks=[LearningRateMonitor(), DeviceStatsMonitor()],
         logger=TensorBoardLogger("tb_logs", name=model_name, log_graph=True),
     )
-    trainer.fit(model=unet, train_dataloaders=dataloader)
+    if not only_generate_sample:
+        trainer.fit(model=unet, train_dataloaders=dataloader)
 
     datetime_str = dt.datetime.today().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"

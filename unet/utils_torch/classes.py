@@ -76,7 +76,6 @@ class ResBlock(nn.Module):
         x = self.relu(x)
         x = self.dropout(x)
         x = self.conv2(x)
-        # x = self.relu(x)
         x = x + h
         return x
 
@@ -90,9 +89,6 @@ class Block(nn.Module):
         up: bool = False,
         attention: bool = False,
     ):
-        """
-        in_ch refers to the number of channels in the input to the operation and out_ch how many should be in the output
-        """
         super().__init__()
         self.use_attention = attention
         self.up = up
@@ -132,7 +128,7 @@ class Block(nn.Module):
         x = self.bnorm1(x)
         x = self.relu(x)
         x = self.conv1(x)
-        t_ = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
+        t_ = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t_
         x = self.bnorm2(x)
         x = self.dropout(x)
@@ -140,7 +136,7 @@ class Block(nn.Module):
         x = self.relu(x)
         if self.up:
             h = self.squish_conv(h)
-        x = self.relu(x)  # ! check
+        # x = self.relu(x)  # ! check
         x = x + h
 
         if self.use_attention:
@@ -149,40 +145,46 @@ class Block(nn.Module):
         return self.transform(x), x
 
 
-# class AttentionBlock(nn.Module):
-#     """ """
+class AttentionBlockManual(nn.Module):
+    """
+    Step-by-step implementation of dot-product attention
+    """
 
-#     def __init__(
-#         self,
-#         in_ch: int,
-#         hidden_dim: int,
-#         n_heads:int,
-#         time_embed_dim: int,
-#     ):
-#         super().__init__()
-#         self.lintemb = nn.Linear(time_embed_dim, in_ch)
-#         self.relu = nn.ReLU()
-#         self.bnorm = nn.BatchNorm2d(in_ch)
-#         self.k = nn.Linear(in_ch, hidden_dim, bias=False)
-#         self.q = nn.Linear(in_ch, hidden_dim, bias=False)
-#         self.v = nn.Linear(in_ch, hidden_dim, bias=False)
-#         self.sm = nn.Softmax(hidden_dim)
-#         self.proj = nn.Linear(hidden_dim, in_ch)
+    def __init__(
+        self,
+        in_ch: int,
+        hidden_dim: int,
+        n_heads: int,
+        time_embed_dim: int,
+    ):
+        super().__init__()
+        self.d = hidden_dim
+        self.lintemb = nn.Linear(time_embed_dim, in_ch)
+        self.relu = nn.ReLU()
+        self.bnorm = nn.BatchNorm2d(in_ch)
+        self.k = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.q = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.v = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.sm = nn.Softmax(-1)
+        self.proj = nn.Linear(hidden_dim, in_ch)
 
-#     def forward(self, x, t):
-#         h = x
-#         N, B, D, _ = x.shape
-#         x = x.reshape((N, B, D * D)).transpose(1, 2)
-#         query = self.q(x)
-#         key = self.k(x)
-#         n = x.size(1)
-#         qk = torch.tensordot(query, key, dims=1) / torch.sqrt(n)
-#         value = self.v(x)
-#         qk = self.sm(qk)
-#         x = torch.tensordot(qk, value, dims=2)
-#         x = self.proj(x)
-#         x = x.transpose(1, 2).reshape((N, B, D, D))
-#         return x + h
+    def forward(self, x, t):
+        h = x
+        N, C, H, W = x.shape
+        t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
+        x = x + t
+        x = x.transpose(1, 3)  # N, W, H, C
+        query = self.q(x)  # N, W, H, x
+        key = self.k(x)  # N, W, H, x
+        qk = torch.einsum("NWHx,Nwhx->NWHwh", query, key) / np.sqrt(self.d)
+        qk = qk.reshape((N, W, H, W * H))
+        qk = self.sm(qk)
+        qk = qk.reshape((N, W, H, W, H))
+        value = self.v(x)
+        x = torch.einsum("NWHwh,Nwhx->NWHx", qk, value)
+        x = self.proj(x)  # N, W, H, C
+        x = x.transpose(1, 3).reshape((N, C, H, W))
+        return x + h
 
 
 class AttentionBlock(nn.Module):
@@ -231,8 +233,8 @@ class SimpleUnet(nn.Module):
         self,
         down_channels: List[int],
         time_emb_dim: int = 16,
-        hidden_dim: int = 128,
-        n_heads: int = 2,
+        hidden_dim: int = 256,
+        n_heads: int = 4,
     ):
         super().__init__()
         image_channels = 1
