@@ -131,50 +131,12 @@ class Block(nn.Module):
         return self.transform(x), x
 
 
-class AttentionBlockManual(nn.Module):
-    """
-    Step-by-step implementation of dot-product attention
-    """
-
-    def __init__(
-        self,
-        in_ch: int,
-        hidden_dim: int,
-        n_heads: int,
-        time_embed_dim: int,
-    ):
-        super().__init__()
-        self.d = hidden_dim
-        self.lintemb = nn.Linear(time_embed_dim, in_ch)
-        self.relu = nn.ReLU()
-        self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_ch, hidden_dim, bias=False)
-        self.q = nn.Linear(in_ch, hidden_dim, bias=False)
-        self.v = nn.Linear(in_ch, hidden_dim, bias=False)
-        self.sm = nn.Softmax(-1)
-        self.proj = nn.Linear(hidden_dim, in_ch)
-
-    def forward(self, x, t):
-        h = x
-        N, C, H, W = x.shape
-        t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
-        x = x + t
-        x = x.transpose(1, 3)  # N, W, H, C
-        query = self.q(x)  # N, W, H, x
-        key = self.k(x)  # N, W, H, x
-        qk = torch.einsum("NWHx,Nwhx->NWHwh", query, key) / np.sqrt(self.d)
-        qk = qk.reshape((N, W, H, W * H))
-        qk = self.sm(qk)
-        qk = qk.reshape((N, W, H, W, H))
-        value = self.v(x)
-        x = torch.einsum("NWHwh,Nwhx->NWHx", qk, value)
-        x = self.proj(x)  # N, W, H, C
-        x = x.transpose(1, 3).reshape((N, C, H, W))
-        return x + h
-
-
 class AttentionBlock(nn.Module):
-    """ """
+    """
+    Residual multi-head attention block
+    Same size embedding for all intermediate steps :
+    (d_q, d_k) * n_heads = d_v
+    """
 
     def __init__(
         self,
@@ -197,8 +159,7 @@ class AttentionBlock(nn.Module):
         h = x
         t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t
-        # x = self.bnorm(x)
-        # x = self.relu(x)
+        x = self.bnorm(x)
         N, B, D, _ = x.shape
         x = x.reshape((N, B, D * D)).transpose(1, 2)
         query = self.q(x)
@@ -208,3 +169,72 @@ class AttentionBlock(nn.Module):
         x = self.proj(x)
         x = x.transpose(1, 2).reshape((N, B, D, D))
         return x + h
+
+
+class AttentionBlockManual(nn.Module):
+    """
+    Step-by-step implementation of dot-product attention
+    """
+
+    def __init__(
+        self,
+        d_in: int,
+        d_kq: int,
+        d_v: int,
+        d_out: int,
+        h: int,
+        time_embed_dim: int,
+    ):
+        assert d_kq % h == 0
+        super().__init__()
+        self.d_in = d_in
+        self.h = h
+        self.d_kq = d_kq
+        self.d_v = d_v
+        self.d_out = d_out
+
+        self.lintemb = nn.Linear(time_embed_dim, d_in)
+        self.relu = nn.ReLU()
+        self.bnorm = nn.BatchNorm2d(d_in)
+        self.k = nn.Linear(d_in, d_kq, bias=False)
+        self.q = nn.Linear(d_in, d_kq, bias=False)
+        self.v = nn.Linear(d_in, d_v, bias=False)
+        self.sm = nn.Softmax(-2)
+        self.proj = nn.Linear(h * d_v, d_out)
+        if d_in != d_out:
+            self.res_proj = nn.Conv2d(d_in, d_out, 1)
+
+    def forward(self, x, t):
+        res = x
+
+        N, _, H, W = x.shape
+
+        t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
+        x = x + t
+
+        x = self.bnorm(x)
+        x = x.transpose(1, 3)  # N, W, H, d_in
+
+        query = self.q(x)  # N, W, H, d_kq
+        query = query.reshape((N, W, H, self.h, self.d_kq / self.h))
+
+        key = self.k(x)  # N, W, H, d_kq
+        key = key.reshape((N, W, H, self.h, self.d_kq / self.h))
+
+        qk = torch.einsum("NWHkx,Nwhkx->NWHwhk", query, key) / np.sqrt(self.d_kq)
+        qk = qk.reshape((N, W, H, W * H, self.h))
+        qk = self.sm(qk)
+        qk = qk.reshape((N, W, H, W, H, self.h))
+
+        value = self.v(x)  # N, W, H, d_v
+
+        x = torch.einsum("NWHwhk,Nwhx->NWHxk", qk, value)
+        x = x.reshape((N, W, H, self.h * self.d_v))
+
+        x = self.proj(x)  # N, W, H, d_out
+        x = x.transpose(1, 3)
+
+        if self.d_in != self.d_out:
+            res = self.res_proj(res)
+
+        return x + res
