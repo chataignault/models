@@ -3,6 +3,7 @@ import torch
 import torchvision
 import numpy as np
 import datetime as dt
+from rich import print
 from torch.utils.tensorboard import SummaryWriter
 import lightning as L
 from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
@@ -69,7 +70,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(description="Run Attention Unet")
     parser.add_argument("--down_channels", nargs="+", type=int, default=[8, 16, 32])
-    parser.add_argument("--time_emb_dim", type=int, default=4)
+    parser.add_argument("--time_emb_dim", type=int, default=64)
     parser.add_argument(
         "--zero_pad",
         action="store_true",

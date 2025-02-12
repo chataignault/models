@@ -88,10 +88,11 @@ class Block(nn.Module):
         out_ch: int,
         time_emb_dim: int,
         up: bool = False,
-        attention: bool = False,
+        attention: int = 0,
     ):
         super().__init__()
-        self.use_attention = attention
+        self.use_attention = attention > 0
+        self.n_heads = attention
         self.up = up
         self.lintemb = nn.Linear(time_emb_dim, in_ch)
 
@@ -116,7 +117,7 @@ class Block(nn.Module):
         self.dropout = nn.Dropout(0.05)
 
         if attention:
-            self.attention = AttentionBlock(in_ch, in_ch, 4, time_emb_dim)
+            self.attention = AttentionBlock(in_ch, in_ch, self.n_heads, time_emb_dim)
 
     def forward(self, x: Tensor, t: Tensor) -> Tensor:
         """
@@ -233,9 +234,10 @@ class SimpleUnet(nn.Module):
     def __init__(
         self,
         down_channels: List[int],
-        time_emb_dim: int = 16,
+        time_emb_dim: int = 64,  # 16
         hidden_dim: int = 256,
-        n_heads: int = 4,
+        n_heads: int = 16,  # 4
+        n_heads_inter: int = 8,
     ):
         super().__init__()
         image_channels = 1
@@ -245,9 +247,9 @@ class SimpleUnet(nn.Module):
 
         self.pos_emb = nn.Sequential(
             SinusoidalPositionEmbeddings(dim=time_emb_dim),
-            nn.Linear(time_emb_dim, 4 * time_emb_dim),
+            nn.Linear(time_emb_dim, time_emb_dim),
             nn.ReLU(),
-            nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
+            nn.Linear(time_emb_dim, time_emb_dim),
         )
 
         self.init_conv = nn.Conv2d(
@@ -258,7 +260,7 @@ class SimpleUnet(nn.Module):
             stride=1,
         )
 
-        self.init_res = ResBlock(down_channels[0] // 2, 4 * time_emb_dim)
+        self.init_res = ResBlock(down_channels[0] // 2, time_emb_dim)
 
         self.init_conv2 = nn.Conv2d(
             in_channels=down_channels[0] // 2,
@@ -275,29 +277,30 @@ class SimpleUnet(nn.Module):
                 Block(
                     down_channels[i],
                     down_channels[i + 1],
-                    4 * time_emb_dim,
-                    attention=(i == attention_depth),
+                    time_emb_dim,
+                    attention=int(i == attention_depth) * n_heads_inter,
                 )
                 for i in range(len(down_channels) - 1)
             ]
         )
 
-        self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        self.resint1 = ResBlock(down_channels[-1], time_emb_dim)
         self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.attention_int = AttentionBlock(
-            down_channels[-1], hidden_dim, n_heads, 4 * time_emb_dim
+            down_channels[-1], hidden_dim, n_heads, time_emb_dim
         )
         self.relu = nn.ReLU()
-        self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        self.resint2 = ResBlock(down_channels[-1], time_emb_dim)
 
         self.upsampling = nn.Sequential(
             *[
                 Block(
                     up_channels[i],
                     up_channels[i + 1],
-                    4 * time_emb_dim,
+                    time_emb_dim,
                     up=True,
-                    attention=(i == (len(down_channels) - 2 - attention_depth)),
+                    attention=int(i == (len(down_channels) - 2 - attention_depth))
+                    * n_heads_inter,
                 )
                 for i in range(len(up_channels) - 1)
             ]
