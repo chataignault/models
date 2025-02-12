@@ -16,6 +16,9 @@ from torch.utils.data import DataLoader
 def get_transforms(
     examples, device: str, channels_last: bool = True, zero_pad_images: bool = False
 ):
+    """
+    Extract images from dataset and perform data augmentation
+    """
     t_ = [
         RandomHorizontalFlip(),
         ToTensor(),

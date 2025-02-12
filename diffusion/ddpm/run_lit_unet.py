@@ -13,8 +13,7 @@ from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 
 from utils.logger import get_logger
-from utils_torch.classes import LitUnet
-from utils_torch.classes import SimpleUnet, Unet
+from utils_torch.unet import LitUnet, SimpleUnet, Unet
 from utils.fashion_mnist_dataloader import get_dataloader
 from utils_torch.diffusion import sample, linear_beta_schedule
 
