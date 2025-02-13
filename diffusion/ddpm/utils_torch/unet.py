@@ -12,6 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 from .training import get_loss
 from .diffusion import sample
 from torch.optim.lr_scheduler import (
+    LinearLR,
     ConstantLR,
     ExponentialLR,
     SequentialLR,
@@ -273,8 +274,8 @@ class LitUnet(L.LightningModule):
             self.dev,
         )
         self.writer.add_scalar("Loss", loss, self.global_step)
-        self.writer.add_scalar("Learning Rate", self.lr, self.global_step)
-        if self.global_step % 500 == 0:
+
+        if self.global_step % 500 == 0 and self.global_step > 0:
             self.unet.eval()
             samp = sample(
                 self.unet,
@@ -307,12 +308,12 @@ class LitUnet(L.LightningModule):
         scheduler = SequentialLR(
             optimiser,
             schedulers=[
-                # LinearLR(optimiser, 0.1, 1.0, 5),
+                LinearLR(optimiser, 0.1, 1.0, 2),
                 ConstantLR(optimiser, 1.0),
-                ExponentialLR(optimiser, 0.98),
+                ExponentialLR(optimiser, 0.99),
             ],
             # milestones=[5, 15],
-            milestones=[20],
+            milestones=[2, 20],
         )
         return {
             "optimizer": optimiser,

@@ -105,7 +105,7 @@ if __name__ == "__main__":
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    betas = linear_beta_schedule(timesteps=T, device=device)
+    # betas = linear_beta_schedule(timesteps=T, device=device)
     betas = cosine_beta_schedule(timesteps=T, device=device)
     sqrt_alphas_cumprod = torch.sqrt(torch.cumprod(1.0 - betas, -1))
     sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - torch.cumprod(1.0 - betas, -1))
@@ -156,7 +156,10 @@ if __name__ == "__main__":
     trainer = L.Trainer(
         max_epochs=nepochs,
         accelerator="auto",
-        callbacks=[LearningRateMonitor(), DeviceStatsMonitor()],
+        callbacks=[
+            LearningRateMonitor(),
+            # DeviceStatsMonitor()
+        ],
         logger=TensorBoardLogger("tb_logs", name=model_name, log_graph=True),
     )
     if not only_generate_sample:
