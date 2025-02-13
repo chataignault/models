@@ -4,8 +4,9 @@
 
 ## Diffusion
 
-### Implement Unet for diffusion model
+### Implement Denoising Diffusion Probabilitic Model (DDPM)
 - jax and pytorch implementation with varriants
+- get familiar with lightning, tensorboard
 - [Ho, Jonathan, Ajay Jain, and Pieter Abbeel. "Denoising diffusion probabilistic models." Advances in neural information processing systems 33 (2020): 6840-6851.](https://proceedings.neurips.cc/paper/2020/file/4c5bcfec8584af0d967f1ab10179ca4b-Paper.pdf)
 
 - <img src="diffusion/ddpm/generated_fMNIST.png" alt="drawing" width="200"/>
