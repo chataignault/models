@@ -1,3 +1,4 @@
+import numpy as np
 from tqdm import tqdm
 from typing import Tuple, List
 import torch
@@ -24,6 +25,21 @@ def linear_beta_schedule(
     return torch.linspace(
         start=start, end=end, steps=timesteps, requires_grad=False, device=device
     )
+
+
+def cosine_beta_schedule(
+    timesteps: int, device: str, start: float = 0.0001, end: float = 0.02
+) -> Tensor:
+    """
+    output a vector of size timesteps that is equally spaced between start and end; this will be the noise that is added in each time step.
+    """
+    steps = (
+        torch.arange(start=0, end=timesteps, requires_grad=False, device=device).to(
+            torch.float32
+        )
+        + start
+    )
+    return end * (1.0 - (torch.cos(np.pi * 0.5 * (steps / timesteps))) ** 2)
 
 
 def forward_diffusion_sample(

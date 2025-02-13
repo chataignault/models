@@ -15,7 +15,7 @@ from matplotlib.pyplot import imshow
 from utils.logger import get_logger
 from utils_torch.unet import LitUnet, SimpleUnet, Unet
 from utils.fashion_mnist_dataloader import get_dataloader
-from utils_torch.diffusion import sample, linear_beta_schedule
+from utils_torch.diffusion import sample, linear_beta_schedule, cosine_beta_schedule
 
 DEFAULT_IMG_SIZE = 28
 
@@ -106,6 +106,7 @@ if __name__ == "__main__":
     torch.backends.cudnn.allow_tf32 = True
 
     betas = linear_beta_schedule(timesteps=T, device=device)
+    betas = cosine_beta_schedule(timesteps=T, device=device)
     sqrt_alphas_cumprod = torch.sqrt(torch.cumprod(1.0 - betas, -1))
     sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - torch.cumprod(1.0 - betas, -1))
     posterior_variance = betas
