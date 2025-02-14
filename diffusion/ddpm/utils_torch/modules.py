@@ -55,13 +55,46 @@ class ResBlock(nn.Module):
         x = self.bnorm1(x)
         x = self.relu(x)
         x = self.conv1(x)
+        x = self.dropout(x)
         t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t
         x = self.bnorm2(x)
         x = self.relu(x)
-        x = self.dropout(x)
         x = self.conv2(x)
         x = x + h
+        return x
+
+
+class UpConvBlock(nn.Module):
+    """
+    Convolutional block to progressively increase the number of channels
+    """
+
+    def __init__(self, in_ch: int, out_ch: int, time_emb_dim: int):
+        self.in_ch = in_ch
+        self.out_ch = out_ch
+        self.conv1 = nn.Conv2d(
+            in_channels=in_ch,
+            out_channels=out_ch // 2,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+        )
+        self.res = ResBlock(out_ch // 2, 4 * time_emb_dim)
+        self.conv2 = nn.Conv2d(
+            in_channels=out_ch // 2,
+            out_channels=out_ch,
+            kernel_size=3,
+            padding=1,
+            stride=1,
+        )
+        self.bn = nn.BatchNorm2d(out_ch)
+
+    def forward(self, x: Tensor, t: Tensor):
+        x = self.conv1(x)
+        x = self.res(x, t)
+        x = self.conv2(x)
+        x = self.bn(x)
         return x
 
 

@@ -47,22 +47,8 @@ class SimpleUnet(nn.Module):
             nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
         )
 
-        self.init_conv = nn.Conv2d(
-            in_channels=image_channels,
-            out_channels=down_channels[0] // 2,
-            kernel_size=3,
-            padding=1,
-            stride=1,
-        )
-
-        self.init_res = ResBlock(down_channels[0] // 2, 4 * time_emb_dim)
-
-        self.init_conv2 = nn.Conv2d(
-            in_channels=down_channels[0] // 2,
-            out_channels=down_channels[0],
-            kernel_size=3,
-            padding=1,
-            stride=1,
+        self.init_conv = UpConvBlock(
+            image_channels, down_channels[0] // 2, time_emb_dim
         )
 
         attention_depth = (len(down_channels) - 1) // 2
@@ -108,9 +94,7 @@ class SimpleUnet(nn.Module):
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
-        x = self.init_conv(x)
-        x = self.init_res(x, t)
-        x = self.init_conv2(x)
+        x = self.init_conv(x, t)
         x_down_ = [x]
         for block in self.downsampling.children():
             x, h = block(x, t)
@@ -119,14 +103,11 @@ class SimpleUnet(nn.Module):
         x = self.resint1(x, t)
         x = self.bnorm(x)
         x = self.attention_int(x, t)
-        # x = self.relu(x)
         x = self.resint2(x, t)
-
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
             x_extended = torch.cat([x, residual], dim=1)
             x, _ = block(x_extended, t)
-        # add the ultimate residual from the initial convolution
         x = x + x_down_[0]
         x = self.bnorm_out(x)
         x = self.relu(x)
