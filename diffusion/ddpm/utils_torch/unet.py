@@ -8,6 +8,7 @@ from torch import Tensor
 from torch.optim import Adam
 import lightning as L
 from torch.utils.tensorboard import SummaryWriter
+from lightning.pytorch.utilities import grad_norm
 
 from .training import get_loss
 from .diffusion import sample
@@ -242,6 +243,12 @@ class LitUnet(L.LightningModule):
         self.writer = writer
         self.img_size = img_size
         self.posterior_variance = posterior_variance
+
+    def on_before_optimizer_step(self, optimizer):
+        # Compute the 2-norm for each layer
+        # If using mixed precision, the gradients are already unscaled here
+        norms = grad_norm(self.unet, norm_type=2)
+        self.log_dict(norms)
 
     def training_step(self, batch, batch_idx):
         x = batch["pixel_values"]
