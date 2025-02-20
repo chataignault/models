@@ -30,8 +30,8 @@ class SimpleUnet(nn.Module):
     def __init__(
         self,
         down_channels: List[int],
-        time_emb_dim: int = 64,  # 16
-        hidden_dim: int = 128,
+        time_emb_dim: int = 16,  # 16
+        hidden_dim: int = 64,
         n_heads: int = 8,  # 4
         n_heads_inter: int = 4,
     ):
@@ -48,9 +48,7 @@ class SimpleUnet(nn.Module):
             nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
         )
 
-        self.init_conv = UpConvBlock(
-            image_channels, down_channels[0] // 2, time_emb_dim
-        )
+        self.init_conv = UpConvBlock(image_channels, down_channels[0], time_emb_dim)
 
         attention_depth = (len(down_channels) - 1) // 2
 
@@ -72,7 +70,7 @@ class SimpleUnet(nn.Module):
             down_channels[-1], hidden_dim, n_heads, 4 * time_emb_dim
         )
         self.relu = nn.ReLU()
-        self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        # self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
 
         self.upsampling = nn.Sequential(
             *[
@@ -88,7 +86,7 @@ class SimpleUnet(nn.Module):
             ]
         )
 
-        self.bnorm_out = nn.BatchNorm2d(up_channels[-1])
+        # self.bnorm_out = nn.BatchNorm2d(up_channels[-1])
         self.out_conv = nn.Conv2d(
             in_channels=up_channels[-1], out_channels=1, kernel_size=1
         )
@@ -103,15 +101,16 @@ class SimpleUnet(nn.Module):
         x_down_.append(x)
         x = self.resint1(x, t)
         x = self.bnorm(x)
+        # x = self.relu(x)
         x = self.attention_int(x, t)
-        x = self.resint2(x, t)
+        # x = self.resint2(x, t)
         for k, block in enumerate(self.upsampling.children(), 1):
             residual = x_down_[-k]
             x_extended = torch.cat([x, residual], dim=1)
             x, _ = block(x_extended, t)
         x = x + x_down_[0]
-        x = self.bnorm_out(x)
-        x = self.relu(x)
+        # x = self.bnorm_out(x)
+        # x = self.relu(x)
         x = self.out_conv(x)
         return x
 

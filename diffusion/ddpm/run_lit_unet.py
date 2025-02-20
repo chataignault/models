@@ -69,7 +69,7 @@ if __name__ == "__main__":
 
     parser = ArgumentParser(description="Run Attention Unet")
     parser.add_argument("--down_channels", nargs="+", type=int, default=[8, 16, 32])
-    parser.add_argument("--time_emb_dim", type=int, default=64)
+    parser.add_argument("--time_emb_dim", type=int, default=16)
     parser.add_argument(
         "--zero_pad",
         action="store_true",
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-3)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--model_tag", type=str, default="")
-    parser.add_argument("--model_name", type=str, default="Unet")
+    parser.add_argument("--model_name", type=str, default="SimpleUnet")
     parser.add_argument("--load_checkpoint", type=str, default="")
     parser.add_argument("--only_generate_sample", action="store_true")
 
@@ -116,6 +116,7 @@ if __name__ == "__main__":
     dataloader = get_dataloader(
         BATCH_SIZE, device, channels_last=False, zero_pad_images=zero_pad_images
     )
+    print(f"Number of training examples : {len(dataloader.dataset)}")
 
     logger.info(f"Checkpoint directory : {models_dir}")
 

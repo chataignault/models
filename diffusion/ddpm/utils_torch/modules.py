@@ -72,6 +72,7 @@ class UpConvBlock(nn.Module):
     """
 
     def __init__(self, in_ch: int, out_ch: int, time_emb_dim: int):
+        super().__init__()
         self.in_ch = in_ch
         self.out_ch = out_ch
         self.conv1 = nn.Conv2d(
