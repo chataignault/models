@@ -8,7 +8,8 @@ flax_ckpt
 tb_logs
 log
 pdevnet/data
-
+target
+debug
 
 *.ipynb
 *.csv
@@ -18,4 +19,4 @@ pdevnet/data
 *.pt
 *.gif
 *.png
-
+*.exe
