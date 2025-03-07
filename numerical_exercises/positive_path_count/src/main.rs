@@ -1,10 +1,15 @@
+#![feature(test)]
+extern crate test;
+
+#[macro_use]
+extern crate queues;
+
 use clap::Parser;
 use queues::{queue, IsQueue, Queue};
 use std::collections::HashMap;
 use std::error::Error;
 
-#[macro_use]
-extern crate queues;
+use test::Bencher;
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -36,13 +41,32 @@ fn brute_force(n: u32) -> u32 {
 
 fn dynamical_programming(n: u32) -> u32 {
     // use strong recurrence relation
-    if n == 1 {
-        return 1;
+    let mut count_map: HashMap<(u32, u32), u32> = HashMap::new();
+    count_map.insert((0, 0), 1);
+    count_map.insert((0, 1), 0);
+    for k in 1..(n + 1) {
+        count_map.insert((k, k), 1);
+        count_map.insert(
+            (k, 0),
+            *count_map.get(&(k - 1, 1)).unwrap() + *count_map.get(&(k - 1, 0)).unwrap(),
+        );
+        if k > 1 {
+            for j in 1..(k - 1) {
+                count_map.insert(
+                    (k, j),
+                    2 * (*count_map.get(&(k - 1, j)).unwrap())
+                        + *count_map.get(&(k - 1, j - 1)).unwrap()
+                        + *count_map.get(&(k - 1, j + 1)).unwrap(),
+                );
+            }
+            count_map.insert(
+                (k, k - 1),
+                2 * (*count_map.get(&(k - 1, k - 1)).unwrap())
+                    + *count_map.get(&(k - 1, k - 2)).unwrap(), // + *count_map.get(&(k - 1, j + 1)).unwrap(),
+            );
+        }
     }
-    if n == 2 {
-        return 2;
-    }
-    n
+    *count_map.get(&(n, 0)).unwrap()
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -67,5 +91,30 @@ mod tests {
         assert_eq!(brute_force(1), 1);
         assert_eq!(brute_force(2), 2);
         assert_eq!(brute_force(3), 5);
+    }
+
+    #[test]
+    fn test_dyn_init() {
+        assert_eq!(dynamical_programming(0), 1);
+        assert_eq!(dynamical_programming(1), 1);
+        assert_eq!(dynamical_programming(2), 2);
+        assert_eq!(dynamical_programming(3), 5);
+    }
+
+    #[test]
+    fn test_match_results() {
+        for n in 6..10 {
+            assert_eq!(brute_force(n), dynamical_programming(n));
+        }
+    }
+
+    #[bench]
+    fn bench_exec_time_dyn(b: &mut Bencher) {
+        b.iter(|| dynamical_programming(5));
+    }
+
+    #[bench]
+    fn bench_exec_time_bf(b: &mut Bencher) {
+        b.iter(|| brute_force(5));
     }
 }
