@@ -4,6 +4,7 @@ extern crate approx;
 use clap::Parser;
 use rand::distr::{Bernoulli, Distribution};
 use std::error::Error;
+use num_integer::binomial;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -49,7 +50,7 @@ fn compute_proba_negative(n: u32, p: f64, s: f32, ds: f32) -> f64 {
     } else {
         let max_steps_up: u32 = (n as i32 - r).try_into().unwrap();
         for k in 1..(max_steps_up / 2 + 2) {
-            p_hat += p.powf(k.into()) * (1. - p).powf((r + k as i32 - 2).into());
+            p_hat += p.powf(k.into()) * (1. - p).powf((r + k as i32 - 2).into()) * binomial(r + 2* k as i32, k as i32) as f64;
         }
     }
     p_hat
