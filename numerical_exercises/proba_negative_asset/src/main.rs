@@ -2,9 +2,9 @@
 extern crate approx;
 
 use clap::Parser;
+use num_integer::binomial;
 use rand::distr::{Bernoulli, Distribution};
 use std::error::Error;
-use num_integer::binomial;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -19,8 +19,8 @@ fn compute_proba_negative_mc(n: u32, p: f64, s: f32, ds: f32) -> f64 {
     let r: i32 = (s / ds).ceil() as i32;
     let mut rng = rand::rng();
     let d = Bernoulli::new(p).unwrap();
-    const N: u32 = 10_000;
-    let mut p_hat: u32 = 0;
+    const N: u64 = 20_000;
+    let mut p_hat: u64 = 0;
     for _ in 0..N {
         let mut sim: Vec<f64> = d
             .sample_iter(&mut rng)
@@ -35,25 +35,38 @@ fn compute_proba_negative_mc(n: u32, p: f64, s: f32, ds: f32) -> f64 {
                 *x += acc.1;
                 (acc.0 || (*x <= 0.), *x)
             })
-            .0 as u32;
+            .0 as u64;
     }
     p_hat as f64 / N as f64
 }
 
 fn compute_proba_negative(n: u32, p: f64, s: f32, ds: f32) -> f64 {
     let r: i32 = (s / ds).ceil() as i32;
-    let mut p_hat: f64 = 0.;
+    println!("r={}", r);
     if r <= 0 {
         return 1.;
     } else if n as i32 - r < 0 {
         return 0.;
     } else {
-        let max_steps_up: u32 = (n as i32 - r).try_into().unwrap();
-        for k in 1..(max_steps_up / 2 + 2) {
-            p_hat += p.powf(k.into()) * (1. - p).powf((r + k as i32 - 2).into()) * binomial(r + 2* k as i32, k as i32) as f64;
+        let mut p_hat: f64 = (1. - p).powf(r.into());
+        println!("p0={}", p_hat);
+        let max_steps_up: i32 = (n as i32 - r) / 2 + 1;
+        println!("max up {}", max_steps_up);
+        if max_steps_up >= 1 {
+            p_hat += p
+                * (1. - p).powf((r + 1 as i32).into())
+                * ((binomial(2, 1) - binomial(2, 2)) * r) as f64;
         }
+        for k in 2..max_steps_up {
+            p_hat += p.powf(k.into())
+                * (1. - p).powf((r + k as i32).into())
+                * ((binomial(2 * k, k) - binomial(2 * k, k + 1)) * r
+                    + (binomial(2 * (k - 1), k - 1) - binomial(2 * (k - 1), k)) * (r - 1)
+                    + 1) as f64;
+            println!("ph={}", p_hat);
+        }
+        return p_hat;
     }
-    p_hat
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
