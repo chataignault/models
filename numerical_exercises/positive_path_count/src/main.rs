@@ -1,14 +1,14 @@
 #![feature(test)]
 extern crate test;
 
-#[macro_use]
-extern crate queues;
+// #[macro_use]
+// extern crate queues;
 
 use clap::Parser;
+use num_integer::binomial;
 use queues::{queue, IsQueue, Queue};
 use std::collections::HashMap;
 use std::error::Error;
-
 use test::Bencher;
 
 #[derive(Parser, Debug)]
@@ -69,6 +69,10 @@ fn dynamical_programming(n: u32) -> u32 {
     *count_map.get(&(n, 0)).unwrap()
 }
 
+fn catalan_numbers(n: u32) -> u32 {
+    binomial(2 * n, n) - binomial(2 * n, n + 1)
+}
+
 fn main() -> Result<(), Box<dyn Error>> {
     let args = Args::parse();
     println!("Input : {}", args.length);
@@ -105,6 +109,13 @@ mod tests {
     fn test_match_results() {
         for n in 6..10 {
             assert_eq!(brute_force(n), dynamical_programming(n));
+        }
+    }
+
+    #[test]
+    fn test_match_catalan() {
+        for n in 9..15 {
+            assert_eq!(catalan_numbers(n), dynamical_programming(n));
         }
     }
 

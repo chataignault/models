@@ -6,4 +6,5 @@ edition = "2021"
 [dependencies]
 clap = { version = "4.5.31", features = ["derive"] }
 derive = "1.0.0"
+num-integer = "0.1.46"
 queues = "1.1.0"
