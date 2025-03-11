@@ -1,0 +1,9 @@
+[package]
+name = "positive_path_count"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+clap = { version = "4.5.31", features = ["derive"] }
+derive = "1.0.0"
+queues = "1.1.0"
