@@ -56,8 +56,53 @@ What is the optimal strategy and compute the expected value over the $n$ steps.
 | k | Maximum number of times not using the uniform draw  |
 | a, b | Range of the uniform law |
 
+<p style="color:green">
+Problem definition :
+</p>
+
+Assume  $k \geq 1, p < b $ and $n \geq 1$.
+The objective function can be written :
+
+$$
+M = \min \left( \mathbb{E} \left[ \sum_{j=1}^{n} x_j \right] \right)
+$$
+
+Where the $x_j$ are the draws from the random variables resulting of our strategy, which are not independant as decisions are made sequentially :
+
+$$
+M = \min \left( \mathbb{E} \left[ \sum_{j=1}^{n} \mathbb{E} \left[x_j | \mathcal{F}_{j-1} \right] \right] \right)
+$$
+
+If we know the uniform draws in advance, the optimal strategy would be to choose the $k$ larger draws and to replace it with $\min (x_{(i)}, p)$
+where the $x_{(i)}$ are the ordered variables.
+
+It gives a lower bound to the problem :
+
+$$
+M \geq \sum_{j=1}^{n-k} \left( a + \frac{j(b-a)}{n+1} \right) 
++\sum_{j=1}^{k} \min (p, a +\frac{(n-k+j)(b-a)}{n+1})
+$$
+
+<p style="color:green">
+Strategy : keep a flat threshold at the value of the top-k uniform value of n independant draws. <br>
+If we reach the point where there are as many $k$ than $n$, then apply the min.
+</p>
+
+The threshold then is $a + \frac{(n-k)(b-a)}{n+1} $
+
+$$
+\begin{align*}
+\mathbb{E} \left[ \sum_{j=1}^{n} x_j \right] & = 
+\mathbb{E} \left[ \sum_{j=1}^{n} \sum_{m=0}^{j \wedge k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) \right] 
+\end{align*}
+$$
 **Law of top-k drawn from a uniform distribution :**
 
+We used the fact fact that the expectation of the top-k value of n independant draws from a uniform variable is : 
+
+$$ 
+x_{(k)}^n = a + \frac{k (b-a)}{n+1}
+$$
 ***
 ## Negative price probability
 Compute the probability of a random walk reaching zero 
