@@ -32,8 +32,8 @@ class SimpleUnet(nn.Module):
         down_channels: List[int],
         time_emb_dim: int = 16,  # 16
         hidden_dim: int = 64,
-        n_heads: int = 8,  # 4
-        n_heads_inter: int = 4,
+        n_heads: int = 1,  # 4
+        n_heads_inter: int = 1,
     ):
         super().__init__()
         image_channels = 1
@@ -50,43 +50,48 @@ class SimpleUnet(nn.Module):
 
         self.init_conv = UpConvBlock(image_channels, down_channels[0], time_emb_dim)
 
-        attention_depth = (len(down_channels) - 1) // 2
+        # attention_depth = (len(down_channels) - 1) // 2
 
         self.downsampling = nn.Sequential(
             *[
-                Block(
-                    down_channels[i],
-                    down_channels[i + 1],
-                    4 * time_emb_dim,
-                    attention=int(i == attention_depth) * n_heads_inter,
+                nn.Sequential(
+                    ResBlock(down_channels[i], 4 * time_emb_dim),
+                    # AttentionBlock(down_channels[i], down_channels[i], n_heads_inter, 4 * time_emb_dim),
+                    Block(
+                        down_channels[i],
+                        down_channels[i + 1],
+                        4 * time_emb_dim,
+                        # attention=int(i == attention_depth) * n_heads_inter,
+                    ),
                 )
                 for i in range(len(down_channels) - 1)
             ]
         )
 
         self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
-        self.bnorm = nn.BatchNorm2d(down_channels[-1])
         self.attention_int = AttentionBlock(
             down_channels[-1], hidden_dim, n_heads, 4 * time_emb_dim
         )
-        self.relu = nn.ReLU()
-        # self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
 
         self.upsampling = nn.Sequential(
             *[
-                Block(
-                    up_channels[i],
-                    up_channels[i + 1],
-                    4 * time_emb_dim,
-                    up=True,
-                    attention=int(i == (len(down_channels) - 2 - attention_depth))
-                    * n_heads_inter,
+                nn.Sequential(
+                    Block(
+                        up_channels[i],
+                        up_channels[i + 1],
+                        4 * time_emb_dim,
+                        up=True,
+                        # attention=int(i == (len(down_channels) - 2 - attention_depth))
+                        # * n_heads_inter,
+                    ),
+                    # AttentionBlock(up_channels[i+1], up_channels[i+1], n_heads_inter, 4 * time_emb_dim),
+                    ResBlock(up_channels[i + 1], 4 * time_emb_dim),
                 )
                 for i in range(len(up_channels) - 1)
             ]
         )
 
-        # self.bnorm_out = nn.BatchNorm2d(up_channels[-1])
         self.out_conv = nn.Conv2d(
             in_channels=up_channels[-1], out_channels=1, kernel_size=1
         )
@@ -94,23 +99,35 @@ class SimpleUnet(nn.Module):
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
         x = self.init_conv(x, t)
-        x_down_ = [x]
+        x_down_ = []
+        # x_down_ = [x]
         for block in self.downsampling.children():
-            x, h = block(x, t)
-            x_down_.append(h)
+            for subblock in block:
+                if subblock.__class__.__name__ == "ResBlock":
+                    x = subblock(x, t)
+                elif subblock.__class__.__name__ == "AttentionBlock":
+                    x = subblock(x, t)
+                    x_down_.append(x)
+                elif subblock.__class__.__name__ == "Block":
+                    x, h = subblock(x, t)
+                    x_down_.append(h)
         x_down_.append(x)
         x = self.resint1(x, t)
-        x = self.bnorm(x)
-        # x = self.relu(x)
         x = self.attention_int(x, t)
-        # x = self.resint2(x, t)
-        for k, block in enumerate(self.upsampling.children(), 1):
-            residual = x_down_[-k]
-            x_extended = torch.cat([x, residual], dim=1)
-            x, _ = block(x_extended, t)
-        x = x + x_down_[0]
-        # x = self.bnorm_out(x)
-        # x = self.relu(x)
+        x = self.resint2(x, t)
+        for block in self.upsampling.children():
+            for subblock in block:
+                if subblock.__class__.__name__ == "ResBlock":
+                    x = subblock(x, t)
+                elif subblock.__class__.__name__ == "AttentionBlock":
+                    x = x + x_down_.pop()
+                    x = subblock(x, t)
+                elif subblock.__class__.__name__ == "Block":
+                    residual = x_down_.pop()
+                    x = torch.cat([x, residual], dim=1)
+                    x, _ = subblock(x, t)
+        # x = x + x_down_.pop()
+
         x = self.out_conv(x)
         return x
 
@@ -213,9 +230,11 @@ class Unet(nn.Module):
 
         # add the ultimate residual from the initial convolution
         x = x + x_down_[0]
-        x = self.bnorm_out(x)
-        x = self.relu(x)
+        x = self.bnorm_out(x)  # remove this
+        x = self.relu(x)  # remove this
         x = self.out_conv(x)
+        # x = self.relu(x)# loose conditions for the background
+        # can also try some soft non linearity
         return x
 
 
@@ -262,7 +281,7 @@ class LitUnet(L.LightningModule):
         )
         self.writer.add_scalar("Loss", loss, self.global_step)
 
-        if self.global_step % 500 == 0 and self.global_step > 0:
+        if self.global_step % 200 == 0 and self.global_step > 0:
             self.unet.eval()
             samp = sample(
                 self.unet,
@@ -272,10 +291,10 @@ class LitUnet(L.LightningModule):
                 1.0 / torch.sqrt(1 - self.posterior_variance),
                 self.T,
             )[-1]
-            # normalize
-            # ? clip instead
-            samp = samp - samp.min(dim=0)[0]
-            samp = samp / samp.max(dim=0)[0]
+            # # normalize
+            # # ? clip instead
+            # samp = samp - samp.min(dim=0)[0]
+            # samp = samp / samp.max(dim=0)[0]
 
             # log samples to board
             img_grid = torchvision.utils.make_grid(samp)
@@ -300,7 +319,7 @@ class LitUnet(L.LightningModule):
                 ExponentialLR(optimiser, 0.99),
             ],
             # milestones=[5, 15],
-            milestones=[2, 20],
+            milestones=[2, 10],
         )
         return {
             "optimizer": optimiser,
