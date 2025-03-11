@@ -9,6 +9,7 @@ from torch.optim import Adam
 import lightning as L
 from torch.utils.tensorboard import SummaryWriter
 from lightning.pytorch.utilities import grad_norm
+from collections import defaultdict
 
 from .training import get_loss
 from .diffusion import sample
@@ -262,6 +263,8 @@ class LitUnet(L.LightningModule):
         self.img_size = img_size
         self.posterior_variance = posterior_variance
 
+        self.timestep_losses = defaultdict(0.0)
+
     def on_before_optimizer_step(self, optimizer):
         # Compute the 2-norm for each layer
         # If using mixed precision, the gradients are already unscaled here
@@ -271,15 +274,30 @@ class LitUnet(L.LightningModule):
     def training_step(self, batch, batch_idx):
         x = batch["pixel_values"]
         timestep = torch.randint(1, self.T, (x.shape[0],))
-        loss = get_loss(
+        loss_per_pixel = get_loss(
             self.unet,
             x,
             timestep,
             self.sqrt_alphas_cumprod,
             self.sqrt_one_minus_alphas_cumprod,
             self.dev,
+            reduction="none",
         )
+        loss_per_image = torch.mean(loss_per_image, dim=(0, 1))
+
+        # accumulate the image error depending on the timestep
+        for i, t in enumerate(timestep):
+            ts = t.item()
+            self.timestep_losses[ts] = (
+                self.timestep_losses[ts] * 0.95 + loss_per_image[i].item() * 0.1
+            )
+
+        loss = torch.mean(loss_per_image)
+
         self.writer.add_scalar("Loss", loss, self.global_step)
+        self.writer.add_scalar("Loss 200", loss_per_image[200], self.global_step)
+        self.writer.add_scalar("Loss 500", loss_per_image[500], self.global_step)
+        self.writer.add_scalar("Loss 800", loss_per_image[800], self.global_step)
 
         if self.global_step % 200 == 0 and self.global_step > 0:
             self.unet.eval()
@@ -291,10 +309,6 @@ class LitUnet(L.LightningModule):
                 1.0 / torch.sqrt(1 - self.posterior_variance),
                 self.T,
             )[-1]
-            # # normalize
-            # # ? clip instead
-            # samp = samp - samp.min(dim=0)[0]
-            # samp = samp / samp.max(dim=0)[0]
 
             # log samples to board
             img_grid = torchvision.utils.make_grid(samp)
@@ -309,8 +323,6 @@ class LitUnet(L.LightningModule):
 
     def configure_optimizers(self):
         optimiser = Adam(self.parameters(), lr=self.lr)
-        # stepping_batches = self.trainer.estimated_stepping_batches
-        # scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer, max_lr=5*self.lr, total_steps=stepping_batches)
         scheduler = SequentialLR(
             optimiser,
             schedulers=[
@@ -318,7 +330,6 @@ class LitUnet(L.LightningModule):
                 ConstantLR(optimiser, 1.0),
                 ExponentialLR(optimiser, 0.99),
             ],
-            # milestones=[5, 15],
             milestones=[2, 10],
         )
         return {
