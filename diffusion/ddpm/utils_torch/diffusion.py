@@ -99,8 +99,9 @@ def sample(
     device = next(model.parameters()).device
     b = shape[0]
     # start from pure noise (for each example in the batch)
-    img = torch.randn(
-        shape, device=device
+    img = 1.1 * torch.randn(
+        shape,
+        device=device,
     )  # ! check whether the variance corresponds to forward pass
     imgs = []
     for i in tqdm(

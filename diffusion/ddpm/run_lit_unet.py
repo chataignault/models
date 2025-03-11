@@ -21,7 +21,14 @@ DEFAULT_IMG_SIZE = 28
 
 
 def load_model(
-    models_dir, logger, down_channels, time_emb_dim, device, load_checkpoint, model_name
+    models_dir,
+    logger,
+    down_channels,
+    time_emb_dim,
+    hidden_dim,
+    device,
+    load_checkpoint,
+    model_name,
 ):
     """
     Load appropriate backbone model
@@ -33,7 +40,9 @@ def load_model(
             )
         case "SimpleUnet":
             unet = SimpleUnet(
-                down_channels=down_channels, time_emb_dim=time_emb_dim
+                down_channels=down_channels,
+                time_emb_dim=time_emb_dim,
+                hidden_dim=hidden_dim,
             ).to(device)
         case _:
             raise ValueError(f"{model_name} is not implemented")
@@ -68,17 +77,18 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--down_channels", nargs="+", type=int, default=[8, 16, 32])
+    parser.add_argument("--down_channels", nargs="+", type=int, default=[64, 128, 128])
     parser.add_argument("--time_emb_dim", type=int, default=16)
+    parser.add_argument("--hidden_dim", type=int, default=64)
     parser.add_argument(
         "--zero_pad",
         action="store_true",
         help="Extend the image size to 32x32 to allow deeper network",
     )
-    parser.add_argument("--device", type=str, default="cpu")
-    parser.add_argument("--batch_size", type=int, default=512)
-    parser.add_argument("--nepochs", type=int, default=20)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--batch_size", type=int, default=1024)
+    parser.add_argument("--nepochs", type=int, default=50)
+    parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--model_tag", type=str, default="")
     parser.add_argument("--model_name", type=str, default="SimpleUnet")
@@ -90,6 +100,7 @@ if __name__ == "__main__":
 
     down_channels = args.down_channels
     time_emb_dim = args.time_emb_dim
+    hidden_dim = args.hidden_dim
     zero_pad_images = args.zero_pad
     device = args.device
     BATCH_SIZE = args.batch_size
@@ -125,6 +136,7 @@ if __name__ == "__main__":
         logger,
         down_channels,
         time_emb_dim,
+        hidden_dim,
         device,
         load_checkpoint,
         model_name,
@@ -180,12 +192,12 @@ if __name__ == "__main__":
     # generate samples
     logger.info("Generate sample")
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
-    n_samp = 16
+    n_samp = 32
     n_cols = 8
     SAMP_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
 
     _, axs = plt.subplots(
-        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 4)
+        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 8)
     )
 
     samp = sample(
@@ -196,9 +208,6 @@ if __name__ == "__main__":
         sqrt_recip_alphas,
         T,
     )[-1]
-    # normalize
-    samp = samp - samp.min(dim=0)[0]
-    samp = samp / samp.max(dim=0)[0]
 
     # log samples to board
     img_grid = torchvision.utils.make_grid(samp)
