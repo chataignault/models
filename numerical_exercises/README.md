@@ -85,7 +85,7 @@ $$
 
 <p style="color:green">
 Strategy : keep a flat threshold at the value of the top-k uniform value of n independant draws. <br>
-If we reach the point where there are as many $k$ than $n$, then apply the min.
+If we reach the point where there are as many k than n, then apply the min.
 </p>
 
 The threshold then is $a + \frac{(n-k)(b-a)}{n+1} $
@@ -96,6 +96,20 @@ $$
 \mathbb{E} \left[ \sum_{j=1}^{n} \sum_{m=0}^{j \wedge k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) \right] 
 \end{align*}
 $$
+
+Where the variable $k_i \in [0, i]$ is the number of $u_1, \dots, u_{i-1} $ being above the threshold 
+(the factorisation is possible since $u_i \perp (u_j)_{j < i }$ ).
+
+The sum can be rewritten :
+
+$$
+\begin{align*}
+\mathbb{E} \left[ \sum_{j=1}^{n} x_j \right] & = 
+\mathbb{E} \left[ \sum_{j=1}^{k} \sum_{m=0}^{j} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) + \sum_{j=k+1}^{n} \sum_{m=0}^{k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m)\right] 
+\end{align*}
+$$
+
+
 **Law of top-k drawn from a uniform distribution :**
 
 We used the fact fact that the expectation of the top-k value of n independant draws from a uniform variable is : 
