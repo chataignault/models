@@ -22,3 +22,10 @@
 - Leverage path development inside models
 - implement a jax version
 
+
+## Numerical implementation
+Implement in Rust numerical verification of math questions.
+
+- Counting discrete positive paths starting and ending at zero,
+- Probability of a random walk to reach zero under time constraint,
+- Optimal strategy to minimize a capped uniform law sequentially under constraints.
