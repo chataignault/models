@@ -21,12 +21,12 @@ fn brute_force(n: u32) -> u32 {
     // use a stack to keep track of the current admissible paths
     // upper bound for possible paths
     // FIFO ensures breadth-first search
-    let mut N: u32 = 0;
+    let mut m: u32 = 0;
     let mut q: Queue<(u32, u32)> = queue![(0, 0)];
     while q.size() > 0 {
         let (c, v) = q.remove().unwrap();
         if c == 2 * n && v == 0 {
-            N += 1;
+            m += 1;
         } else if v == 0 {
             q.add((c + 1, v + 1));
         } else if v + c == 2 * n && v > 0 {
@@ -36,7 +36,7 @@ fn brute_force(n: u32) -> u32 {
             q.add((c + 1, v + 1));
         }
     }
-    N
+    m
 }
 
 fn dynamical_programming(n: u32) -> u32 {
@@ -62,7 +62,7 @@ fn dynamical_programming(n: u32) -> u32 {
             count_map.insert(
                 (k, k - 1),
                 2 * (*count_map.get(&(k - 1, k - 1)).unwrap())
-                    + *count_map.get(&(k - 1, k - 2)).unwrap(), // + *count_map.get(&(k - 1, j + 1)).unwrap(),
+                    + *count_map.get(&(k - 1, k - 2)).unwrap(),
             );
         }
     }
