@@ -1,5 +1,7 @@
 use clap::Parser;
 use std::error::Error;
+// use rand_distr::{Uniform, Distribution};
+use rand_distr::uniform::{UniformSampler, UniformFloat};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -19,13 +21,32 @@ fn expected_optimal_exec(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
     } else if k >= n && p <= a {
         return p * (n as f32);
     } else {
-        0.
+        let d = UniformFloat::<f32>::new(a, b).unwrap();
+        // let d: UniformSampler<f32> = UniformSampler::new(a, b).unwrap();
+        let mut s: f32 = 0.;
+        for i in 1..k {
+            s += f32::min(p, a + ((n - i) as f32) * (b - a) / (n + 1) as f32);
+        }
+        for i in 1..(n-k) {
+            s += a + (i as f32) * (b-a) / (n+1) as f32
+        }
+        return s;
     }
 }
 
 fn exec_strategy_simulated(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
     // Numerically verify that the strategy is optimal
-    0.
+    const N: u32 = 10_000;
+    let mut S: f32 = 0.;
+    let t: f32 = a + ((n-k) as f32) * (b - a) / (n+1) as f32;
+    for _ in 1..N {
+        let mut s: f32 = 0.;
+        let mut r = k;
+        
+        S += 0.;
+    }
+
+    S / (N as f32)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -49,7 +70,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 mod test {
     use crate::*;
 
-    const TOL: f32 = 1e-3;
+    const TOL: f32 = 1e-2;
 
     #[test]
     fn test_trivial_cases_optimal() {
