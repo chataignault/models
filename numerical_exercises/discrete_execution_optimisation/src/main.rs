@@ -1,7 +1,8 @@
 use clap::Parser;
+use rand::rng;
 use std::error::Error;
 // use rand_distr::{Uniform, Distribution};
-use rand_distr::uniform::{UniformSampler, UniformFloat};
+use rand_distr::uniform::{UniformFloat, UniformSampler};
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -21,14 +22,12 @@ fn expected_optimal_exec(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
     } else if k >= n && p <= a {
         return p * (n as f32);
     } else {
-        let d = UniformFloat::<f32>::new(a, b).unwrap();
-        // let d: UniformSampler<f32> = UniformSampler::new(a, b).unwrap();
         let mut s: f32 = 0.;
         for i in 1..k {
             s += f32::min(p, a + ((n - i) as f32) * (b - a) / (n + 1) as f32);
         }
-        for i in 1..(n-k) {
-            s += a + (i as f32) * (b-a) / (n+1) as f32
+        for i in 1..(n - k) {
+            s += a + (i as f32) * (b - a) / (n + 1) as f32
         }
         return s;
     }
@@ -37,16 +36,26 @@ fn expected_optimal_exec(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
 fn exec_strategy_simulated(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
     // Numerically verify that the strategy is optimal
     const N: u32 = 10_000;
-    let mut S: f32 = 0.;
-    let t: f32 = a + ((n-k) as f32) * (b - a) / (n+1) as f32;
+    let mut s: f32 = 0.;
+    let t: f32 = a + ((n - k) as f32) * (b - a) / (n + 1) as f32;
+    let mut rng_key = rng();
+    let d = UniformFloat::<f32>::new(a, b).unwrap();
     for _ in 1..N {
-        let mut s: f32 = 0.;
+        let mut sim: f32 = 0.;
         let mut r = k;
-        
-        S += 0.;
+        for j in 1..n {
+            let u = d.sample(&mut rng);
+            if u > t && r > 0 {
+                r -= 1;
+                sim += p;
+            } else {
+                s += u;
+            }
+        }
+        s += sim;
     }
 
-    S / (N as f32)
+    s / (N as f32)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
