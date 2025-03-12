@@ -97,7 +97,7 @@ $$
 \end{align*}
 $$
 
-Where the variable $k_i \in [0, i]$ is the number of $u_1, \dots, u_{i-1} $ being above the threshold 
+Where the variable $k_i \in [0, i]$ is the number of $u_1, \dots , u_{i-1} $ being above the threshold 
 (the factorisation is possible since $u_i \perp (u_j)_{j < i }$ ).
 
 The sum can be rewritten :
@@ -107,7 +107,7 @@ $$
 \mathbb{E} \left[ \sum_{j=1}^{n} x_j \right] & = 
 \mathbb{E} \left[ \sum_{j=1}^{k} \sum_{m=0}^{j} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) + \sum_{j=k+1}^{n} \sum_{m=0}^{k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m)\right] \\
 & = \int \dots \int \sum_i x_i \frac{du_1 \dots du_n}{(b-a)^n} \\
-& = \sum_{\sigma \in P_n} \int_{u_{\sigma(1)} < \dots < u_{\sigma(n)}} \dots \int \sum_i x_i(u_1, \dots, u_n) \frac{du_1 \dots du_n}{(b-a)^n}
+& = \sum_{\sigma \in P_n} \int_{u_{\sigma(1)} < \dots < u_{\sigma(n)}} \dots \int \sum_i x_i(u_1, \dots , u_n) \frac{du_1 \dots du_n}{(b-a)^n}
 \end{align*}
 $$
 
@@ -125,16 +125,16 @@ To simplify the computation, let $(u_i)_{i\in [1, \dots, n]} \sim \mathcal{U}[0,
 Let $k \in [1, n]$ and $\left( u_{(i)} \right)_{i \in [1, \dots, n]}$ the ordered variables.
 
 $$
-\begin{align*}
-\mathbb{E} \left[ u_{(k)} \right] & =
-\frac{1}{c^n}\int \dots \int u_{(k)} du_1\dots du_n \\
-& = \frac{n!}{c^n} \int_{u_1 < \dots < u_n} \int u_k du_1\dots du_n \\
-& = \frac{n!}{k! c^n} \int_{u_k < \dots < u_n} u_k \times u_k^{k-1}\  du_k \dots du_n \\
-& = \frac{n!}{(k-1)! (k+1)c^n} \int_{u_{k+1} < \dots < u_n} u_{k+1}^{k+1} \  du_{k+1} \dots du_n \\
-& = \frac{n!}{(k-1)! (k+1)\dots n c^n} \int_{0<u_n <c} u_{n}^{n} \  du_{n} \\
-& = \frac{n!}{k! (k+1)\dots(n-1) n (n+1) c^n} \times c^{n+1} \\
-& = \frac{k c}{n+1} & \small \square
-\end{align*}
+\begin{aligned}
+\mathbb{E} \left[ u_{(k)} \right] &=
+\frac{1}{c^n}\int \cdots \int u_{(k)} du_1\cdots du_n \\
+&= \frac{n! }{c^n} \int_{u_1 < \cdots < u_n} \int u_k du_1\cdots du_n \\
+&= \frac{n! }{(k-1) ! c^n} \int_{u_k < \cdots < u_n} u_k \times u_k^{k-1}\  du_k \cdots du_n \\
+&= \frac{n! }{(k-1) ! (k+1)c^n} \int_{u_{k+1} < \cdots < u_n} u_{k+1}^{k+1} \  du_{k+1} \cdots du_n \\
+&= \frac{n! }{(k-1) ! (k+1)\cdots n c^n} \int_{0 < u_n < c} u_{n}^{n} \  du_{n} \\
+&= \frac{n! }{(k-1) ! (k+1)\cdots n (n+1) c^n} \times c^{n+1} \\
+&= \frac{k c}{n+1} 
+\end{aligned}
 $$
 
 ***
@@ -196,9 +196,7 @@ $$
 \begin{pmatrix}
 (r-j) + (j+1) - 1 \\
 (j+1) - 1
-\end{pmatrix}
-= 
-\begin{pmatrix}
+\end{pmatrix}= \begin{pmatrix}
 r \\
 j
 \end{pmatrix}
