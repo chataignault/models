@@ -93,7 +93,7 @@ The threshold then is $a + \frac{(n-k)(b-a)}{n+1} $
 $$
 \begin{align*}
 \mathbb{E} \left[ \sum_{j=1}^{n} x_j \right] & = 
-\mathbb{E} \left[ \sum_{j=1}^{n} \sum_{m=0}^{j \wedge k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) \right] 
+\mathbb{E} \left[ \sum_{j=1}^{n} \sum_{m=0}^{j \wedge k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) \right]
 \end{align*}
 $$
 
@@ -105,7 +105,9 @@ The sum can be rewritten :
 $$
 \begin{align*}
 \mathbb{E} \left[ \sum_{j=1}^{n} x_j \right] & = 
-\mathbb{E} \left[ \sum_{j=1}^{k} \sum_{m=0}^{j} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) + \sum_{j=k+1}^{n} \sum_{m=0}^{k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m)\right] 
+\mathbb{E} \left[ \sum_{j=1}^{k} \sum_{m=0}^{j} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m) + \sum_{j=k+1}^{n} \sum_{m=0}^{k} \mathbb{E} \left[ x_j | k_j = m \right] P(k_j = m)\right] \\
+& = \int \dots \int \sum_i x_i \frac{du_1 \dots du_n}{(b-a)^n} \\
+& = \sum_{\sigma \in P_n} \int_{u_{\sigma(1)} < \dots < u_{\sigma(n)}} \dots \int \sum_i x_i(u_1, \dots, u_n) \frac{du_1 \dots du_n}{(b-a)^n}
 \end{align*}
 $$
 
@@ -117,6 +119,24 @@ We used the fact fact that the expectation of the top-k value of n independant d
 $$ 
 x_{(k)}^n = a + \frac{k (b-a)}{n+1}
 $$
+
+To simplify the computation, let $(u_i)_{i\in [1, \dots, n]} \sim \mathcal{U}[0, c] $ and independant.
+
+Let $k \in [1, n]$ and $\left( u_{(i)} \right)_{i \in [1, \dots, n]}$ the ordered variables.
+
+$$
+\begin{align*}
+\mathbb{E} \left[ u_{(k)} \right] & =
+\frac{1}{c^n}\int \dots \int u_{(k)} du_1\dots du_n \\
+& = \frac{n!}{c^n} \int_{u_1 < \dots < u_n} \int u_k du_1\dots du_n \\
+& = \frac{n!}{k! c^n} \int_{u_k < \dots < u_n} u_k \times u_k^{k-1}\  du_k \dots du_n \\
+& = \frac{n!}{(k-1)! (k+1)c^n} \int_{u_{k+1} < \dots < u_n} u_{k+1}^{k+1} \  du_{k+1} \dots du_n \\
+& = \frac{n!}{(k-1)! (k+1)\dots n c^n} \int_{0<u_n <c} u_{n}^{n} \  du_{n} \\
+& = \frac{n!}{k! (k+1)\dots(n-1) n (n+1) c^n} \times c^{n+1} \\
+& = \frac{k c}{n+1} & \small \square
+\end{align*}
+$$
+
 ***
 ## Negative price probability
 Compute the probability of a random walk reaching zero 
