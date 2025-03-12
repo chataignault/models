@@ -34,7 +34,7 @@ class SimpleUnet(nn.Module):
         time_emb_dim: int = 16,  # 16
         hidden_dim: int = 64,
         n_heads: int = 1,  # 4
-        n_heads_inter: int = 1,
+        # n_heads_inter: int = 1,
     ):
         super().__init__()
         image_channels = 1
@@ -84,7 +84,6 @@ class SimpleUnet(nn.Module):
                         4 * time_emb_dim,
                         up=True,
                         # attention=int(i == (len(down_channels) - 2 - attention_depth))
-                        # * n_heads_inter,
                     ),
                     # AttentionBlock(up_channels[i+1], up_channels[i+1], n_heads_inter, 4 * time_emb_dim),
                     ResBlock(up_channels[i + 1], 4 * time_emb_dim),
@@ -128,7 +127,6 @@ class SimpleUnet(nn.Module):
                     x = torch.cat([x, residual], dim=1)
                     x, _ = subblock(x, t)
         # x = x + x_down_.pop()
-
         x = self.out_conv(x)
         return x
 
@@ -234,7 +232,6 @@ class Unet(nn.Module):
         x = self.bnorm_out(x)  # remove this
         x = self.relu(x)  # remove this
         x = self.out_conv(x)
-        # x = self.relu(x)# loose conditions for the background
         # can also try some soft non linearity
         return x
 
@@ -263,7 +260,7 @@ class LitUnet(L.LightningModule):
         self.img_size = img_size
         self.posterior_variance = posterior_variance
 
-        self.timestep_losses = defaultdict(0.0)
+        self.timestep_losses = defaultdict(int)
 
     def on_before_optimizer_step(self, optimizer):
         # Compute the 2-norm for each layer
@@ -283,11 +280,12 @@ class LitUnet(L.LightningModule):
             self.dev,
             reduction="none",
         )
-        loss_per_image = torch.mean(loss_per_image, dim=(0, 1))
+        loss_per_image = torch.mean(loss_per_pixel, dim=(1, 2, 3))
 
         # accumulate the image error depending on the timestep
         for i, t in enumerate(timestep):
-            ts = t.item()
+            ts = int(t.item())
+
             self.timestep_losses[ts] = (
                 self.timestep_losses[ts] * 0.95 + loss_per_image[i].item() * 0.1
             )
@@ -328,7 +326,7 @@ class LitUnet(L.LightningModule):
             schedulers=[
                 LinearLR(optimiser, 0.1, 1.0, 2),
                 ConstantLR(optimiser, 1.0),
-                ExponentialLR(optimiser, 0.99),
+                ExponentialLR(optimiser, 0.95),
             ],
             milestones=[2, 10],
         )
