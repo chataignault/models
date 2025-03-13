@@ -1,8 +1,7 @@
 use clap::Parser;
 use rand::rng;
-use std::error::Error;
-// use rand_distr::{Uniform, Distribution};
 use rand_distr::uniform::{UniformFloat, UniformSampler};
+use std::error::Error;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -26,7 +25,7 @@ fn expected_optimal_exec(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
         for i in 1..k {
             s += f32::min(p, a + ((n - i) as f32) * (b - a) / (n + 1) as f32);
         }
-        for i in 1..(n - k) {
+        for i in 1..(n - k + 1) {
             s += a + (i as f32) * (b - a) / (n + 1) as f32
         }
         return s;
@@ -35,6 +34,13 @@ fn expected_optimal_exec(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
 
 fn exec_strategy_simulated(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
     // Numerically verify that the strategy is optimal
+    if n == 0 {
+        return 0.;
+    } else if k == 0 || p >= b {
+        return (b + a) as f32 / 2. * (n as f32);
+    } else if k >= n && p <= a {
+        return p * (n as f32);
+    }
     const N: u32 = 10_000;
     let mut s: f32 = 0.;
     let t: f32 = a + ((n - k) as f32) * (b - a) / (n + 1) as f32;
@@ -43,8 +49,8 @@ fn exec_strategy_simulated(n: u32, k: u32, a: f32, b: f32, p: f32) -> f32 {
     for _ in 1..N {
         let mut sim: f32 = 0.;
         let mut r = k;
-        for j in 1..n {
-            let u = d.sample(&mut rng);
+        for _ in 1..n {
+            let u = d.sample(&mut rng_key);
             if u > t && r > 0 {
                 r -= 1;
                 sim += p;
@@ -90,14 +96,23 @@ mod test {
     }
 
     #[test]
-    fn test_simulated_expected() {}
+    fn test_trivial_cases_strat() {
+        assert!((exec_strategy_simulated(0, 1, 1., 2., 0.5).abs() < TOL));
+        assert!(((exec_strategy_simulated(3, 0, 1., 2., 0.5) - 4.5).abs() < TOL));
+        assert!(((exec_strategy_simulated(3, 2, 1., 2., 2.5) - 4.5).abs() < TOL));
+        assert!(((exec_strategy_simulated(3, 3, 1., 2., 0.5) - 1.5).abs() < TOL));
+    }
 
     #[test]
-    fn test_sim_is_optimal() {
+    fn test_strat_optimal_tol() {
+        let opt = expected_optimal_exec(30, 3, 1., 2., 1.5);
+        assert!((exec_strategy_simulated(30, 3, 1., 2., 1.5) - opt) / opt - 1. < TOL)
+    }
+
+    #[test]
+    fn test_lower_bound() {
         assert!(
-            (expected_optimal_exec(3, 2, 1., 2., 1.5) - exec_strategy_simulated(3, 2, 1., 2., 1.5))
-                .abs()
-                < TOL
+            expected_optimal_exec(3, 2, 1., 2., 1.5) < exec_strategy_simulated(3, 2, 1., 2., 1.5)
         );
     }
 }
