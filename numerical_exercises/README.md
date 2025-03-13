@@ -201,3 +201,7 @@ r \\
 j
 \end{pmatrix}
 $$
+
+**Efficient computation of integer partitions :**
+- [Kelleher, Jerome, and Barry O'Sullivan. "Generating all partitions: A comparison of two encodings." arXiv preprint arXiv:0909.2331 (2009).](https://arxiv.org/pdf/0909.2331)
+- https://jeromekelleher.net/generating-integer-partitions.html
