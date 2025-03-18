@@ -184,7 +184,7 @@ if __name__ == "__main__":
     unet = unet.unet.to(device)
     unet.eval()
     name = (
-        f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
+        f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime('%Y%m%d-%H')}.pt"
     )
     location = os.path.join(models_dir, name)
     torch.save(unet.state_dict(), location)

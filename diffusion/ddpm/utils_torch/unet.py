@@ -34,7 +34,7 @@ class SimpleUnet(nn.Module):
         time_emb_dim: int = 16,  # 16
         hidden_dim: int = 64,
         n_heads: int = 1,  # 4
-        # n_heads_inter: int = 1,
+        n_heads_inter: int = 1,
     ):
         super().__init__()
         image_channels = 1
@@ -55,15 +55,35 @@ class SimpleUnet(nn.Module):
 
         self.downsampling = nn.Sequential(
             *[
-                nn.Sequential(
-                    ResBlock(down_channels[i], 4 * time_emb_dim),
-                    # AttentionBlock(down_channels[i], down_channels[i], n_heads_inter, 4 * time_emb_dim),
-                    Block(
-                        down_channels[i],
-                        down_channels[i + 1],
-                        4 * time_emb_dim,
-                        # attention=int(i == attention_depth) * n_heads_inter,
-                    ),
+                (
+                    nn.Sequential(
+                        ResBlock(down_channels[i], 4 * time_emb_dim),
+                        AttentionBlock(
+                            down_channels[i],
+                            down_channels[i],
+                            n_heads_inter,
+                            4 * time_emb_dim,
+                        ),
+                        Block(
+                            down_channels[i],
+                            down_channels[i + 1],
+                            4 * time_emb_dim,
+                            # attention=int(i == attention_depth) * n_heads_inter,
+                        ),
+                    )
+                )
+                if i == 1
+                else (
+                    nn.Sequential(
+                        ResBlock(down_channels[i], 4 * time_emb_dim),
+                        # AttentionBlock(down_channels[i], down_channels[i], n_heads_inter, 4 * time_emb_dim),
+                        Block(
+                            down_channels[i],
+                            down_channels[i + 1],
+                            4 * time_emb_dim,
+                            # attention=int(i == attention_depth) * n_heads_inter,
+                        ),
+                    )
                 )
                 for i in range(len(down_channels) - 1)
             ]
@@ -77,16 +97,37 @@ class SimpleUnet(nn.Module):
 
         self.upsampling = nn.Sequential(
             *[
-                nn.Sequential(
-                    Block(
-                        up_channels[i],
-                        up_channels[i + 1],
-                        4 * time_emb_dim,
-                        up=True,
-                        # attention=int(i == (len(down_channels) - 2 - attention_depth))
-                    ),
-                    # AttentionBlock(up_channels[i+1], up_channels[i+1], n_heads_inter, 4 * time_emb_dim),
-                    ResBlock(up_channels[i + 1], 4 * time_emb_dim),
+                (
+                    nn.Sequential(
+                        Block(
+                            up_channels[i],
+                            up_channels[i + 1],
+                            4 * time_emb_dim,
+                            up=True,
+                            # attention=int(i == (len(down_channels) - 2 - attention_depth))
+                        ),
+                        AttentionBlock(
+                            up_channels[i + 1],
+                            up_channels[i + 1],
+                            n_heads_inter,
+                            4 * time_emb_dim,
+                        ),
+                        ResBlock(up_channels[i + 1], 4 * time_emb_dim),
+                    )
+                )
+                if i == len(up_channels) - 2
+                else (
+                    nn.Sequential(
+                        Block(
+                            up_channels[i],
+                            up_channels[i + 1],
+                            4 * time_emb_dim,
+                            up=True,
+                            # attention=int(i == (len(down_channels) - 2 - attention_depth))
+                        ),
+                        # AttentionBlock(up_channels[i+1], up_channels[i+1], n_heads_inter, 4 * time_emb_dim),
+                        ResBlock(up_channels[i + 1], 4 * time_emb_dim),
+                    )
                 )
                 for i in range(len(up_channels) - 1)
             ]
@@ -107,7 +148,7 @@ class SimpleUnet(nn.Module):
                     x = subblock(x, t)
                 elif subblock.__class__.__name__ == "AttentionBlock":
                     x = subblock(x, t)
-                    x_down_.append(x)
+                    # x_down_.append(x)
                 elif subblock.__class__.__name__ == "Block":
                     x, h = subblock(x, t)
                     x_down_.append(h)
@@ -120,7 +161,7 @@ class SimpleUnet(nn.Module):
                 if subblock.__class__.__name__ == "ResBlock":
                     x = subblock(x, t)
                 elif subblock.__class__.__name__ == "AttentionBlock":
-                    x = x + x_down_.pop()
+                    # x = x + x_down_.pop()
                     x = subblock(x, t)
                 elif subblock.__class__.__name__ == "Block":
                     residual = x_down_.pop()
@@ -293,9 +334,9 @@ class LitUnet(L.LightningModule):
         loss = torch.mean(loss_per_image)
 
         self.writer.add_scalar("Loss", loss, self.global_step)
-        self.writer.add_scalar("Loss 200", loss_per_image[200], self.global_step)
-        self.writer.add_scalar("Loss 500", loss_per_image[500], self.global_step)
-        self.writer.add_scalar("Loss 800", loss_per_image[800], self.global_step)
+        self.writer.add_scalar("Loss 200", self.timestep_losses[200], self.global_step)
+        self.writer.add_scalar("Loss 500", self.timestep_losses[500], self.global_step)
+        self.writer.add_scalar("Loss 850", self.timestep_losses[850], self.global_step)
 
         if self.global_step % 200 == 0 and self.global_step > 0:
             self.unet.eval()
@@ -328,7 +369,7 @@ class LitUnet(L.LightningModule):
                 ConstantLR(optimiser, 1.0),
                 ExponentialLR(optimiser, 0.95),
             ],
-            milestones=[2, 10],
+            milestones=[2, 8],  # faster decrease
         )
         return {
             "optimizer": optimiser,
