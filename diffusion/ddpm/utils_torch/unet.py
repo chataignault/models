@@ -51,8 +51,6 @@ class SimpleUnet(nn.Module):
 
         self.init_conv = UpConvBlock(image_channels, down_channels[0], time_emb_dim)
 
-        # attention_depth = (len(down_channels) - 1) // 2
-
         self.downsampling = nn.Sequential(
             *[
                 (
@@ -68,7 +66,6 @@ class SimpleUnet(nn.Module):
                             down_channels[i],
                             down_channels[i + 1],
                             4 * time_emb_dim,
-                            # attention=int(i == attention_depth) * n_heads_inter,
                         ),
                     )
                 )
@@ -145,11 +142,11 @@ class SimpleUnet(nn.Module):
                     x = subblock(x, t)
                 elif subblock.__class__.__name__ == "AttentionBlock":
                     x = subblock(x, t) + x
-                    # x_down_.append(x.clone())
                 elif subblock.__class__.__name__ == "Block":
                     x, h = subblock(x, t)
                     x_down_.append(h.clone())
-        x_down_.append(x)
+                    x_down_.append(x.clone())
+        # x_down_.append(x)
         x = self.resint1(x, t)
         x = self.attention_int(x, t) + x
         x = self.resint2(x, t)
@@ -158,11 +155,11 @@ class SimpleUnet(nn.Module):
                 if subblock.__class__.__name__ == "ResBlock":
                     x = subblock(x, t) + x
                 elif subblock.__class__.__name__ == "AttentionBlock":
-                    # x = x + x_down_.pop()
                     x = subblock(x, t) + x
                 elif subblock.__class__.__name__ == "Block":
                     x = torch.cat([x, x_down_.pop()], dim=1)
                     x, _ = subblock(x, t)
+                    x = x + x_down_.pop()
         x = torch.cat([x, x_down_.pop()], dim=1)
         assert len(x_down_) == 0
         x = self.end_res(x, t)
