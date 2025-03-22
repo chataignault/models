@@ -31,10 +31,10 @@ class SimpleUnet(nn.Module):
     def __init__(
         self,
         down_channels: List[int],
-        time_emb_dim: int = 16,  # 16
+        time_emb_dim: int = 16,
         hidden_dim: int = 64,
-        n_heads: int = 1,  # 4
-        n_heads_inter: int = 1,
+        n_heads: int = 8,
+        n_heads_inter: int = 4,
     ):
         super().__init__()
         image_channels = 1
@@ -45,7 +45,7 @@ class SimpleUnet(nn.Module):
         self.pos_emb = nn.Sequential(
             SinusoidalPositionEmbeddings(dim=time_emb_dim),
             nn.Linear(time_emb_dim, 4 * time_emb_dim),
-            nn.ReLU(),
+            nn.GELU(),
             nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
         )
 
@@ -76,12 +76,10 @@ class SimpleUnet(nn.Module):
                 else (
                     nn.Sequential(
                         ResBlock(down_channels[i], 4 * time_emb_dim),
-                        # AttentionBlock(down_channels[i], down_channels[i], n_heads_inter, 4 * time_emb_dim),
                         Block(
                             down_channels[i],
                             down_channels[i + 1],
                             4 * time_emb_dim,
-                            # attention=int(i == attention_depth) * n_heads_inter,
                         ),
                     )
                 )
@@ -132,42 +130,42 @@ class SimpleUnet(nn.Module):
                 for i in range(len(up_channels) - 1)
             ]
         )
-
+        self.end_res = ResBlock(2 * up_channels[-1], 4 * time_emb_dim)
         self.out_conv = nn.Conv2d(
-            in_channels=up_channels[-1], out_channels=1, kernel_size=1
+            in_channels=2 * up_channels[-1], out_channels=1, kernel_size=1
         )
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
         x = self.init_conv(x, t)
-        x_down_ = []
-        # x_down_ = [x]
+        x_down_ = [x.clone()]
         for block in self.downsampling.children():
             for subblock in block:
                 if subblock.__class__.__name__ == "ResBlock":
                     x = subblock(x, t)
                 elif subblock.__class__.__name__ == "AttentionBlock":
-                    x = subblock(x, t)
-                    # x_down_.append(x)
+                    x = subblock(x, t) + x
+                    # x_down_.append(x.clone())
                 elif subblock.__class__.__name__ == "Block":
                     x, h = subblock(x, t)
-                    x_down_.append(h)
+                    x_down_.append(h.clone())
         x_down_.append(x)
         x = self.resint1(x, t)
-        x = self.attention_int(x, t)
+        x = self.attention_int(x, t) + x
         x = self.resint2(x, t)
         for block in self.upsampling.children():
             for subblock in block:
                 if subblock.__class__.__name__ == "ResBlock":
-                    x = subblock(x, t)
+                    x = subblock(x, t) + x
                 elif subblock.__class__.__name__ == "AttentionBlock":
                     # x = x + x_down_.pop()
-                    x = subblock(x, t)
+                    x = subblock(x, t) + x
                 elif subblock.__class__.__name__ == "Block":
-                    residual = x_down_.pop()
-                    x = torch.cat([x, residual], dim=1)
+                    x = torch.cat([x, x_down_.pop()], dim=1)
                     x, _ = subblock(x, t)
-        # x = x + x_down_.pop()
+        x = torch.cat([x, x_down_.pop()], dim=1)
+        assert len(x_down_) == 0
+        x = self.end_res(x, t)
         x = self.out_conv(x)
         return x
 

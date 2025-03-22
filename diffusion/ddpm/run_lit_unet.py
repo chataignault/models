@@ -171,7 +171,6 @@ if __name__ == "__main__":
         accelerator="auto",
         callbacks=[
             LearningRateMonitor(),
-            # DeviceStatsMonitor()
         ],
         logger=TensorBoardLogger("tb_logs", name=model_name, log_graph=True),
     )

@@ -24,7 +24,7 @@ def get_transforms(
     ]
     if zero_pad_images:
         t_.append(Pad(2))
-    t_.append(Lambda(lambda t: (t * 2) - 1))
+    # t_.append(Lambda(lambda t: (t * 2) - 1))
     transform = Compose(transforms=t_)
 
     if channels_last:
