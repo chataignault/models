@@ -11,6 +11,8 @@ struct Args {
     x: f32,
 }
 
+mod int_part;
+
 fn compute_proba_negative_mc(n: u32, p: f64, s: f32, ds: f32) -> f64 {
     // Monte Carlo estimate of the path-dependant probability
     let r: i32 = (s / ds).ceil() as i32;
@@ -37,53 +39,6 @@ fn compute_proba_negative_mc(n: u32, p: f64, s: f32, ds: f32) -> f64 {
     p_hat as f64 / N as f64
 }
 
-fn all_partitions(n: u32) -> impl Iterator<Item = Vec<u32>> {
-    // Generate all possible partitions first
-    fn generate_partitions(n: u32) -> Vec<Vec<u32>> {
-        if n == 0 {
-            return vec![vec![]];
-        }
-        if n == 1 {
-            return vec![vec![1]];
-        }
-
-        let mut result = Vec::new();
-
-        // Try each possible first part
-        for first in 1..=n {
-            // Recursively generate all partitions of the remainder
-            let sub_partitions = generate_partitions(n - first);
-
-            for partition in sub_partitions {
-                // Try inserting 'first' at each possible position
-                for i in 0..=partition.len() {
-                    let mut new_partition = partition.clone();
-                    new_partition.insert(i, first);
-                    result.push(new_partition);
-                }
-            }
-        }
-
-        // Deduplicate
-        result.sort();
-        result.dedup();
-        result
-    }
-
-    let partitions = generate_partitions(n);
-    let mut index = 0;
-
-    std::iter::from_fn(move || {
-        if index < partitions.len() {
-            let result = partitions[index].clone();
-            index += 1;
-            Some(result)
-        } else {
-            None
-        }
-    })
-}
-
 fn catalan(k: u32) -> u32 {
     binomial(2 * k, k) - binomial(2 * k, k + 1)
 }
@@ -100,7 +55,7 @@ fn compute_proba_negative(n: u32, p: f64, s: f32, ds: f32) -> f64 {
 
         for k in 1..max_steps_up {
             let pk = p.powf(k.into()) * (1. - p).powf((r + k as i32).into());
-            let partitions = all_partitions(k as u32);
+            let partitions = int_part::all_partitions(k as u32);
             let mut path_count: u32 = 0;
             for partition in partitions {
                 let s = partition.len();
@@ -186,7 +141,7 @@ mod tests {
         let expected_partitions = vec![vec![3], vec![1, 2], vec![2, 1], vec![1, 1, 1]];
 
         // Collect all generated partitions into a vector
-        let generated_partitions: Vec<Vec<u32>> = all_partitions(3).collect();
+        let generated_partitions: Vec<Vec<u32>> = int_part::all_partitions(3).collect();
 
         // Test 1: Check that all expected partitions are generated
         for expected in &expected_partitions {

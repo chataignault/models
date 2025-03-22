@@ -1,14 +1,14 @@
 #![feature(test)]
 extern crate test;
 
-#[macro_use]
-extern crate queues;
+// #[macro_use]
+// extern crate queues;
 
 use clap::Parser;
+use num_integer::binomial;
 use queues::{queue, IsQueue, Queue};
 use std::collections::HashMap;
 use std::error::Error;
-
 use test::Bencher;
 
 #[derive(Parser, Debug)]
@@ -21,12 +21,12 @@ fn brute_force(n: u32) -> u32 {
     // use a stack to keep track of the current admissible paths
     // upper bound for possible paths
     // FIFO ensures breadth-first search
-    let mut N: u32 = 0;
+    let mut m: u32 = 0;
     let mut q: Queue<(u32, u32)> = queue![(0, 0)];
     while q.size() > 0 {
         let (c, v) = q.remove().unwrap();
         if c == 2 * n && v == 0 {
-            N += 1;
+            m += 1;
         } else if v == 0 {
             q.add((c + 1, v + 1));
         } else if v + c == 2 * n && v > 0 {
@@ -36,7 +36,7 @@ fn brute_force(n: u32) -> u32 {
             q.add((c + 1, v + 1));
         }
     }
-    N
+    m
 }
 
 fn dynamical_programming(n: u32) -> u32 {
@@ -62,11 +62,15 @@ fn dynamical_programming(n: u32) -> u32 {
             count_map.insert(
                 (k, k - 1),
                 2 * (*count_map.get(&(k - 1, k - 1)).unwrap())
-                    + *count_map.get(&(k - 1, k - 2)).unwrap(), // + *count_map.get(&(k - 1, j + 1)).unwrap(),
+                    + *count_map.get(&(k - 1, k - 2)).unwrap(),
             );
         }
     }
     *count_map.get(&(n, 0)).unwrap()
+}
+
+fn catalan_numbers(n: u32) -> u32 {
+    binomial(2 * n, n) - binomial(2 * n, n + 1)
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -105,6 +109,13 @@ mod tests {
     fn test_match_results() {
         for n in 6..10 {
             assert_eq!(brute_force(n), dynamical_programming(n));
+        }
+    }
+
+    #[test]
+    fn test_match_catalan() {
+        for n in 9..15 {
+            assert_eq!(catalan_numbers(n), dynamical_programming(n));
         }
     }
 
