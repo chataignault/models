@@ -105,14 +105,27 @@ mod test {
 
     #[test]
     fn test_strat_optimal_tol() {
-        let opt = expected_optimal_exec(30, 3, 1., 2., 1.5);
-        assert!((exec_strategy_simulated(30, 3, 1., 2., 1.5) - opt) / opt - 1. < TOL)
+        {
+            let opt = expected_optimal_exec(30, 3, 1., 2., 1.5);
+            assert!((exec_strategy_simulated(30, 3, 1., 2., 1.5) - opt) / opt - 1. < TOL);
+        }
+        {
+            let opt = expected_optimal_exec(40, 10, 1., 2., 1.3);
+            assert!((exec_strategy_simulated(40, 10, 1., 2., 1.3) - opt) / opt - 1. < TOL);
+        }
+        {
+            let opt = expected_optimal_exec(40, 10, 1., 5., 2.3);
+            assert!((exec_strategy_simulated(40, 10, 1., 5., 2.3) - opt) / opt - 1. < TOL);
+        }
     }
 
     #[test]
     fn test_lower_bound() {
         assert!(
             expected_optimal_exec(3, 2, 1., 2., 1.5) < exec_strategy_simulated(3, 2, 1., 2., 1.5)
+        );
+        assert!(
+            expected_optimal_exec(5, 3, 2., 10., 5.) < exec_strategy_simulated(5, 3, 2., 10., 5.)
         );
     }
 }
