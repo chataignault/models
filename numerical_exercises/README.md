@@ -31,6 +31,11 @@ C(j, 1) + C(j, 0) \ \text{if k = 0}
 \end{cases}
 $$
 
+Benching is used and requires to use the *nightly* channel :
+```bash
+cargo +nightly run
+```
+
 <p style="color:orange">
 <i>
 This solution quickly runs into numerical overflow with u32.
