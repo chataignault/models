@@ -19,7 +19,7 @@ from torch.optim.lr_scheduler import (
     ExponentialLR,
     SequentialLR,
 )
-
+from torch.nn import ModuleList
 from .modules import *
 
 
@@ -49,84 +49,113 @@ class SimpleUnet(nn.Module):
             nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
         )
 
-        self.init_conv = UpConvBlock(image_channels, down_channels[0], time_emb_dim)
+        # self.init_conv = UpConvBlock(image_channels, down_channels[0], time_emb_dim)
+        self.init_conv = nn.Conv2d(image_channels, down_channels[0], 7, padding=3)
 
-        self.downsampling = nn.Sequential(
-            *[
-                (
-                    nn.Sequential(
-                        ResBlock(down_channels[i], 4 * time_emb_dim),
-                        AttentionBlock(
-                            down_channels[i],
-                            down_channels[i],
-                            n_heads_inter,
-                            4 * time_emb_dim,
-                        ),
-                        Block(
-                            down_channels[i],
-                            down_channels[i + 1],
-                            4 * time_emb_dim,
-                        ),
-                    )
+        self.downsampling = ModuleList([])
+        self.upsampling = ModuleList([])
+        for _, dim in enumerate(down_channels):
+            self.downsampling.append(
+                ModuleList(
+                    [
+                        ResBlock(dim, 4 * time_emb_dim),
+                        ResBlock(dim, 4 * time_emb_dim),
+                        AttentionBlock(dim, dim, 4, 4 * time_emb_dim),
+                        nn.Conv2d(dim, 2 * dim, 4, 2, 1),
+                    ]
                 )
-                if i == 1
-                else (
-                    nn.Sequential(
-                        ResBlock(down_channels[i], 4 * time_emb_dim),
-                        Block(
-                            down_channels[i],
-                            down_channels[i + 1],
-                            4 * time_emb_dim,
-                        ),
-                    )
-                )
-                for i in range(len(down_channels) - 1)
-            ]
-        )
+            )
 
-        self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        for _, dim in enumerate(up_channels):
+            self.upsampling.append(
+                ModuleList(
+                    [
+                        ResBlock(2 * dim, 4 * time_emb_dim),
+                        nn.Conv2d(3 * dim, dim, 1, 1),
+                        ResBlock(dim, 4 * time_emb_dim),
+                        AttentionBlock(dim, dim, 4, 4 * time_emb_dim),
+                        nn.ConvTranspose2d(
+                            2 * dim, dim, kernel_size=4, stride=2, padding=1
+                        ),
+                    ]
+                )
+            )
+        # self.downsampling = nn.Sequential(
+        #     *[
+        #         (
+        #             nn.Sequential(
+        #                 ResBlock(down_channels[i], 4 * time_emb_dim),
+        #                 AttentionBlock(
+        #                     down_channels[i],
+        #                     down_channels[i],
+        #                     n_heads_inter,
+        #                     4 * time_emb_dim,
+        #                 ),
+        #                 Block(
+        #                     down_channels[i],
+        #                     down_channels[i + 1],
+        #                     4 * time_emb_dim,
+        #                 ),
+        #             )
+        #         )
+        #         if i == 1
+        #         else (
+        #             nn.Sequential(
+        #                 ResBlock(down_channels[i], 4 * time_emb_dim),
+        #                 Block(
+        #                     down_channels[i],
+        #                     down_channels[i + 1],
+        #                     4 * time_emb_dim,
+        #                 ),
+        #             )
+        #         )
+        #         for i in range(len(down_channels) - 1)
+        #     ]
+        # )
+
+        self.resint1 = ResBlock(2 * down_channels[-1], 4 * time_emb_dim)
         self.attention_int = AttentionBlock(
-            down_channels[-1], hidden_dim, n_heads, 4 * time_emb_dim
+            2 * down_channels[-1], hidden_dim, n_heads, 4 * time_emb_dim
         )
-        self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        self.resint2 = ResBlock(2 * down_channels[-1], 4 * time_emb_dim)
 
-        self.upsampling = nn.Sequential(
-            *[
-                (
-                    nn.Sequential(
-                        Block(
-                            up_channels[i],
-                            up_channels[i + 1],
-                            4 * time_emb_dim,
-                            up=True,
-                            # attention=int(i == (len(down_channels) - 2 - attention_depth))
-                        ),
-                        AttentionBlock(
-                            up_channels[i + 1],
-                            up_channels[i + 1],
-                            n_heads_inter,
-                            4 * time_emb_dim,
-                        ),
-                        ResBlock(up_channels[i + 1], 4 * time_emb_dim),
-                    )
-                )
-                if i == len(up_channels) - 2
-                else (
-                    nn.Sequential(
-                        Block(
-                            up_channels[i],
-                            up_channels[i + 1],
-                            4 * time_emb_dim,
-                            up=True,
-                            # attention=int(i == (len(down_channels) - 2 - attention_depth))
-                        ),
-                        # AttentionBlock(up_channels[i+1], up_channels[i+1], n_heads_inter, 4 * time_emb_dim),
-                        ResBlock(up_channels[i + 1], 4 * time_emb_dim),
-                    )
-                )
-                for i in range(len(up_channels) - 1)
-            ]
-        )
+        # self.upsampling = nn.Sequential(
+        #     *[
+        #         (
+        #             nn.Sequential(
+        #                 Block(
+        #                     up_channels[i],
+        #                     up_channels[i + 1],
+        #                     4 * time_emb_dim,
+        #                     up=True,
+        #                     # attention=int(i == (len(down_channels) - 2 - attention_depth))
+        #                 ),
+        #                 AttentionBlock(
+        #                     up_channels[i + 1],
+        #                     up_channels[i + 1],
+        #                     n_heads_inter,
+        #                     4 * time_emb_dim,
+        #                 ),
+        #                 ResBlock(up_channels[i + 1], 4 * time_emb_dim),
+        #             )
+        #         )
+        #         if i == len(up_channels) - 2
+        #         else (
+        #             nn.Sequential(
+        #                 Block(
+        #                     up_channels[i],
+        #                     up_channels[i + 1],
+        #                     4 * time_emb_dim,
+        #                     up=True,
+        #                     # attention=int(i == (len(down_channels) - 2 - attention_depth))
+        #                 ),
+        #                 # AttentionBlock(up_channels[i+1], up_channels[i+1], n_heads_inter, 4 * time_emb_dim),
+        #                 ResBlock(up_channels[i + 1], 4 * time_emb_dim),
+        #             )
+        #         )
+        #         for i in range(len(up_channels) - 1)
+        #     ]
+        # )
         self.end_res = ResBlock(2 * up_channels[-1], 4 * time_emb_dim)
         self.out_conv = nn.Conv2d(
             in_channels=2 * up_channels[-1], out_channels=1, kernel_size=1
@@ -134,34 +163,55 @@ class SimpleUnet(nn.Module):
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
-        x = self.init_conv(x, t)
-        x_down_ = [x.clone()]
-        for block in self.downsampling.children():
-            for subblock in block:
-                if subblock.__class__.__name__ == "ResBlock":
-                    x = subblock(x, t)
-                elif subblock.__class__.__name__ == "AttentionBlock":
-                    x = subblock(x, t) + x
-                elif subblock.__class__.__name__ == "Block":
-                    x, h = subblock(x, t)
-                    x_down_.append(h.clone())
-                    x_down_.append(x.clone())
+        # x = self.init_conv(x, t)
+        x = self.init_conv(x)
+        h = [x.clone()]
+        for block1, block2, attn, downsample in self.downsampling:
+            x = block1(x, t)
+            h.append(x)
+
+            x = block2(x, t)
+            x = attn(x, t) + x
+            h.append(x)
+
+            x = downsample(x)
+        # for block in self.downsampling.children():
+        #     for subblock in block:
+        #         if subblock.__class__.__name__ == "ResBlock":
+        #             x = subblock(x, t)
+        #         elif subblock.__class__.__name__ == "AttentionBlock":
+        #             x = subblock(x, t) + x
+        #         elif subblock.__class__.__name__ == "Block":
+        #             x, h = subblock(x, t)
+        #             x_down_.append(h.clone())
+        #             x_down_.append(x.clone())
         # x_down_.append(x)
         x = self.resint1(x, t)
         x = self.attention_int(x, t) + x
         x = self.resint2(x, t)
-        for block in self.upsampling.children():
-            for subblock in block:
-                if subblock.__class__.__name__ == "ResBlock":
-                    x = subblock(x, t) + x
-                elif subblock.__class__.__name__ == "AttentionBlock":
-                    x = subblock(x, t) + x
-                elif subblock.__class__.__name__ == "Block":
-                    x = torch.cat([x, x_down_.pop()], dim=1)
-                    x, _ = subblock(x, t)
-                    x = x + x_down_.pop()
-        x = torch.cat([x, x_down_.pop()], dim=1)
-        assert len(x_down_) == 0
+        for block1, proj, block2, attn, upsample in self.upsampling:
+            # print(x.shape)
+            x = upsample(x)
+            x = torch.cat((x, h.pop()), dim=1)
+            x = block1(x, t)
+
+            x = torch.cat((x, h.pop()), dim=1)
+            x = proj(x)
+            x = block2(x, t)
+            x = attn(x, t) + x  # ! attention don't use time emb
+
+        # for block in self.upsampling.children():
+        #     for subblock in block:
+        #         if subblock.__class__.__name__ == "ResBlock":
+        #             x = subblock(x, t) + x
+        #         elif subblock.__class__.__name__ == "AttentionBlock":
+        #             x = subblock(x, t) + x
+        #         elif subblock.__class__.__name__ == "Block":
+        #             x = torch.cat([x, x_down_.pop()], dim=1)
+        #             x, _ = subblock(x, t)
+        #             x = x + x_down_.pop()
+        x = torch.cat([x, h.pop()], dim=1)
+        assert len(h) == 0
         x = self.end_res(x, t)
         x = self.out_conv(x)
         return x
