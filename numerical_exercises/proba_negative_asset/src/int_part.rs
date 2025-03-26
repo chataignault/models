@@ -44,3 +44,24 @@ pub fn all_partitions(n: u32) -> impl Iterator<Item = Vec<u32>> {
         }
     })
 }
+
+pub fn simple_ascending(n: u32) -> impl Iterator<Item = Vec<u32>> {
+    // from https://jeromekelleher.net/generating-integer-partitions
+    let mut part: Vec<Vec<u32>> = vec![];
+    let mut a: Vec<u32> = vec![0; n.try_into().unwrap()];
+    let mut k: usize = 1;
+    a[1] = n;
+    while k > 0 {
+        let x = a[k - 1] + 1;
+        let mut y = a[k] - 1;
+        k -= 1;
+        while x <= y {
+            a[k] = x;
+            y -= x;
+            k += 1;
+        }
+        a[k] = x + y;
+        part.push(a[..(k + 1)].to_vec());
+    }
+    part.into_iter()
+}
