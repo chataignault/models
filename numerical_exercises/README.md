@@ -247,3 +247,13 @@ which [can be seen as](https://en.wikipedia.org/wiki/Composition_(combinatorics)
 One can obtain the result also from point of view of the weak composition, 
 seeing, after dispatching one unit to each $k$ parts, that $n-k$ 
 indistinguishable units are left to place in $k$ distinct buckets.
+
+**Benching ascending integer partitions algorithms**
+
+Both algorithms from  https://jeromekelleher.net/generating-integer-partitions.html are implemented, 
+with the significant difference that they are eager, whereas the Python 
+example generates an iterator which much more memory-efficient.
+
+Still, using the `bench` tool from rust, the efficient algorithm has a smaller variance than the simpler one :
+
+![integer_partition_bench](proba_negative_asset/integer_partition_bench.png)
