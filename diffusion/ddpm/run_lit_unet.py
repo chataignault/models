@@ -23,7 +23,7 @@ DEFAULT_IMG_SIZE = 28
 def load_model(
     models_dir,
     logger,
-    down_channels,
+    downs,
     time_emb_dim,
     hidden_dim,
     device,
@@ -35,12 +35,10 @@ def load_model(
     """
     match model_name:
         case "Unet":
-            unet = Unet(down_channels=down_channels, time_emb_dim=time_emb_dim).to(
-                device
-            )
+            unet = Unet(downs=downs, time_emb_dim=time_emb_dim).to(device)
         case "SimpleUnet":
             unet = SimpleUnet(
-                down_channels=down_channels,
+                downs=downs,
                 time_emb_dim=time_emb_dim,
                 hidden_dim=hidden_dim,
             ).to(device)
@@ -77,7 +75,7 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--down_channels", nargs="+", type=int, default=[64, 128, 128])
+    parser.add_argument("--downs", nargs="+", type=int, default=[64, 128, 128])
     parser.add_argument("--time_emb_dim", type=int, default=16)
     parser.add_argument("--hidden_dim", type=int, default=64)
     parser.add_argument(
@@ -98,7 +96,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger.info(f"{args}")
 
-    down_channels = args.down_channels
+    downs = args.downs
     time_emb_dim = args.time_emb_dim
     hidden_dim = args.hidden_dim
     zero_pad_images = args.zero_pad
@@ -134,7 +132,7 @@ if __name__ == "__main__":
     unet = load_model(
         models_dir,
         logger,
-        down_channels,
+        downs,
         time_emb_dim,
         hidden_dim,
         device,

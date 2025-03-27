@@ -74,6 +74,42 @@ class LinearAttention(nn.Module):
         return self.to_out(out)
 
 
+class Block(nn.Module):
+    def __init__(self, dim, dim_out, dropout=0.0):
+        super().__init__()
+        self.proj = nn.Conv2d(dim, dim_out, 3, padding=1)
+        self.norm = RMSNorm(dim_out)
+        self.act = nn.SiLU()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.proj(x)
+        x = self.norm(x)
+
+        x = self.act(x)
+        return self.dropout(x)
+
+
+class ResnetBlock(nn.Module):
+    def __init__(self, dim, dim_out, time_emb_dim: int):
+        super().__init__()
+        self.mlp = nn.Sequential(nn.SiLU(), nn.Linear(time_emb_dim, dim_out * 2))
+
+        self.block1 = Block(dim, dim_out)
+        self.block2 = Block(dim_out, dim_out)
+        self.res_conv = nn.Conv2d(dim, dim_out, 1) if dim != dim_out else nn.Identity()
+
+    def forward(self, x, t):
+        t = self.mlp(t)
+        t = rearrange(t, "b c -> b c 1 1")
+
+        h = self.block1(x)
+
+        h = self.block2(h)
+
+        return h + self.res_conv(x)
+
+
 class SimpleUnet(nn.Module):
     """
     A simplified variant of the Unet architecture.
@@ -81,7 +117,7 @@ class SimpleUnet(nn.Module):
 
     def __init__(
         self,
-        down_channels: List[int],
+        downs: List[int],
         time_emb_dim: int = 16,
         hidden_dim: int = 64,
         n_heads: int = 8,
@@ -89,8 +125,8 @@ class SimpleUnet(nn.Module):
     ):
         super().__init__()
         image_channels = 1
-        up_channels = down_channels[::-1]
-
+        ups = downs[::-1]
+        in_out = list(zip(downs[:-1], downs[1:]))
         self.time_emb_dim = time_emb_dim
 
         self.pos_emb = nn.Sequential(
@@ -100,85 +136,86 @@ class SimpleUnet(nn.Module):
             nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
         )
 
-        # self.init_conv = UpConvBlock(image_channels, down_channels[0], time_emb_dim)
-        self.init_conv = nn.Conv2d(image_channels, down_channels[0], 7, padding=3)
+        self.init_conv = nn.Conv2d(image_channels, downs[0], 7, padding=3)
 
         self.downsampling = ModuleList([])
         self.upsampling = ModuleList([])
-        for _, dim in enumerate(down_channels):
+
+        for in_dim, out_dim in in_out:
+            is_last = out_dim == downs[-1]
             self.downsampling.append(
                 ModuleList(
                     [
-                        ResBlock(dim, 4 * time_emb_dim),
-                        ResBlock(dim, 4 * time_emb_dim),
-                        # AttentionBlock(dim, dim, 4, 4 * time_emb_dim),
-                        LinearAttention(dim, n_heads_inter),
-                        nn.Conv2d(dim, 2 * dim, 4, 2, 1),
+                        ResnetBlock(in_dim, in_dim, 4 * time_emb_dim),
+                        ResnetBlock(in_dim, in_dim, 4 * time_emb_dim),
+                        LinearAttention(in_dim, n_heads_inter),
+                        nn.Conv2d(in_dim, out_dim, 4, 2, 1)
+                        if not is_last
+                        else nn.Conv2d(in_dim, out_dim, 3, 1, 1),
                     ]
                 )
             )
 
-        for _, dim in enumerate(up_channels):
+        self.resint1 = ResnetBlock(downs[-1], hidden_dim, 4 * time_emb_dim)
+        self.attention_int = LinearAttention(hidden_dim, n_heads)
+        self.resint2 = ResnetBlock(hidden_dim, downs[-1], 4 * time_emb_dim)
+
+        for in_dim, out_dim in in_out[::-1]:
+            is_last = in_dim == ups[-1]
             self.upsampling.append(
                 ModuleList(
                     [
-                        ResBlock(2 * dim, 4 * time_emb_dim),
-                        nn.Conv2d(3 * dim, dim, 1, 1),
-                        ResBlock(dim, 4 * time_emb_dim),
-                        # AttentionBlock(dim, dim, 4, 4 * time_emb_dim),
-                        LinearAttention(dim, n_heads_inter),
+                        ResnetBlock(in_dim + out_dim, out_dim, 4 * time_emb_dim),
+                        ResnetBlock(in_dim + out_dim, out_dim, 4 * time_emb_dim),
+                        LinearAttention(out_dim, n_heads_inter),
                         nn.ConvTranspose2d(
-                            2 * dim, dim, kernel_size=4, stride=2, padding=1
-                        ),
+                            out_dim, in_dim, kernel_size=4, stride=2, padding=1
+                        )
+                        if not is_last
+                        else nn.Conv2d(out_dim, in_dim, 3, 1, 1),
                     ]
                 )
             )
 
-        self.resint1 = ResBlock(2 * down_channels[-1], 4 * time_emb_dim)
-        self.attention_int = LinearAttention(2 * down_channels[-1], n_heads)
-        # self.attention_int = AttentionBlock(
-        #     2 * down_channels[-1], hidden_dim, n_heads, 4 * time_emb_dim
-        # )
-        self.resint2 = ResBlock(2 * down_channels[-1], 4 * time_emb_dim)
+        self.end_res = ResnetBlock(2 * ups[-1], ups[-1], 4 * time_emb_dim)
+        self.out_conv = nn.Conv2d(in_channels=ups[-1], out_channels=1, kernel_size=1)
 
-        self.end_res = ResBlock(2 * up_channels[-1], 4 * time_emb_dim)
-        self.out_conv = nn.Conv2d(
-            in_channels=2 * up_channels[-1], out_channels=1, kernel_size=1
-        )
+        assert (
+            len(self.upsampling) == len(self.downsampling)
+        ), f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
-        # x = self.init_conv(x, t)
         x = self.init_conv(x)
         h = [x.clone()]
+
         for block1, block2, attn, downsample in self.downsampling:
             x = block1(x, t)
             h.append(x)
 
             x = block2(x, t)
-            # x = attn(x, t) + x
             x = attn(x) + x
             h.append(x)
 
             x = downsample(x)
+
         x = self.resint1(x, t)
         x = self.attention_int(x) + x
-        # x = self.attention_int(x, t) + x
         x = self.resint2(x, t)
-        for block1, proj, block2, attn, upsample in self.upsampling:
-            # print(x.shape)
-            x = upsample(x)
+
+        for block1, block2, attn, upsample in self.upsampling:
             x = torch.cat((x, h.pop()), dim=1)
             x = block1(x, t)
 
             x = torch.cat((x, h.pop()), dim=1)
-            x = proj(x)
             x = block2(x, t)
-            # x = attn(x, t) + x  # ! attention don't use time emb
-            x = attn(x) + x  # ! attention don't use time emb
+
+            x = attn(x) + x
+
+            x = upsample(x)
 
         x = torch.cat([x, h.pop()], dim=1)
-        assert len(h) == 0
+        assert len(h) == 0, f"all residuals should be used, but remains {len(h)}"
         x = self.end_res(x, t)
         x = self.out_conv(x)
         return x
