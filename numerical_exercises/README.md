@@ -1,10 +1,13 @@
 # Numerical verifications
 
-Implement numerically algorithms to verify problem solutions.
+Implement numerically some algorithms to confirm intuition on problems of combinatorics and discrete probabilities.
 
+*Also includes :*
+- detours on combinatorics and proofs
+- detours revolving around the Rust environment
 ***
 ## Positive paths count
-Given integer $n$, count the number of positive paths
+Given an integer $n$, count the number of positive paths
 that start and end at $0$
 and moving $\pm 1$ at each step.
 
@@ -15,13 +18,14 @@ which also represent the number of balanced parenthesis.
 
 $$ C_{2n} = \begin{pmatrix} 2n \\ n \end{pmatrix} - \begin{pmatrix} 2n \\ n + 1\end{pmatrix}  = \frac{1}{n+1} \begin{pmatrix} 2n+1 \\ n \end{pmatrix}$$
 
-But as one does not know this from the top of it's head, 
+But as one does not necessarily remember this formula from the top of it's head, 
 dynamic programming is also implemented.
 
-It is a strong recurrence on $C(j, k)$, being the number of paths 
-starting at $0$ and ending at $k$ in $2j$ steps.
-Then the solution is $C(n, 0)$.
+Computing incrementally all $C(j, k)$ for $0 \leq j \leq k $, being the number of paths 
+starting at $0$ and ending at $2k$ in $2j$ steps.
+Then the solution is given by $C(n, 0)$.
 
+From a direct first-step analysis, the recurrence relation is :
 $$
 C(j+1, k) = 
 \begin{cases}
@@ -31,7 +35,7 @@ C(j, 1) + C(j, 0) \ \text{if k = 0}
 \end{cases}
 $$
 
-Benching is used and requires to use the *nightly* channel :
+> Tested the [benching crate](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) to have an idea of feasible $n$ with direct computations and dynamic programming. At the time of writing it requires to use the *nightly* channel :
 ```bash
 cargo +nightly run
 ```
@@ -46,13 +50,13 @@ This solution quickly runs into numerical overflow with u32.
 ## Discrete optimal execution
 
 An agent has to select $n$ values sequentially.
-He has the choice to either take the value from $\mathcal{U} [a, b]$ 
+He has the choice to either take the value from a uniform $\mathcal{U} [a, b]$ 
 random variable, 
 or to select a fixed-value alternative.
 
 The alternative value can be selected at most $k$ times.
 
-What is the optimal strategy and compute the expected value over the $n$ steps.
+The objective is to find the optimal strategy and compute the expected value over the $n$ steps.
 
 | Variable | Description |
 | --- | --- |
@@ -62,7 +66,7 @@ What is the optimal strategy and compute the expected value over the $n$ steps.
 | a, b | Range of the uniform law |
 
 <p style="color:green">
-Problem definition :
+Modelling the problem :
 </p>
 
 Assume  $k \geq 1, p < b $ and $n \geq 1$.
@@ -210,3 +214,46 @@ $$
 **Efficient computation of integer partitions :**
 - [Kelleher, Jerome, and Barry O'Sullivan. "Generating all partitions: A comparison of two encodings." arXiv preprint arXiv:0909.2331 (2009).](https://arxiv.org/pdf/0909.2331)
 - https://jeromekelleher.net/generating-integer-partitions.html
+
+**(Weak) Composition of an integer**
+The number of ways to decompose an integer $n$ into $k$ non-negative integers is :
+
+$$ 
+\begin{pmatrix}
+n + k- 1 \\
+k - 1
+\end{pmatrix}
+$$
+
+It is the number of ways one can dispatch $n$ indistinct balls into $k$ distinct buckets, and is also equivalent to the *stars and bars* problem.
+
+The binomial number can be understood as the number of sequences of length $n + k - 1$ ,
+containing $n$ unit elements and $k - 1$ separation elements 
+(having then $k$ parts, possibly empty to represent zero).
+
+
+**(Strong) Composition of an integer**
+
+The number of ways to decompose an integer $n$ into $k$ positive integers is :
+
+$$ 
+\begin{pmatrix}
+n - 1 \\
+k-1
+\end{pmatrix}
+$$
+which [can be seen as](https://en.wikipedia.org/wiki/Composition_(combinatorics)) choosing $k-1$ seperations between $n$ units (therefore having $n-1$ intervals).
+
+One can obtain the result also from point of view of the weak composition, 
+seeing, after dispatching one unit to each $k$ parts, that $n-k$ 
+indistinguishable units are left to place in $k$ distinct buckets.
+
+**Benching ascending integer partitions algorithms**
+
+Both algorithms from  https://jeromekelleher.net/generating-integer-partitions.html are implemented, 
+with the significant difference that they are eager, whereas the Python 
+example generates an iterator which much more memory-efficient.
+
+Still, using the `bench` tool from rust, the efficient algorithm has a smaller variance than the simpler one :
+
+![integer_partition_bench](proba_negative_asset/integer_partition_bench.png)

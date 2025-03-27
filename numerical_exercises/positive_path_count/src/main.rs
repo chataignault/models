@@ -1,9 +1,6 @@
 #![feature(test)]
 extern crate test;
 
-// #[macro_use]
-// extern crate queues;
-
 use clap::Parser;
 use num_integer::binomial;
 use queues::{queue, IsQueue, Queue};

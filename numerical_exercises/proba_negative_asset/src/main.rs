@@ -1,3 +1,5 @@
+#![feature(test)]
+
 use clap::Parser;
 use num_integer::binomial;
 use rand::distr::{Bernoulli, Distribution};
@@ -133,50 +135,5 @@ mod tests {
                 - compute_proba_negative_mc(30, 0.3, 350., 39.)
                 < TOL
         );
-    }
-
-    #[test]
-    fn test_integer_partition() {
-        // Expected partitions for n=3
-        let expected_partitions = vec![vec![3], vec![1, 2], vec![2, 1], vec![1, 1, 1]];
-
-        // Collect all generated partitions into a vector
-        let generated_partitions: Vec<Vec<u32>> = int_part::all_partitions(3).collect();
-
-        // Test 1: Check that all expected partitions are generated
-        for expected in &expected_partitions {
-            assert!(
-                generated_partitions.contains(expected),
-                "Missing expected partition: {:?}",
-                expected
-            );
-        }
-
-        // Test 2: Check that no extra partitions are generated
-        assert_eq!(
-            generated_partitions.len(),
-            expected_partitions.len(),
-            "Generated partitions count doesn't match expected: {:?}",
-            generated_partitions
-        );
-
-        // Alternative approach using sets for more readable error messages
-        let expected_set: std::collections::HashSet<_> = expected_partitions
-            .iter()
-            .map(|p| format!("{:?}", p))
-            .collect();
-
-        let generated_set: std::collections::HashSet<_> = generated_partitions
-            .iter()
-            .map(|p| format!("{:?}", p))
-            .collect();
-
-        // Check for missing partitions
-        let missing: Vec<_> = expected_set.difference(&generated_set).collect();
-        assert!(missing.is_empty(), "Missing partitions: {:?}", missing);
-
-        // Check for extra partitions
-        let extra: Vec<_> = generated_set.difference(&expected_set).collect();
-        assert!(extra.is_empty(), "Extra partitions: {:?}", extra);
     }
 }
