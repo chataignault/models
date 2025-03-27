@@ -1,6 +1,4 @@
 pub fn all_partitions(n: u32) -> impl Iterator<Item = Vec<u32>> {
-    // Generate all possible partitions first
-
     let partitions = generate_partitions(n);
     let mut index = 0;
 
@@ -46,7 +44,7 @@ fn generate_partitions(n: u32) -> Vec<Vec<u32>> {
     result
 }
 
-pub fn simple_ascending(n: u32) -> impl Iterator<Item = Vec<u32>> {
+fn simple_ascending(n: u32) -> impl Iterator<Item = Vec<u32>> {
     // from https://jeromekelleher.net/generating-integer-partitions
     let mut part: Vec<Vec<u32>> = vec![];
     let mut a: Vec<u32> = vec![0; n.try_into().unwrap()];
@@ -67,7 +65,7 @@ pub fn simple_ascending(n: u32) -> impl Iterator<Item = Vec<u32>> {
     part.into_iter()
 }
 
-pub fn efficient_ascending(n: u32) -> impl Iterator<Item = Vec<u32>> {
+fn efficient_ascending(n: u32) -> impl Iterator<Item = Vec<u32>> {
     // from https://jeromekelleher.net/generating-integer-partitions
     let mut part: Vec<Vec<u32>> = vec![];
     let mut a: Vec<u32> = vec![0; n.try_into().unwrap()];
@@ -94,4 +92,93 @@ pub fn efficient_ascending(n: u32) -> impl Iterator<Item = Vec<u32>> {
         part.push(a[..(k + 1)].to_vec());
     }
     part.into_iter()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const ASC_5: &[&[i32]] = &[
+        &[1, 1, 1, 1, 1],
+        &[1, 1, 1, 2],
+        &[1, 1, 3],
+        &[1, 2, 2],
+        &[1, 4],
+        &[2, 3],
+        &[5],
+    ];
+
+    const ALL_3: &[&[i32]] = &[&[3], &[1, 2], &[2, 1], &[1, 1, 1]];
+
+    #[test]
+    fn test_integer_partition_naive() {
+        // Expected partitions for n=3
+
+        // Collect all generated partitions into a vector
+        let generated_partitions: Vec<Vec<u32>> = all_partitions(3).collect();
+
+        let expected_set: std::collections::HashSet<_> =
+            ALL_3.iter().map(|p| format!("{:?}", p)).collect();
+
+        let generated_set: std::collections::HashSet<_> = generated_partitions
+            .iter()
+            .map(|p| format!("{:?}", p))
+            .collect();
+
+        // Check for missing partitions
+        let missing: Vec<_> = expected_set.difference(&generated_set).collect();
+        assert!(missing.is_empty(), "Missing partitions: {:?}", missing);
+
+        // Check for extra partitions
+        let extra: Vec<_> = generated_set.difference(&expected_set).collect();
+        assert!(extra.is_empty(), "Extra partitions: {:?}", extra);
+    }
+
+    #[test]
+    fn test_integer_partition_simple() {
+        // Expected partitions for n=5, in ascending order
+
+        // Collect all generated partitions into a vector
+        let generated_partitions: Vec<Vec<u32>> = simple_ascending(5).collect();
+
+        let expected_set: std::collections::HashSet<_> =
+            ASC_5.iter().map(|p| format!("{:?}", p)).collect();
+
+        let generated_set: std::collections::HashSet<_> = generated_partitions
+            .iter()
+            .map(|p| format!("{:?}", p))
+            .collect();
+
+        // Check for missing partitions
+        let missing: Vec<_> = expected_set.difference(&generated_set).collect();
+        assert!(missing.is_empty(), "Missing partitions: {:?}", missing);
+
+        // Check for extra partitions
+        let extra: Vec<_> = generated_set.difference(&expected_set).collect();
+        assert!(extra.is_empty(), "Extra partitions: {:?}", extra);
+    }
+
+    #[test]
+    fn test_integer_partition_efficient() {
+        // Expected partitions for n=5, in ascending order
+
+        // Collect all generated partitions into a vector
+        let generated_partitions: Vec<Vec<u32>> = efficient_ascending(5).collect();
+
+        let expected_set: std::collections::HashSet<_> =
+            ASC_5.iter().map(|p| format!("{:?}", p)).collect();
+
+        let generated_set: std::collections::HashSet<_> = generated_partitions
+            .iter()
+            .map(|p| format!("{:?}", p))
+            .collect();
+
+        // Check for missing partitions
+        let missing: Vec<_> = expected_set.difference(&generated_set).collect();
+        assert!(missing.is_empty(), "Missing partitions: {:?}", missing);
+
+        // Check for extra partitions
+        let extra: Vec<_> = generated_set.difference(&expected_set).collect();
+        assert!(extra.is_empty(), "Extra partitions: {:?}", extra);
+    }
 }
