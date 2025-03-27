@@ -1,3 +1,9 @@
+#![feature(test)]
+
+extern crate test;
+
+use test::Bencher;
+
 pub fn all_partitions(n: u32) -> impl Iterator<Item = Vec<u32>> {
     let partitions = generate_partitions(n);
     let mut index = 0;
@@ -180,5 +186,15 @@ mod tests {
         // Check for extra partitions
         let extra: Vec<_> = generated_set.difference(&expected_set).collect();
         assert!(extra.is_empty(), "Extra partitions: {:?}", extra);
+    }
+
+    #[bench]
+    fn simple_asc_partition(b: &mut Bencher) {
+        b.iter(|| simple_ascending(20));
+    }
+
+    #[bench]
+    fn efficient_asc_partition(b: &mut Bencher) {
+        b.iter(|| efficient_ascending(20));
     }
 }

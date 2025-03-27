@@ -1,3 +1,5 @@
+#![feature(test)]
+
 use clap::Parser;
 use num_integer::binomial;
 use rand::distr::{Bernoulli, Distribution};
