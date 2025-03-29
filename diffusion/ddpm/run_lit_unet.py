@@ -114,12 +114,20 @@ if __name__ == "__main__":
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    # betas = linear_beta_schedule(timesteps=T, device=device)
-    betas = cosine_beta_schedule(timesteps=T, device=device)
-    sqrt_alphas_cumprod = torch.sqrt(torch.cumprod(1.0 - betas, -1))
-    sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - torch.cumprod(1.0 - betas, -1))
-    posterior_variance = betas
-    sqrt_recip_alphas = 1.0 / torch.sqrt(1 - betas)
+    betas = linear_beta_schedule(timesteps=T, device=device)
+    # betas = cosine_beta_schedule(timesteps=T, device=device)
+    alphas = 1.0 - betas
+    alphas_cumprod = torch.cumprod(alphas, -1)
+    import torch.nn.functional as F
+
+    alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
+
+    sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
+    sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
+    # posterior_variance = betas
+    posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+
+    sqrt_recip_alphas = 1.0 / torch.sqrt(alphas)
     IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
 
     dataloader = get_dataloader(

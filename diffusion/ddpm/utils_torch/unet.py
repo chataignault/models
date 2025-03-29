@@ -120,7 +120,7 @@ class SimpleUnet(nn.Module):
         downs: List[int],
         time_emb_dim: int = 16,
         hidden_dim: int = 64,
-        n_heads: int = 8,
+        n_heads: int = 4,
         n_heads_inter: int = 4,
     ):
         super().__init__()
@@ -148,7 +148,7 @@ class SimpleUnet(nn.Module):
                     [
                         ResnetBlock(in_dim, in_dim, 4 * time_emb_dim),
                         ResnetBlock(in_dim, in_dim, 4 * time_emb_dim),
-                        LinearAttention(in_dim, n_heads_inter),
+                        LinearAttention(in_dim, heads=n_heads_inter),
                         nn.Conv2d(in_dim, out_dim, 4, 2, 1)
                         if not is_last
                         else nn.Conv2d(in_dim, out_dim, 3, 1, 1),
@@ -157,7 +157,7 @@ class SimpleUnet(nn.Module):
             )
 
         self.resint1 = ResnetBlock(downs[-1], hidden_dim, 4 * time_emb_dim)
-        self.attention_int = LinearAttention(hidden_dim, n_heads)
+        self.attention_int = LinearAttention(hidden_dim, heads=n_heads)
         self.resint2 = ResnetBlock(hidden_dim, downs[-1], 4 * time_emb_dim)
 
         for in_dim, out_dim in in_out[::-1]:
@@ -167,7 +167,7 @@ class SimpleUnet(nn.Module):
                     [
                         ResnetBlock(in_dim + out_dim, out_dim, 4 * time_emb_dim),
                         ResnetBlock(in_dim + out_dim, out_dim, 4 * time_emb_dim),
-                        LinearAttention(out_dim, n_heads_inter),
+                        LinearAttention(out_dim, heads=n_heads_inter),
                         nn.ConvTranspose2d(
                             out_dim, in_dim, kernel_size=4, stride=2, padding=1
                         )
@@ -180,9 +180,9 @@ class SimpleUnet(nn.Module):
         self.end_res = ResnetBlock(2 * ups[-1], ups[-1], 4 * time_emb_dim)
         self.out_conv = nn.Conv2d(in_channels=ups[-1], out_channels=1, kernel_size=1)
 
-        assert (
-            len(self.upsampling) == len(self.downsampling)
-        ), f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
+        assert len(self.upsampling) == len(self.downsampling), (
+            f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
+        )
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
