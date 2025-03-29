@@ -91,6 +91,7 @@ def sample_timestep(
     x: Tensor,
     t: Tensor,
     i: int,
+    betas: Tensor,
     posterior_variance: Tensor,
     sqrt_one_minus_alphas_cumprod: Tensor,
     sqrt_recip_alphas: Tensor,
@@ -101,7 +102,7 @@ def sample_timestep(
     Applies noise to this image, if we are not in the last step yet.
     """
     x = sqrt_recip_alphas[i] * (
-        x - (posterior_variance[i]) / sqrt_one_minus_alphas_cumprod[i] * (model(x, t))
+        x - (betas[i]) / sqrt_one_minus_alphas_cumprod[i] * (model(x, t))
     )
     # x = x.clamp(-1. 1.)
     if i > 0:
@@ -115,6 +116,7 @@ def sample_timestep(
 def sample(
     model: Module,
     shape: Tuple,
+    betas,
     posterior_variance: Tensor,
     sqrt_one_minus_alphas_cumprod: Tensor,
     sqrt_recip_alphas: Tensor,
@@ -138,11 +140,13 @@ def sample(
             img,
             t,
             i,
+            betas,
             posterior_variance,
             sqrt_one_minus_alphas_cumprod,
             sqrt_recip_alphas,
             device,
         )
+        img = (img + 1.0) / 2.0
         if pseudo_video:
             imgs.append(img)
     imgs.append(img)

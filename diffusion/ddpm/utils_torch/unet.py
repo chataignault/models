@@ -25,6 +25,12 @@ from einops import rearrange, repeat
 from functools import partial
 
 
+def write_sample_to_board(samp, writer, name: str):
+    img_grid = torchvision.utils.make_grid(samp)
+    imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
+    writer.add_image(name, img_grid)
+
+
 class RMSNorm(nn.Module):
     def __init__(self, dim):
         super().__init__()
@@ -119,7 +125,6 @@ class SimpleUnet(nn.Module):
         self,
         downs: List[int],
         time_emb_dim: int = 16,
-        hidden_dim: int = 64,
         n_heads: int = 4,
         n_heads_inter: int = 4,
     ):
@@ -156,9 +161,9 @@ class SimpleUnet(nn.Module):
                 )
             )
 
-        self.resint1 = ResnetBlock(downs[-1], hidden_dim, 4 * time_emb_dim)
-        self.attention_int = LinearAttention(hidden_dim, heads=n_heads)
-        self.resint2 = ResnetBlock(hidden_dim, downs[-1], 4 * time_emb_dim)
+        self.resint1 = ResnetBlock(downs[-1], downs[-1], 4 * time_emb_dim)
+        self.attention_int = LinearAttention(downs[-1], heads=n_heads)
+        self.resint2 = ResnetBlock(downs[-1], downs[-1], 4 * time_emb_dim)
 
         for in_dim, out_dim in in_out[::-1]:
             is_last = in_dim == ups[-1]
@@ -381,7 +386,7 @@ class LitUnet(L.LightningModule):
             ts = int(t.item())
 
             self.timestep_losses[ts] = (
-                self.timestep_losses[ts] * 0.95 + loss_per_image[i].item() * 0.1
+                self.timestep_losses[ts] * 0.8 + loss_per_image[i].item() * 0.2
             )
 
         loss = torch.mean(loss_per_image)
@@ -391,40 +396,37 @@ class LitUnet(L.LightningModule):
         self.writer.add_scalar("Loss 500", self.timestep_losses[500], self.global_step)
         self.writer.add_scalar("Loss 850", self.timestep_losses[850], self.global_step)
 
-        if self.global_step % 200 == 0 and self.global_step > 0:
-            self.unet.eval()
-            samp = sample(
-                self.unet,
-                (16, 1, self.img_size, self.img_size),
-                self.posterior_variance,
-                self.sqrt_one_minus_alphas_cumprod,
-                self.sqrt_recip_alphas,
-                self.T,
-            )[-1]
+        # if self.global_step % 200 == 0 and self.global_step > 0:
+        #     self.unet.eval()
+        #     samp = sample(
+        #         self.unet,
+        #         (16, 1, self.img_size, self.img_size),
+        #         self.betas,
+        #         self.posterior_variance,
+        #         self.sqrt_one_minus_alphas_cumprod,
+        #         self.sqrt_recip_alphas,
+        #         self.T,
+        #     )[-1]
 
-            # log samples to board
-            img_grid = torchvision.utils.make_grid(samp)
-            imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
-            self.writer.add_image(
-                f"generated samples step={self.global_step}", img_grid
-            )
-            self.unet.train()
+        #     # log samples to board
+        #     write_sample_to_board(samp, self.writer, f"generated samples step={self.global_step}")
+        #     self.unet.train()
 
         self.log("train_loss", loss)
         return loss
 
     def configure_optimizers(self):
         optimiser = Adam(self.parameters(), lr=self.lr)
-        scheduler = SequentialLR(
-            optimiser,
-            schedulers=[
-                LinearLR(optimiser, 0.1, 1.0, 2),
-                ConstantLR(optimiser, 1.0),
-                ExponentialLR(optimiser, 0.95),
-            ],
-            milestones=[2, 8],  # faster decrease
-        )
+        # scheduler = SequentialLR(
+        # optimiser,
+        # schedulers=[
+        # LinearLR(optimiser, 0.1, 1.0, 2),
+        # ConstantLR(optimiser, 1.0),
+        # ExponentialLR(optimiser, 0.95),
+        # ],
+        # milestones=[2, 8],  # faster decrease
+        # )
         return {
             "optimizer": optimiser,
-            "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"},
+            # "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"},
         }

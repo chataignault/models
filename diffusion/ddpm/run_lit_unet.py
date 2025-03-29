@@ -14,7 +14,7 @@ from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 
 from utils.logger import get_logger
-from utils_torch.unet import LitUnet, SimpleUnet, Unet
+from utils_torch.unet import LitUnet, SimpleUnet, Unet, write_sample_to_board
 from utils.fashion_mnist_dataloader import get_dataloader
 from utils_torch.diffusion import (
     sample,
@@ -31,7 +31,6 @@ def load_model(
     logger,
     downs,
     time_emb_dim,
-    hidden_dim,
     device,
     load_checkpoint,
     model_name,
@@ -46,7 +45,6 @@ def load_model(
             unet = SimpleUnet(
                 downs=downs,
                 time_emb_dim=time_emb_dim,
-                hidden_dim=hidden_dim,
             ).to(device)
         case _:
             raise ValueError(f"{model_name} is not implemented")
@@ -83,7 +81,6 @@ if __name__ == "__main__":
     parser = ArgumentParser(description="Run Attention Unet")
     parser.add_argument("--downs", nargs="+", type=int, default=[64, 128, 128])
     parser.add_argument("--time_emb_dim", type=int, default=16)
-    parser.add_argument("--hidden_dim", type=int, default=64)
     parser.add_argument(
         "--zero_pad",
         action="store_true",
@@ -104,7 +101,6 @@ if __name__ == "__main__":
 
     downs = args.downs
     time_emb_dim = args.time_emb_dim
-    hidden_dim = args.hidden_dim
     zero_pad_images = args.zero_pad
     device = args.device
     BATCH_SIZE = args.batch_size
@@ -117,8 +113,8 @@ if __name__ == "__main__":
     only_generate_sample = args.only_generate_sample
 
     torch.set_default_device(device)
-    torch.backends.cuda.matmul.allow_tf32 = True
-    torch.backends.cudnn.allow_tf32 = True
+    # torch.backends.cuda.matmul.allow_tf32 = True
+    # torch.backends.cudnn.allow_tf32 = True
 
     # betas = linear_beta_schedule(timesteps=T, device=device)
     betas = sigmoid_beta_schedule(timesteps=T, device=device)
@@ -148,7 +144,6 @@ if __name__ == "__main__":
         logger,
         downs,
         time_emb_dim,
-        hidden_dim,
         device,
         load_checkpoint,
         model_name,
@@ -163,7 +158,7 @@ if __name__ == "__main__":
     imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
     writer.add_image("original fMNIST samples", img_grid)
 
-    # add model infrastructure to board
+    # add model to board
     writer.add_graph(unet, [images, torch.ones(BATCH_SIZE)])
 
     # train
@@ -216,6 +211,7 @@ if __name__ == "__main__":
     samp = sample(
         unet,
         SAMP_SHAPE,
+        betas,
         posterior_variance,
         sqrt_one_minus_alphas_cumprod,
         sqrt_recip_alphas,
@@ -223,10 +219,7 @@ if __name__ == "__main__":
     )[-1]
 
     # log samples to board
-    img_grid = torchvision.utils.make_grid(samp)
-    imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
-    writer.add_image("generated samples", img_grid)
-    writer.close()
+    write_sample_to_board(samp, writer, "generated samples")
 
     samp = samp.cpu().numpy()
     for i in range(n_samp):
