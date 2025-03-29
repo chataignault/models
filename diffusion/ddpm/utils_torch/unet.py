@@ -14,106 +14,19 @@ from collections import defaultdict
 from .training import get_loss
 from .diffusion import sample
 from torch.optim.lr_scheduler import (
-    LinearLR,
+    # LinearLR,
     ConstantLR,
     ExponentialLR,
     SequentialLR,
 )
 from torch.nn import ModuleList
 from .modules import *
-from einops import rearrange, repeat
-from functools import partial
 
 
 def write_sample_to_board(samp, writer, name: str):
     img_grid = torchvision.utils.make_grid(samp)
     imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
     writer.add_image(name, img_grid)
-
-
-class RMSNorm(nn.Module):
-    def __init__(self, dim):
-        super().__init__()
-        self.scale = dim**0.5
-        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
-
-    def forward(self, x):
-        return F.normalize(x, dim=1) * self.g * self.scale
-
-
-class LinearAttention(nn.Module):
-    def __init__(self, dim, heads=4, dim_head=32, num_mem_kv=4):
-        super().__init__()
-        self.scale = dim_head**-0.5
-        self.heads = heads
-        hidden_dim = dim_head * heads
-
-        self.norm = RMSNorm(dim)
-
-        self.mem_kv = nn.Parameter(torch.randn(2, heads, dim_head, num_mem_kv))
-        self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, bias=False)
-
-        self.to_out = nn.Sequential(nn.Conv2d(hidden_dim, dim, 1), RMSNorm(dim))
-
-    def forward(self, x):
-        b, c, h, w = x.shape
-
-        x = self.norm(x)
-
-        qkv = self.to_qkv(x).chunk(3, dim=1)
-        q, k, v = map(
-            lambda t: rearrange(t, "b (h c) x y -> b h c (x y)", h=self.heads), qkv
-        )
-
-        mk, mv = map(lambda t: repeat(t, "h c n -> b h c n", b=b), self.mem_kv)
-        k, v = map(partial(torch.cat, dim=-1), ((mk, k), (mv, v)))
-
-        q = q.softmax(dim=-2)
-        k = k.softmax(dim=-1)
-
-        q = q * self.scale
-
-        context = torch.einsum("b h d n, b h e n -> b h d e", k, v)
-
-        out = torch.einsum("b h d e, b h d n -> b h e n", context, q)
-        out = rearrange(out, "b h c (x y) -> b (h c) x y", h=self.heads, x=h, y=w)
-        return self.to_out(out)
-
-
-class Block(nn.Module):
-    def __init__(self, dim, dim_out, dropout=0.0):
-        super().__init__()
-        self.proj = nn.Conv2d(dim, dim_out, 3, padding=1)
-        self.norm = RMSNorm(dim_out)
-        self.act = nn.SiLU()
-        self.dropout = nn.Dropout(dropout)
-
-    def forward(self, x):
-        x = self.proj(x)
-        x = self.norm(x)
-
-        x = self.act(x)
-        return self.dropout(x)
-
-
-class ResnetBlock(nn.Module):
-    def __init__(self, dim, dim_out, time_emb_dim: int):
-        super().__init__()
-        self.mlp = nn.Sequential(nn.SiLU(), nn.Linear(time_emb_dim, dim_out * 2))
-
-        self.block1 = Block(dim, dim_out)
-        self.block2 = Block(dim_out, dim_out)
-        self.res_conv = nn.Conv2d(dim, dim_out, 1) if dim != dim_out else nn.Identity()
-
-    def forward(self, x, t):
-        t = self.mlp(t)
-        t = rearrange(t, "b c -> b c 1 1")
-
-        h = self.block1(x)
-
-        h = self.block2(h)
-
-        return h + self.res_conv(x)
 
 
 class SimpleUnet(nn.Module):
@@ -419,16 +332,16 @@ class LitUnet(L.LightningModule):
 
     def configure_optimizers(self):
         optimiser = Adam(self.parameters(), lr=self.lr)
-        # scheduler = SequentialLR(
-        # optimiser,
-        # schedulers=[
+        scheduler = SequentialLR(
+        optimiser,
+        schedulers=[
         # LinearLR(optimiser, 0.1, 1.0, 2),
-        # ConstantLR(optimiser, 1.0),
-        # ExponentialLR(optimiser, 0.95),
-        # ],
-        # milestones=[2, 8],  # faster decrease
-        # )
+        ConstantLR(optimiser, 1.0),
+        ExponentialLR(optimiser, 0.95),
+        ],
+        milestones=[5],  # faster decrease
+        )
         return {
             "optimizer": optimiser,
-            # "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"},
+            "lr_scheduler": {"scheduler": scheduler, "interval": "epoch"},
         }
