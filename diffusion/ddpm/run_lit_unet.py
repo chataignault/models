@@ -208,30 +208,30 @@ if __name__ == "__main__":
         nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 8)
     )
 
-    samp = sample(
-        unet,
-        SAMP_SHAPE,
-        betas,
-        posterior_variance,
-        sqrt_one_minus_alphas_cumprod,
-        sqrt_recip_alphas,
-        T,
-    )[-1]
+    # samp = sample(
+    #     unet,
+    #     SAMP_SHAPE,
+    #     betas,
+    #     posterior_variance,
+    #     sqrt_one_minus_alphas_cumprod,
+    #     sqrt_recip_alphas,
+    #     T,
+    # )[-1]
 
-    # log samples to board
-    write_sample_to_board(samp, writer, "generated samples")
+    # # log samples to board
+    # write_sample_to_board(samp, writer, "generated samples")
 
-    samp = samp.cpu().numpy()
-    for i in range(n_samp):
-        r, c = i // n_cols, i % n_cols
-        axs[r, c].imshow(samp[i, 0, :, :], cmap="gray")
-        axs[r, c].axis("off")
+    # samp = samp.cpu().numpy()
+    # for i in range(n_samp):
+    #     r, c = i // n_cols, i % n_cols
+    #     axs[r, c].imshow(samp[i, 0, :, :], cmap="gray")
+    #     axs[r, c].axis("off")
 
-    plt.tight_layout()
+    # plt.tight_layout()
 
-    plt.savefig(
-        os.path.join(out_dir, sample_base_name + ".png"),
-    )
+    # plt.savefig(
+    #     os.path.join(out_dir, sample_base_name + ".png"),
+    # )
 
     from utils_torch.diffusion import p_sample_loop
 
