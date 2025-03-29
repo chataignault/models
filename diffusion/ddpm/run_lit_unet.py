@@ -5,6 +5,7 @@ import numpy as np
 import datetime as dt
 from rich import print
 from torch.utils.tensorboard import SummaryWriter
+import torch.nn.functional as F
 import lightning as L
 from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
@@ -15,7 +16,12 @@ from matplotlib.pyplot import imshow
 from utils.logger import get_logger
 from utils_torch.unet import LitUnet, SimpleUnet, Unet
 from utils.fashion_mnist_dataloader import get_dataloader
-from utils_torch.diffusion import sample, linear_beta_schedule, cosine_beta_schedule
+from utils_torch.diffusion import (
+    sample,
+    linear_beta_schedule,
+    cosine_beta_schedule,
+    sigmoid_beta_schedule,
+)
 
 DEFAULT_IMG_SIZE = 28
 
@@ -114,11 +120,11 @@ if __name__ == "__main__":
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    betas = linear_beta_schedule(timesteps=T, device=device)
+    # betas = linear_beta_schedule(timesteps=T, device=device)
+    betas = sigmoid_beta_schedule(timesteps=T, device=device)
     # betas = cosine_beta_schedule(timesteps=T, device=device)
     alphas = 1.0 - betas
     alphas_cumprod = torch.cumprod(alphas, -1)
-    import torch.nn.functional as F
 
     alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
 
@@ -163,13 +169,15 @@ if __name__ == "__main__":
     # train
     unet = LitUnet(
         unet=unet,
+        betas=betas,
+        sqrt_recip_alphas=sqrt_recip_alphas,
         sqrt_alphas_cumprod=sqrt_alphas_cumprod,
         sqrt_one_minus_alphas_cumprod=sqrt_one_minus_alphas_cumprod,
+        posterior_variance=posterior_variance,
         T=T,
         device=device,
         lr=lr,
         writer=writer,
-        posterior_variance=posterior_variance,
         img_size=IMG_SIZE,
     )
     trainer = L.Trainer(

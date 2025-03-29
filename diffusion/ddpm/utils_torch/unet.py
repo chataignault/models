@@ -330,6 +330,8 @@ class LitUnet(L.LightningModule):
     def __init__(
         self,
         unet: nn.Module,
+        betas: Tensor,
+        sqrt_recip_alphas: Tensor,
         sqrt_alphas_cumprod: Tensor,
         sqrt_one_minus_alphas_cumprod: Tensor,
         T: int,
@@ -341,6 +343,8 @@ class LitUnet(L.LightningModule):
     ):
         super().__init__()
         self.unet = unet
+        self.betas = betas
+        self.sqrt_recip_alphas = sqrt_recip_alphas
         self.sqrt_alphas_cumprod = sqrt_alphas_cumprod
         self.sqrt_one_minus_alphas_cumprod = sqrt_one_minus_alphas_cumprod
         self.T = T
@@ -394,7 +398,7 @@ class LitUnet(L.LightningModule):
                 (16, 1, self.img_size, self.img_size),
                 self.posterior_variance,
                 self.sqrt_one_minus_alphas_cumprod,
-                1.0 / torch.sqrt(1 - self.posterior_variance),
+                self.sqrt_recip_alphas,
                 self.T,
             )[-1]
 

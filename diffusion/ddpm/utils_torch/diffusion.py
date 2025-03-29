@@ -42,21 +42,47 @@ def cosine_beta_schedule(
     return end * (1.0 - (torch.cos(np.pi * 0.5 * (steps / timesteps))) ** 2)
 
 
+def sigmoid_beta_schedule(timesteps, device, start=-3, end=3, tau=1, clamp_min=1e-5):
+    """
+    sigmoid schedule
+    proposed in https://arxiv.org/abs/2212.11972 - Figure 8
+    better for images > 64x64, when used during training
+    """
+    steps = timesteps + 1
+    t = (
+        torch.linspace(
+            0,
+            timesteps,
+            steps,
+            # dtype = torch.float64
+        )
+        / timesteps
+    )
+    v_start = torch.tensor(start / tau).sigmoid()
+    v_end = torch.tensor(end / tau).sigmoid()
+    alphas_cumprod = (-((t * (end - start) + start) / tau).sigmoid() + v_end) / (
+        v_end - v_start
+    )
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return torch.clip(betas, 0, 0.999).to(device)
+
+
 def forward_diffusion_sample(
     x_0: Tensor,
     t: Tensor,
     sqrt_alphas_cumprod: Tensor,
     sqrt_one_minus_alphas_cumprod: Tensor,
+    noise: Tensor,
     device: str = "cpu",
 ) -> Tensor:
     """
     Takes an image and a timestep as input and
-    returns the noisy version of it
-    Hint: use the get_index_from_list function to select the right values at time t.
+    returns the noisy version of it at a given timestep, using the Gaussian noise reparameterisation
     """
     mean = (get_index_from_list(sqrt_alphas_cumprod, t, x_0.shape) * x_0).to(device)
     std = get_index_from_list(sqrt_one_minus_alphas_cumprod, t, x_0.shape).to(device)
-    return mean + std * torch.randn_like(x_0).to(device)
+    return mean + std * noise
 
 
 @torch.no_grad()
@@ -71,14 +97,13 @@ def sample_timestep(
     device: str,
 ) -> Tensor:
     """
-    Calls the model to predict the noise in the image and returns
-    the denoised image.
+    Calls the model to predict the noise in the image and returns the denoised image.
     Applies noise to this image, if we are not in the last step yet.
-    Note that it also needs additional arguments about the posterior_variance, sqrt_minus_alphas_cumprod and sqrt_recip_alphas.
     """
     x = sqrt_recip_alphas[i] * (
         x - (posterior_variance[i]) / sqrt_one_minus_alphas_cumprod[i] * (model(x, t))
     )
+    # x = x.clamp(-1. 1.)
     if i > 0:
         z = torch.randn_like(x).to(device)
         x += torch.sqrt(posterior_variance[i]) * z
@@ -102,7 +127,7 @@ def sample(
     img = torch.randn(
         shape,
         device=device,
-    )  # ! check whether the variance corresponds to forward pass
+    )
     imgs = []
     for i in tqdm(
         reversed(range(1, T)), desc="sampling loop time step", total=T
