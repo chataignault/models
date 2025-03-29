@@ -103,8 +103,6 @@ def sample_timestep(
     Calls the model to predict the noise in the image and returns the denoised image.
     Applies noise to this image, if we are not in the last step yet.
     """
-    b = x.shape[0]
-    # batched_times = torch.full((b,), t, device=device, dtype=torch.long)
     eps = model(x, t)
     x_start = (
         get_index_from_list(sqrt_recip_alphas_cumprod, t, x.shape) * x

@@ -396,21 +396,23 @@ class LitUnet(L.LightningModule):
         self.writer.add_scalar("Loss 500", self.timestep_losses[500], self.global_step)
         self.writer.add_scalar("Loss 850", self.timestep_losses[850], self.global_step)
 
-        # if self.global_step % 200 == 0 and self.global_step > 0:
-        #     self.unet.eval()
-        #     samp = sample(
-        #         self.unet,
-        #         (16, 1, self.img_size, self.img_size),
-        #         self.betas,
-        #         self.posterior_variance,
-        #         self.sqrt_one_minus_alphas_cumprod,
-        #         self.sqrt_recip_alphas,
-        #         self.T,
-        #     )[-1]
+        if self.global_step % 500 == 0 and self.global_step > 0:
+            self.unet.eval()
+            samp = sample(
+                self.unet,
+                (16, 1, self.img_size, self.img_size),
+                self.betas,
+                self.posterior_variance,
+                self.sqrt_one_minus_alphas_cumprod,
+                self.sqrt_recip_alphas,
+                self.T,
+            )[-1]
 
-        #     # log samples to board
-        #     write_sample_to_board(samp, self.writer, f"generated samples step={self.global_step}")
-        #     self.unet.train()
+            # log samples to board
+            write_sample_to_board(
+                samp, self.writer, f"generated samples step={self.global_step}"
+            )
+            self.unet.train()
 
         self.log("train_loss", loss)
         return loss
