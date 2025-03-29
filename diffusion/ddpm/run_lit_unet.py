@@ -232,3 +232,39 @@ if __name__ == "__main__":
     plt.savefig(
         os.path.join(out_dir, sample_base_name + ".png"),
     )
+
+    from utils_torch.diffusion import p_sample_loop
+
+    posterior_mean_coef1 = (
+        betas * torch.sqrt(alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+    )
+    posterior_mean_coef2 = (
+        (1.0 - alphas_cumprod_prev) * torch.sqrt(alphas) / (1.0 - alphas_cumprod)
+    )
+    sqrt_recip_alphas_cumprod = torch.sqrt(1.0 / alphas_cumprod)
+    sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / alphas_cumprod - 1)
+    posterior_log_variance_clipped = torch.log(posterior_variance.clamp(min=1e-20))
+    img = p_sample_loop(
+        unet,
+        SAMP_SHAPE,
+        T,
+        posterior_mean_coef1,
+        posterior_mean_coef2,
+        sqrt_recip_alphas_cumprod,
+        sqrt_recipm1_alphas_cumprod,
+        posterior_variance,
+        posterior_log_variance_clipped,
+    )
+    write_sample_to_board(img, writer, "generated samples other")
+
+    samp = img.cpu().numpy()
+    for i in range(n_samp):
+        r, c = i // n_cols, i % n_cols
+        axs[r, c].imshow(samp[i, 0, :, :], cmap="gray")
+        axs[r, c].axis("off")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        os.path.join(out_dir, sample_base_name + "_other.png"),
+    )

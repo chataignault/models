@@ -24,7 +24,7 @@ def get_transforms(
     ]
     if zero_pad_images:
         t_.append(Pad(2))
-    t_.append(Lambda(lambda t: (t * 2) - 1))
+    # t_.append(Lambda(lambda t: (t * 2) - 1))
     transform = Compose(transforms=t_)
 
     if channels_last:
@@ -65,6 +65,5 @@ def get_dataloader(
         shuffle=True,
         drop_last=True,
         generator=torch.Generator(device=device),
-        # num_workers=15
     )
     return dataloader

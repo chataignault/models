@@ -185,9 +185,9 @@ class SimpleUnet(nn.Module):
         self.end_res = ResnetBlock(2 * ups[-1], ups[-1], 4 * time_emb_dim)
         self.out_conv = nn.Conv2d(in_channels=ups[-1], out_channels=1, kernel_size=1)
 
-        assert len(self.upsampling) == len(self.downsampling), (
-            f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
-        )
+        assert (
+            len(self.upsampling) == len(self.downsampling)
+        ), f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
