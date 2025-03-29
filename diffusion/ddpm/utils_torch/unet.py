@@ -11,8 +11,7 @@ from torch.utils.tensorboard import SummaryWriter
 from lightning.pytorch.utilities import grad_norm
 from collections import defaultdict
 
-from .training import get_loss
-from .diffusion import sample
+from .diffusion import sample, get_loss
 from torch.optim.lr_scheduler import (
     # LinearLR,
     ConstantLR,
@@ -98,9 +97,9 @@ class SimpleUnet(nn.Module):
         self.end_res = ResnetBlock(2 * ups[-1], ups[-1], 4 * time_emb_dim)
         self.out_conv = nn.Conv2d(in_channels=ups[-1], out_channels=1, kernel_size=1)
 
-        assert (
-            len(self.upsampling) == len(self.downsampling)
-        ), f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
+        assert len(self.upsampling) == len(self.downsampling), (
+            f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
+        )
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
@@ -252,6 +251,8 @@ class LitUnet(L.LightningModule):
         sqrt_recip_alphas: Tensor,
         sqrt_alphas_cumprod: Tensor,
         sqrt_one_minus_alphas_cumprod: Tensor,
+        alphas_cumprod: Tensor,
+        alphas_cumprod_prev: Tensor,
         T: int,
         device: str,
         lr: float,
@@ -271,6 +272,8 @@ class LitUnet(L.LightningModule):
         self.writer = writer
         self.img_size = img_size
         self.posterior_variance = posterior_variance
+        self.alphas_cumprod = (alphas_cumprod,)
+        self.alphas_cumprod_prev = (alphas_cumprod_prev,)
 
         self.timestep_losses = defaultdict(int)
 
@@ -311,14 +314,15 @@ class LitUnet(L.LightningModule):
 
         if self.global_step % 500 == 0 and self.global_step > 0:
             self.unet.eval()
+
             samp = sample(
                 self.unet,
                 (16, 1, self.img_size, self.img_size),
-                self.betas,
-                self.posterior_variance,
-                self.sqrt_one_minus_alphas_cumprod,
-                self.sqrt_recip_alphas,
                 self.T,
+                self.betas,
+                self.alphas_cumprod,
+                self.alphas_cumprod_prev,
+                self.posterior_variance,
             )[-1]
 
             # log samples to board
@@ -333,13 +337,13 @@ class LitUnet(L.LightningModule):
     def configure_optimizers(self):
         optimiser = Adam(self.parameters(), lr=self.lr)
         scheduler = SequentialLR(
-        optimiser,
-        schedulers=[
-        # LinearLR(optimiser, 0.1, 1.0, 2),
-        ConstantLR(optimiser, 1.0),
-        ExponentialLR(optimiser, 0.95),
-        ],
-        milestones=[5],  # faster decrease
+            optimiser,
+            schedulers=[
+                # LinearLR(optimiser, 0.1, 1.0, 2),
+                ConstantLR(optimiser, 1.0),
+                ExponentialLR(optimiser, 0.95),
+            ],
+            milestones=[5],  # faster decrease
         )
         return {
             "optimizer": optimiser,

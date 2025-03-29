@@ -4,6 +4,7 @@ from typing import Tuple, List
 import torch
 from torch import Tensor
 from torch.nn import Module
+import torch.nn.functional as F
 
 
 def get_index_from_list(vals, t, x_shape):
@@ -66,6 +67,25 @@ def sigmoid_beta_schedule(timesteps, device, start=-3, end=3, tau=1, clamp_min=1
     alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
     return torch.clip(betas, 0, 0.999).to(device)
+
+
+def get_loss(
+    model,
+    x_0: Tensor,
+    t: int,
+    sqrt_alphas_cumprod: Tensor,
+    sqrt_one_minus_alphas_cumprod: Tensor,
+    device: str,
+    reduction: str = "mean",
+) -> Tensor:
+    """
+    Define the right loss given the model, the true x_0 and the time t
+    """
+    noise = torch.randn_like(x_0).to(device)
+    x_t = forward_diffusion_sample(
+        x_0, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, noise, device=device
+    )
+    return F.mse_loss(noise, model(x_t, t), reduction=reduction)
 
 
 def forward_diffusion_sample(

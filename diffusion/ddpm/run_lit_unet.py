@@ -167,6 +167,8 @@ if __name__ == "__main__":
         sqrt_alphas_cumprod=sqrt_alphas_cumprod,
         sqrt_one_minus_alphas_cumprod=sqrt_one_minus_alphas_cumprod,
         posterior_variance=posterior_variance,
+        alphas_cumprod=alphas_cumprod,
+        alphas_cumprod_prev=alphas_cumprod_prev,
         T=T,
         device=device,
         lr=lr,
