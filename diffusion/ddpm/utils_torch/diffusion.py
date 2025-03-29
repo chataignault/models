@@ -85,48 +85,77 @@ def forward_diffusion_sample(
     return mean + std * noise
 
 
-# @torch.no_grad()
 @torch.inference_mode()
 def sample_timestep(
     model,
     x: Tensor,
     t: Tensor,
     i: int,
-    betas: Tensor,
     posterior_variance: Tensor,
-    sqrt_one_minus_alphas_cumprod: Tensor,
-    sqrt_recip_alphas: Tensor,
+    sqrt_recip_alphas_cumprod,
+    sqrt_recipm1_alphas_cumprod,
+    posterior_mean_coef1,
+    posterior_mean_coef2,
+    posterior_log_variance_clipped,
     device: str,
 ) -> Tensor:
     """
     Calls the model to predict the noise in the image and returns the denoised image.
     Applies noise to this image, if we are not in the last step yet.
     """
-    mu_prev = sqrt_recip_alphas[i] * (
-        x - betas[i] / sqrt_one_minus_alphas_cumprod[i] * model(x, t)
+    b = x.shape[0]
+    # batched_times = torch.full((b,), t, device=device, dtype=torch.long)
+    eps = model(x, t)
+    x_start = (
+        get_index_from_list(sqrt_recip_alphas_cumprod, t, x.shape) * x
+        - get_index_from_list(sqrt_recipm1_alphas_cumprod, t, x.shape) * eps
     )
-    # x = x.clamp(-1. 1.)
+
+    x_start.clamp_(-1.0, 1.0)
+
+    mu_prev, posterior_variance, posterior_log_variance = q_posterior(
+        x_start=x_start,
+        x_t=x,
+        t=t,
+        posterior_mean_coef1=posterior_mean_coef1,
+        posterior_mean_coef2=posterior_mean_coef2,
+        posterior_variance=posterior_variance,
+        posterior_log_variance_clipped=posterior_log_variance_clipped,
+    )
+
+    # mu_prev = sqrt_recip_alphas[i] * (
+    #     x - betas[i] / sqrt_one_minus_alphas_cumprod[i] * model(x, t)
+    # )
     if i > 0:
         z = torch.randn_like(x).to(device)
-        mu_prev += torch.sqrt(posterior_variance[i]) * z
+        mu_prev += (0.5 * posterior_log_variance).exp() * z
 
     return mu_prev
 
 
-# @torch.no_grad()
 @torch.inference_mode()
 def sample(
     model: Module,
     shape: Tuple,
-    betas,
-    posterior_variance: Tensor,
-    sqrt_one_minus_alphas_cumprod: Tensor,
-    sqrt_recip_alphas: Tensor,
     T: int,
+    betas,
+    alphas_cumprod,
+    alphas_cumprod_prev,
+    posterior_variance: Tensor,
     pseudo_video: bool = False,
 ) -> List[Tensor]:
-    device = next(model.parameters()).device
     b = shape[0]
+    device = next(model.parameters()).device
+    posterior_mean_coef1 = (
+        betas * torch.sqrt(alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+    )
+    posterior_mean_coef2 = (
+        (1.0 - alphas_cumprod_prev) * torch.sqrt(1.0 - betas) / (1.0 - alphas_cumprod)
+    )
+    sqrt_recip_alphas_cumprod = torch.sqrt(1.0 / alphas_cumprod)
+    sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / alphas_cumprod - 1)
+    posterior_log_variance_clipped = torch.log(posterior_variance.clamp(min=1e-20))
+
     # start from pure noise (for each example in the batch)
     img = torch.randn(
         shape,
@@ -142,17 +171,17 @@ def sample(
             img,
             t,
             i,
-            betas,
             posterior_variance,
-            sqrt_one_minus_alphas_cumprod,
-            sqrt_recip_alphas,
-            device,
+            posterior_mean_coef1=posterior_mean_coef1,
+            posterior_mean_coef2=posterior_mean_coef2,
+            posterior_log_variance_clipped=posterior_log_variance_clipped,
+            sqrt_recip_alphas_cumprod=sqrt_recip_alphas_cumprod,
+            sqrt_recipm1_alphas_cumprod=sqrt_recipm1_alphas_cumprod,
+            device=device,
         )
-        # re-normalise
-        # img = (img + 1.0) / 2.0
         if pseudo_video:
-            imgs.append(img)
-    imgs.append(img)
+            imgs.append(unnormalize_to_zero_to_one(img))
+    imgs.append(unnormalize_to_zero_to_one(img))
     return imgs
 
 
@@ -177,110 +206,5 @@ def q_posterior(
     return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
 
-def p_mean_variance(
-    model,
-    x,
-    t,
-    clip_denoised=True,
-    posterior_mean_coef1=None,
-    posterior_mean_coef2=None,
-    sqrt_recip_alphas_cumprod=None,
-    sqrt_recipm1_alphas_cumprod=None,
-    posterior_variance=None,
-    posterior_log_variance_clipped=None,
-):
-    eps = model(x, t)
-    x_start = (
-        get_index_from_list(sqrt_recip_alphas_cumprod, t, x.shape) * x
-        - get_index_from_list(sqrt_recipm1_alphas_cumprod, t, x.shape) * eps
-    )
-    if clip_denoised:
-        x_start.clamp_(-1.0, 1.0)
-
-    model_mean, posterior_variance, posterior_log_variance = q_posterior(
-        x_start=x_start,
-        x_t=x,
-        t=t,
-        posterior_mean_coef1=posterior_mean_coef1,
-        posterior_mean_coef2=posterior_mean_coef2,
-        posterior_variance=posterior_variance,
-        posterior_log_variance_clipped=posterior_log_variance_clipped,
-    )
-    return model_mean, posterior_variance, posterior_log_variance, x_start
-
-
-@torch.inference_mode()
-def p_sample(
-    model,
-    x,
-    t: int,
-    sqrt_recip_alphas_cumprod,
-    sqrt_recipm1_alphas_cumprod,
-    posterior_mean_coef1,
-    posterior_mean_coef2,
-    posterior_variance,
-    posterior_log_variance_clipped,
-    device="cuda",
-):
-    b = x.shape[0]
-    batched_times = torch.full((b,), t, device=device, dtype=torch.long)
-    model_mean, _, model_log_variance, x_start = p_mean_variance(
-        model=model,
-        x=x,
-        t=batched_times,
-        clip_denoised=True,
-        posterior_mean_coef1=posterior_mean_coef1,
-        posterior_mean_coef2=posterior_mean_coef2,
-        sqrt_recip_alphas_cumprod=sqrt_recip_alphas_cumprod,
-        sqrt_recipm1_alphas_cumprod=sqrt_recipm1_alphas_cumprod,
-        posterior_variance=posterior_variance,
-        posterior_log_variance_clipped=posterior_log_variance_clipped,
-    )
-    noise = torch.randn_like(x) if t > 0 else 0.0  # no noise if t == 0
-    pred_img = model_mean + (0.5 * model_log_variance).exp() * noise
-    return pred_img, x_start
-
-
 def unnormalize_to_zero_to_one(t):
     return (t + 1) * 0.5
-
-
-@torch.inference_mode()
-def p_sample_loop(
-    model,
-    shape,
-    num_timesteps,
-    posterior_mean_coef1,
-    posterior_mean_coef2,
-    sqrt_recip_alphas_cumprod,
-    sqrt_recipm1_alphas_cumprod,
-    posterior_variance,
-    posterior_log_variance_clipped,
-    device="cuda",
-):
-    batch = shape[0]
-
-    img = torch.randn(shape, device=device)
-
-    x_start = None
-
-    for t in tqdm(
-        reversed(range(0, num_timesteps)),
-        desc="sampling loop time step",
-        total=num_timesteps,
-    ):
-        img, x_start = p_sample(
-            model,
-            img,
-            t,
-            sqrt_recip_alphas_cumprod,
-            sqrt_recipm1_alphas_cumprod,
-            posterior_mean_coef1,
-            posterior_mean_coef2,
-            posterior_variance,
-            posterior_log_variance_clipped,
-        )
-
-    ret = img
-    ret = unnormalize_to_zero_to_one(ret)
-    return ret

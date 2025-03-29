@@ -119,17 +119,15 @@ if __name__ == "__main__":
     # betas = linear_beta_schedule(timesteps=T, device=device)
     betas = sigmoid_beta_schedule(timesteps=T, device=device)
     # betas = cosine_beta_schedule(timesteps=T, device=device)
+
     alphas = 1.0 - betas
     alphas_cumprod = torch.cumprod(alphas, -1)
-
     alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
-
     sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
     sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
-    # posterior_variance = betas
     posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
-
     sqrt_recip_alphas = 1.0 / torch.sqrt(alphas)
+
     IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
 
     dataloader = get_dataloader(
@@ -208,56 +206,20 @@ if __name__ == "__main__":
         nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 8)
     )
 
-    # samp = sample(
-    #     unet,
-    #     SAMP_SHAPE,
-    #     betas,
-    #     posterior_variance,
-    #     sqrt_one_minus_alphas_cumprod,
-    #     sqrt_recip_alphas,
-    #     T,
-    # )[-1]
-
-    # # log samples to board
-    # write_sample_to_board(samp, writer, "generated samples")
-
-    # samp = samp.cpu().numpy()
-    # for i in range(n_samp):
-    #     r, c = i // n_cols, i % n_cols
-    #     axs[r, c].imshow(samp[i, 0, :, :], cmap="gray")
-    #     axs[r, c].axis("off")
-
-    # plt.tight_layout()
-
-    # plt.savefig(
-    #     os.path.join(out_dir, sample_base_name + ".png"),
-    # )
-
-    from utils_torch.diffusion import p_sample_loop
-
-    posterior_mean_coef1 = (
-        betas * torch.sqrt(alphas_cumprod_prev) / (1.0 - alphas_cumprod)
-    )
-    posterior_mean_coef2 = (
-        (1.0 - alphas_cumprod_prev) * torch.sqrt(alphas) / (1.0 - alphas_cumprod)
-    )
-    sqrt_recip_alphas_cumprod = torch.sqrt(1.0 / alphas_cumprod)
-    sqrt_recipm1_alphas_cumprod = torch.sqrt(1.0 / alphas_cumprod - 1)
-    posterior_log_variance_clipped = torch.log(posterior_variance.clamp(min=1e-20))
-    img = p_sample_loop(
+    samp = sample(
         unet,
         SAMP_SHAPE,
         T,
-        posterior_mean_coef1,
-        posterior_mean_coef2,
-        sqrt_recip_alphas_cumprod,
-        sqrt_recipm1_alphas_cumprod,
+        betas,
+        alphas_cumprod,
+        alphas_cumprod_prev,
         posterior_variance,
-        posterior_log_variance_clipped,
-    )
-    write_sample_to_board(img, writer, "generated samples other")
+    )[-1]
 
-    samp = img.cpu().numpy()
+    # log samples to board
+    write_sample_to_board(samp, writer, "generated samples")
+
+    samp = samp.cpu().numpy()
     for i in range(n_samp):
         r, c = i // n_cols, i % n_cols
         axs[r, c].imshow(samp[i, 0, :, :], cmap="gray")
@@ -266,5 +228,5 @@ if __name__ == "__main__":
     plt.tight_layout()
 
     plt.savefig(
-        os.path.join(out_dir, sample_base_name + "_other.png"),
+        os.path.join(out_dir, sample_base_name + ".png"),
     )
