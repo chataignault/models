@@ -118,11 +118,11 @@ def sample_timestep(
     t: Tensor,
     i: int,
     posterior_variance: Tensor,
-    sqrt_recip_alphas_cumprod,
-    sqrt_recipm1_alphas_cumprod,
-    posterior_mean_coef1,
-    posterior_mean_coef2,
-    posterior_log_variance_clipped,
+    sqrt_recip_alphas_cumprod: Tensor,
+    sqrt_recipm1_alphas_cumprod: Tensor,
+    posterior_mean_coef1: Tensor,
+    posterior_mean_coef2: Tensor,
+    posterior_log_variance_clipped: Tensor,
     device: str,
 ) -> Tensor:
     """
@@ -162,9 +162,9 @@ def sample(
     model: Module,
     shape: Tuple,
     T: int,
-    betas,
-    alphas_cumprod,
-    alphas_cumprod_prev,
+    betas: Tensor,
+    alphas_cumprod: Tensor,
+    alphas_cumprod_prev: Tensor,
     posterior_variance: Tensor,
     pseudo_video: bool = False,
 ) -> List[Tensor]:
@@ -230,5 +230,5 @@ def q_posterior(
     return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
 
-def unnormalize_to_zero_to_one(t):
+def unnormalize_to_zero_to_one(t: Tensor):
     return (t + 1) * 0.5
