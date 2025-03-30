@@ -1,6 +1,5 @@
 from datasets import load_dataset
 
-# from torchtune import ConcatDataset
 from torchvision.transforms import (
     Compose,
     ToTensor,
@@ -48,7 +47,7 @@ def get_dataloader(
     channels_last: bool = True,
     zero_pad_images: bool = False,
 ):
-    dataset = load_dataset("fashion_mnist")
+    dataset = load_dataset("fashion_mnist", num_proc=4)
 
     transforms_dev = partial(
         get_transforms,
@@ -66,6 +65,5 @@ def get_dataloader(
         shuffle=True,
         drop_last=True,
         generator=torch.Generator(device=device),
-        # num_workers=15
     )
     return dataloader
