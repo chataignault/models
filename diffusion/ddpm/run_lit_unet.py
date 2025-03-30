@@ -7,58 +7,24 @@ from rich import print
 from torch.utils.tensorboard import SummaryWriter
 import torch.nn.functional as F
 import lightning as L
-from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
+from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 
 from utils.logger import get_logger
-from utils_torch.unet import LitUnet, SimpleUnet, Unet, write_sample_to_board
+from utils_torch.unet import LitUnet, write_sample_to_board, load_model
 from utils.fashion_mnist_dataloader import get_dataloader
 from utils_torch.diffusion import (
     sample,
     linear_beta_schedule,
     cosine_beta_schedule,
     sigmoid_beta_schedule,
+    NoiseSchedule,
 )
 
 DEFAULT_IMG_SIZE = 28
-
-
-def load_model(
-    models_dir,
-    logger,
-    downs,
-    time_emb_dim,
-    device,
-    load_checkpoint,
-    model_name,
-):
-    """
-    Load appropriate backbone model
-    """
-    match model_name:
-        case "Unet":
-            unet = Unet(downs=downs, time_emb_dim=time_emb_dim).to(device)
-        case "SimpleUnet":
-            unet = SimpleUnet(
-                downs=downs,
-                time_emb_dim=time_emb_dim,
-            ).to(device)
-        case _:
-            raise ValueError(f"{model_name} is not implemented")
-
-    if load_checkpoint:
-        unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
-
-    print(unet)
-
-    logger.info(
-        f"Number of parameters : {np.sum([np.prod(t.shape) for t in list(unet.parameters())])}"
-    )
-
-    return unet
 
 
 if __name__ == "__main__":
@@ -93,6 +59,9 @@ if __name__ == "__main__":
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--model_tag", type=str, default="")
     parser.add_argument("--model_name", type=str, default="SimpleUnet")
+    parser.add_argument(
+        "--moise_schedule", type=NoiseSchedule, default=NoiseSchedule.sigmoid
+    )
     parser.add_argument("--load_checkpoint", type=str, default="")
     parser.add_argument("--only_generate_sample", action="store_true")
 
@@ -109,17 +78,25 @@ if __name__ == "__main__":
     T = args.timesteps
     load_checkpoint = args.load_checkpoint
     model_name = args.model_name
+    noise_schedule = args.noise_schedule
     model_tag = args.model_tag
     only_generate_sample = args.only_generate_sample
 
+    IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
+
     torch.set_default_device(device)
-    # torch.backends.cuda.matmul.allow_tf32 = True
-    # torch.backends.cudnn.allow_tf32 = True
+    torch.backends.cuda.matmul.allow_tf32 = True
+    torch.backends.cudnn.allow_tf32 = True
 
-    # betas = linear_beta_schedule(timesteps=T, device=device)
-    betas = sigmoid_beta_schedule(timesteps=T, device=device)
-    # betas = cosine_beta_schedule(timesteps=T, device=device)
+    match noise_schedule:
+        case NoiseSchedule.linear:
+            betas = linear_beta_schedule(timesteps=T, device=device)
+        case NoiseSchedule.cosine:
+            betas = cosine_beta_schedule(timesteps=T, device=device)
+        case NoiseSchedule.sigmoid:
+            betas = sigmoid_beta_schedule(timesteps=T, device=device)
 
+    # define difffusion parameters
     alphas = 1.0 - betas
     alphas_cumprod = torch.cumprod(alphas, -1)
     alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
@@ -128,13 +105,11 @@ if __name__ == "__main__":
     posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
     sqrt_recip_alphas = 1.0 / torch.sqrt(alphas)
 
-    IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
-
     dataloader = get_dataloader(
         BATCH_SIZE, device, channels_last=False, zero_pad_images=zero_pad_images
     )
-    print(f"Number of training examples : {len(dataloader.dataset)}")
 
+    print(f"Number of training examples : {len(dataloader.dataset)}")
     logger.info(f"Checkpoint directory : {models_dir}")
 
     unet = load_model(
@@ -195,7 +170,8 @@ if __name__ == "__main__":
         f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime('%Y%m%d-%H')}.pt"
     )
     location = os.path.join(models_dir, name)
-    torch.save(unet.state_dict(), location)
+    if not only_generate_sample:
+        torch.save(unet.state_dict(), location)
 
     # generate samples
     logger.info("Generate sample")

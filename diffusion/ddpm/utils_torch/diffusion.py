@@ -1,10 +1,17 @@
 import numpy as np
 from tqdm import tqdm
+from enum import Enum
 from typing import Tuple, List
 import torch
 from torch import Tensor
 from torch.nn import Module
 import torch.nn.functional as F
+
+
+class NoiseSchedule(Enum):
+    linear = "linear"
+    cosine = "cosine"
+    sigmoid = "sigmoid"
 
 
 def get_index_from_list(vals, t, x_shape):
@@ -55,7 +62,6 @@ def sigmoid_beta_schedule(timesteps, device, start=-3, end=3, tau=1, clamp_min=1
             0,
             timesteps,
             steps,
-            # dtype = torch.float64
         )
         / timesteps
     )

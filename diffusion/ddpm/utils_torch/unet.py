@@ -1,3 +1,4 @@
+import os
 import numpy as np
 from typing import List
 from matplotlib.pyplot import imshow
@@ -20,6 +21,41 @@ from torch.optim.lr_scheduler import (
 )
 from torch.nn import ModuleList
 from .modules import *
+
+
+def load_model(
+    models_dir,
+    logger,
+    downs,
+    time_emb_dim,
+    device,
+    load_checkpoint,
+    model_name,
+):
+    """
+    Load appropriate backbone model
+    """
+    match model_name:
+        case "Unet":
+            unet = Unet(downs=downs, time_emb_dim=time_emb_dim).to(device)
+        case "SimpleUnet":
+            unet = SimpleUnet(
+                downs=downs,
+                time_emb_dim=time_emb_dim,
+            ).to(device)
+        case _:
+            raise ValueError(f"{model_name} is not implemented")
+
+    if load_checkpoint:
+        unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
+
+    print(unet)
+
+    logger.info(
+        f"Number of parameters : {np.sum([np.prod(t.shape) for t in list(unet.parameters())])}"
+    )
+
+    return unet
 
 
 def write_sample_to_board(samp, writer, name: str):
@@ -97,9 +133,9 @@ class SimpleUnet(nn.Module):
         self.end_res = ResnetBlock(2 * ups[-1], ups[-1], 4 * time_emb_dim)
         self.out_conv = nn.Conv2d(in_channels=ups[-1], out_channels=1, kernel_size=1)
 
-        assert len(self.upsampling) == len(self.downsampling), (
-            f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
-        )
+        assert (
+            len(self.upsampling) == len(self.downsampling)
+        ), f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)
@@ -272,8 +308,8 @@ class LitUnet(L.LightningModule):
         self.writer = writer
         self.img_size = img_size
         self.posterior_variance = posterior_variance
-        self.alphas_cumprod = (alphas_cumprod,)
-        self.alphas_cumprod_prev = (alphas_cumprod_prev,)
+        self.alphas_cumprod = alphas_cumprod
+        self.alphas_cumprod_prev = alphas_cumprod_prev
 
         self.timestep_losses = defaultdict(int)
 
