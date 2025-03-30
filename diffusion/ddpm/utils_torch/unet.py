@@ -64,11 +64,7 @@ def write_sample_to_board(samp, writer, name: str):
     writer.add_image(name, img_grid)
 
 
-class SimpleUnet(nn.Module):
-    """
-    A simplified variant of the Unet architecture.
-    """
-
+class Unet(nn.Module):
     def __init__(
         self,
         downs: List[int],
@@ -174,8 +170,10 @@ class SimpleUnet(nn.Module):
         return x
 
 
-class Unet(nn.Module):
-    """ """
+class SimpleUnet(nn.Module):
+    """
+    A simplified variant of the Unet architecture.
+    """
 
     def __init__(
         self,
@@ -219,7 +217,7 @@ class Unet(nn.Module):
 
         self.downsampling = nn.Sequential(
             *[
-                Block(down_channels[i], down_channels[i + 1], 4 * time_emb_dim)
+                InterBlock(down_channels[i], down_channels[i + 1], 4 * time_emb_dim)
                 for i in range(len(down_channels) - 1)
             ]
         )
@@ -232,7 +230,7 @@ class Unet(nn.Module):
 
         self.upsampling = nn.Sequential(
             *[
-                Block(
+                InterBlock(
                     up_channels[i],
                     up_channels[i + 1],
                     4 * time_emb_dim,

@@ -45,7 +45,7 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--downs", nargs="+", type=int, default=[64, 128, 128])
+    parser.add_argument("--downs", nargs="+", type=int, default=[32, 64, 128])
     parser.add_argument("--time_emb_dim", type=int, default=16)
     parser.add_argument(
         "--zero_pad",
@@ -53,14 +53,14 @@ if __name__ == "__main__":
         help="Extend the image size to 32x32 to allow deeper network",
     )
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--batch_size", type=int, default=1024)
+    parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--nepochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
-    parser.add_argument("--model_tag", type=str, default="")
-    parser.add_argument("--model_name", type=str, default="SimpleUnet")
+    parser.add_argument("--model_tag", type=str, default="", help="name identifier")
+    parser.add_argument("--model_name", type=str, default="Unet")
     parser.add_argument(
-        "--moise_schedule", type=NoiseSchedule, default=NoiseSchedule.sigmoid
+        "--noise_schedule", type=NoiseSchedule, default=NoiseSchedule.sigmoid
     )
     parser.add_argument("--load_checkpoint", type=str, default="")
     parser.add_argument("--only_generate_sample", action="store_true")
