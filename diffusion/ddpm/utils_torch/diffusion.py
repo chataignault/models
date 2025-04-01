@@ -147,9 +147,6 @@ def sample_timestep(
         posterior_log_variance_clipped=posterior_log_variance_clipped,
     )
 
-    # mu_prev = sqrt_recip_alphas[i] * (
-    #     x - betas[i] / sqrt_one_minus_alphas_cumprod[i] * model(x, t)
-    # )
     if i > 0:
         z = torch.randn_like(x).to(device)
         mu_prev += (0.5 * posterior_log_variance).exp() * z

@@ -63,3 +63,10 @@ $$
 \sigma^2_t(x_t, x_0) = \frac{\beta_t(1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t}
 \end{cases}
 $$
+
+TODO :
+- [x] try other noise schedules
+- [ ] test variants of sampling
+- [ ] refactor diffusion to class to avoid passing parameters as arguments
+- [ ] update simpler variant of Unet
+- [ ] update jax unet and optimisation loop
