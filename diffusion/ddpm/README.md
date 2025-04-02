@@ -40,33 +40,34 @@ To sample an image :
 
 $$
 \begin{align*}
-q(x_{t-1} | x_t, x_0) & = \frac{q(x_t | x_{t-1}, x_0) \times q(x_{t-1}| x_0)}{q(x_t | x_0)} \ \ \ \ \ \ \text{(Bayes rule)}\\
-& \propto \exp \left[ 
-    \frac{(x_t - \sqrt{\bar{\alpha}_t} x_0 )^2}{2(1-\bar{\alpha}_t)}
-    - \frac{(x_{t-1} - \sqrt{\bar{\alpha}_{t-1}} x_0 )^2}{2(1-\bar{\alpha}_{t-1})}
-    - \frac{(x_t - \sqrt{\alpha_t} x_{t-1} )^2}{2(1-\alpha_t)}
+q(x\_{t-1} | x_t, x_0) & = \frac{q(x_t | x\_{t-1}, x_0) \times q(x\_{t-1}| x\_0)}{q(x\_t | x\_0)} \\
+& \propto \exp \left[
+    \frac{(x_t - \sqrt{\bar{\alpha}\_t} x_0 )^2}{2(1-\bar{\alpha}\_t)}
+    - \frac{(x\_{t-1} - \sqrt{\bar{\alpha}\_{t-1}} x\_0 )^2}{2(1-\bar{\alpha}\_{t-1})}
+    - \frac{(x\_t - \sqrt{\alpha_t} x\_{t-1} )^2}{2(1-\alpha_t)}
     \right] \\
-& \propto \exp 
+& \propto \exp
     \left[
-        \frac{1}{2} \left( -x_{t-1}^2 \left(\frac{1}{1-\bar{\alpha}_{t-1}} + \frac{1}{1 - \alpha_t}\right)
-        + 2\left( \frac{\sqrt{\bar{\alpha}_{t-1}}x_0}{1-\bar{\alpha}_{t-1}} + \frac{\sqrt{\alpha_t}x_t}{1-\alpha_t} \right)
+        \frac{1}{2} \left( -x\_{t-1}^2 \left(\frac{1}{1-\bar{\alpha}\_{t-1}} + \frac{1}{1 - \alpha_t}\right)
+        + 2\left( \frac{\sqrt{\bar{\alpha}\_{t-1}}x_0}{1-\bar{\alpha}\_{t-1}} + \frac{\sqrt{\alpha_t}x_t}{1-\alpha_t} \right)
         + \dots
-        \right) 
+        \right)
     \right]
 \end{align*}
 $$
 
 Hence we deduce the posterior mean and variance as in section 2 eq (7):
+
 $$
 \begin{cases}
-\mu_t(x_t, x_0) = \frac{\beta_t \sqrt{\bar{\alpha}_{t-1}}}{1 - \bar{\alpha_t}} x_0 + \frac{1 - \bar{\alpha}_{t-1}}{1 - \bar{\alpha}_t} x_t\\
-\sigma^2_t(x_t, x_0) = \frac{\beta_t(1 - \bar{\alpha}_{t-1})}{1 - \bar{\alpha}_t}
+\mu_t(x_t, x_0) = \frac{\beta_t \sqrt{\bar{\alpha}\_{t-1}}}{1 - \bar{\alpha}_t} x_0 + \frac{1 - \bar{\alpha}\_{t-1}}{1 - \bar{\alpha}_t} x_t \\
+\sigma^2_t(x_t, x_0) = \frac{\beta_t(1 - \bar{\alpha}\_{t-1})}{1 - \bar{\alpha}\_t}
 \end{cases}
 $$
 
 TODO :
 - [x] try other noise schedules
-- [ ] test variants of sampling
+- [ ] test variants of sampling, and stability from input noise
 - [ ] refactor diffusion to class to avoid passing parameters as arguments
 - [ ] update simpler variant of Unet
 - [ ] update jax unet and optimisation loop
