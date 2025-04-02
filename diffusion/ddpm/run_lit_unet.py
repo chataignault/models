@@ -53,6 +53,7 @@ if __name__ == "__main__":
         help="Extend the image size to 32x32 to allow deeper network",
     )
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--dataset", type=str, default="fashion_mnist")
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--nepochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=5e-4)
@@ -72,6 +73,7 @@ if __name__ == "__main__":
     time_emb_dim = args.time_emb_dim
     zero_pad_images = args.zero_pad
     device = args.device
+    dataset_name = args.dataset
     BATCH_SIZE = args.batch_size
     nepochs = args.nepochs
     lr = args.lr
@@ -106,7 +108,11 @@ if __name__ == "__main__":
     sqrt_recip_alphas = 1.0 / torch.sqrt(alphas)
 
     dataloader = get_dataloader(
-        BATCH_SIZE, device, channels_last=False, zero_pad_images=zero_pad_images
+        BATCH_SIZE,
+        device,
+        channels_last=False,
+        zero_pad_images=zero_pad_images,
+        dataset_name=dataset_name,
     )
 
     print(f"Number of training examples : {len(dataloader.dataset)}")

@@ -44,11 +44,11 @@ def get_transforms(
 def get_dataloader(
     batch_size: int,
     device: str,
+    dataset_name: str,
     channels_last: bool = True,
     zero_pad_images: bool = False,
 ):
-    # dataset = load_dataset("fashion_mnist", num_proc=4)
-    dataset = load_dataset("mnist", num_proc=4)
+    dataset = load_dataset(dataset_name, num_proc=4)
 
     transforms_dev = partial(
         get_transforms,
