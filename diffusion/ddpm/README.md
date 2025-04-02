@@ -1,7 +1,10 @@
 # Denoising Diffusion Probabilistic model
 
-A large part of the improvements are inspired from this implementation :
-- https://github.com/lucidrains/denoising-diffusion-pytorch
+
+
+> [!NOTE]
+> A large part of the improvements are inspired from this implementation :
+> - https://github.com/lucidrains/denoising-diffusion-pytorch
 
 **Run**
 

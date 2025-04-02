@@ -47,7 +47,8 @@ def get_dataloader(
     channels_last: bool = True,
     zero_pad_images: bool = False,
 ):
-    dataset = load_dataset("fashion_mnist", num_proc=4)
+    # dataset = load_dataset("fashion_mnist", num_proc=4)
+    dataset = load_dataset("mnist", num_proc=4)
 
     transforms_dev = partial(
         get_transforms,
