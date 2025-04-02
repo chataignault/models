@@ -15,7 +15,7 @@ from matplotlib.pyplot import imshow
 
 from utils.logger import get_logger
 from utils_torch.unet import LitUnet, write_sample_to_board, load_model
-from utils.fashion_mnist_dataloader import get_dataloader
+from utils.dataloader import get_dataloader, DataSets
 from utils_torch.diffusion import (
     sample,
     linear_beta_schedule,
@@ -53,7 +53,12 @@ if __name__ == "__main__":
         help="Extend the image size to 32x32 to allow deeper network",
     )
     parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument("--dataset", type=str, default="fashion_mnist")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default=DataSets.fashion_mnist,
+        help="dataset name from HuggingFace",
+    )
     parser.add_argument("--batch_size", type=int, default=256)
     parser.add_argument("--nepochs", type=int, default=50)
     parser.add_argument("--lr", type=float, default=5e-4)
