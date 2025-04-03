@@ -5,49 +5,26 @@ import numpy as np
 import datetime as dt
 from rich import print
 from torch.utils.tensorboard import SummaryWriter
+import torch.nn.functional as F
 import lightning as L
-from lightning.pytorch.callbacks import LearningRateMonitor, DeviceStatsMonitor
+from lightning.pytorch.callbacks import LearningRateMonitor
 from lightning.pytorch.loggers import TensorBoardLogger
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 
 from utils.logger import get_logger
-from utils_torch.unet import LitUnet, SimpleUnet, Unet
-from utils.fashion_mnist_dataloader import get_dataloader
-from utils_torch.diffusion import sample, linear_beta_schedule, cosine_beta_schedule
+from utils_torch.unet import LitUnet, write_sample_to_board, load_model
+from utils.dataloader import get_dataloader, DataSets
+from utils_torch.diffusion import (
+    sample,
+    linear_beta_schedule,
+    cosine_beta_schedule,
+    sigmoid_beta_schedule,
+    NoiseSchedule,
+)
 
 DEFAULT_IMG_SIZE = 28
-
-
-def load_model(
-    models_dir, logger, down_channels, time_emb_dim, device, load_checkpoint, model_name
-):
-    """
-    Load appropriate backbone model
-    """
-    match model_name:
-        case "Unet":
-            unet = Unet(down_channels=down_channels, time_emb_dim=time_emb_dim).to(
-                device
-            )
-        case "SimpleUnet":
-            unet = SimpleUnet(
-                down_channels=down_channels, time_emb_dim=time_emb_dim
-            ).to(device)
-        case _:
-            raise ValueError(f"{model_name} is not implemented")
-
-    if load_checkpoint:
-        unet.load_state_dict(torch.load(os.path.join(models_dir, load_checkpoint)))
-
-    print(unet)
-
-    logger.info(
-        f"Number of parameters : {np.sum([np.prod(t.shape) for t in list(unet.parameters())])}"
-    )
-
-    return unet
 
 
 if __name__ == "__main__":
@@ -68,62 +45,88 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--down_channels", nargs="+", type=int, default=[8, 16, 32])
+    parser.add_argument("--downs", nargs="+", type=int, default=[32, 64, 128])
     parser.add_argument("--time_emb_dim", type=int, default=16)
     parser.add_argument(
         "--zero_pad",
         action="store_true",
         help="Extend the image size to 32x32 to allow deeper network",
     )
-    parser.add_argument("--device", type=str, default="cpu")
-    parser.add_argument("--batch_size", type=int, default=512)
-    parser.add_argument("--nepochs", type=int, default=20)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default=DataSets.fashion_mnist,
+        help="dataset name from HuggingFace",
+    )
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--nepochs", type=int, default=50)
+    parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
-    parser.add_argument("--model_tag", type=str, default="")
-    parser.add_argument("--model_name", type=str, default="SimpleUnet")
+    parser.add_argument("--model_tag", type=str, default="", help="name identifier")
+    parser.add_argument("--model_name", type=str, default="Unet")
+    parser.add_argument(
+        "--noise_schedule", type=NoiseSchedule, default=NoiseSchedule.sigmoid
+    )
     parser.add_argument("--load_checkpoint", type=str, default="")
     parser.add_argument("--only_generate_sample", action="store_true")
 
     args = parser.parse_args()
     logger.info(f"{args}")
 
-    down_channels = args.down_channels
+    downs = args.downs
     time_emb_dim = args.time_emb_dim
     zero_pad_images = args.zero_pad
     device = args.device
+    dataset_name = args.dataset
     BATCH_SIZE = args.batch_size
     nepochs = args.nepochs
     lr = args.lr
     T = args.timesteps
     load_checkpoint = args.load_checkpoint
     model_name = args.model_name
+    noise_schedule = args.noise_schedule
     model_tag = args.model_tag
     only_generate_sample = args.only_generate_sample
+
+    IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = True
     torch.backends.cudnn.allow_tf32 = True
 
-    # betas = linear_beta_schedule(timesteps=T, device=device)
-    betas = cosine_beta_schedule(timesteps=T, device=device)
-    sqrt_alphas_cumprod = torch.sqrt(torch.cumprod(1.0 - betas, -1))
-    sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - torch.cumprod(1.0 - betas, -1))
-    posterior_variance = betas
-    sqrt_recip_alphas = 1.0 / torch.sqrt(1 - betas)
-    IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
+    match noise_schedule:
+        case NoiseSchedule.linear:
+            betas = linear_beta_schedule(timesteps=T, device=device)
+        case NoiseSchedule.cosine:
+            betas = cosine_beta_schedule(timesteps=T, device=device)
+        case NoiseSchedule.sigmoid:
+            betas = sigmoid_beta_schedule(timesteps=T, device=device)
+
+    # define difffusion parameters
+    alphas = 1.0 - betas
+    alphas_cumprod = torch.cumprod(alphas, -1)
+    alphas_cumprod_prev = F.pad(alphas_cumprod[:-1], (1, 0), value=1.0)
+    sqrt_alphas_cumprod = torch.sqrt(alphas_cumprod)
+    sqrt_one_minus_alphas_cumprod = torch.sqrt(1.0 - alphas_cumprod)
+    posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+    sqrt_recip_alphas = 1.0 / torch.sqrt(alphas)
 
     dataloader = get_dataloader(
-        BATCH_SIZE, device, channels_last=False, zero_pad_images=zero_pad_images
+        BATCH_SIZE,
+        device,
+        channels_last=False,
+        zero_pad_images=zero_pad_images,
+        dataset_name=dataset_name,
     )
-    print(f"Number of training examples : {len(dataloader.dataset)}")
 
+    print(f"Number of training examples : {len(dataloader.dataset)}")
     logger.info(f"Checkpoint directory : {models_dir}")
 
     unet = load_model(
         models_dir,
         logger,
-        down_channels,
+        downs,
         time_emb_dim,
         device,
         load_checkpoint,
@@ -139,19 +142,23 @@ if __name__ == "__main__":
     imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
     writer.add_image("original fMNIST samples", img_grid)
 
-    # add model infrastructure to board
+    # add model to board
     writer.add_graph(unet, [images, torch.ones(BATCH_SIZE)])
 
     # train
     unet = LitUnet(
         unet=unet,
+        betas=betas,
+        sqrt_recip_alphas=sqrt_recip_alphas,
         sqrt_alphas_cumprod=sqrt_alphas_cumprod,
         sqrt_one_minus_alphas_cumprod=sqrt_one_minus_alphas_cumprod,
+        posterior_variance=posterior_variance,
+        alphas_cumprod=alphas_cumprod,
+        alphas_cumprod_prev=alphas_cumprod_prev,
         T=T,
         device=device,
         lr=lr,
         writer=writer,
-        posterior_variance=posterior_variance,
         img_size=IMG_SIZE,
     )
     trainer = L.Trainer(
@@ -159,7 +166,6 @@ if __name__ == "__main__":
         accelerator="auto",
         callbacks=[
             LearningRateMonitor(),
-            # DeviceStatsMonitor()
         ],
         logger=TensorBoardLogger("tb_logs", name=model_name, log_graph=True),
     )
@@ -172,39 +178,35 @@ if __name__ == "__main__":
     unet = unet.unet.to(device)
     unet.eval()
     name = (
-        f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
+        f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime('%Y%m%d-%H')}.pt"
     )
     location = os.path.join(models_dir, name)
-    torch.save(unet.state_dict(), location)
+    if not only_generate_sample:
+        torch.save(unet.state_dict(), location)
 
     # generate samples
     logger.info("Generate sample")
     sample_base_name = f"sample_{script_name}_{datetime_str}_"
-    n_samp = 16
+    n_samp = 32
     n_cols = 8
     SAMP_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
 
     _, axs = plt.subplots(
-        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 4)
+        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 8)
     )
 
     samp = sample(
         unet,
         SAMP_SHAPE,
-        posterior_variance,
-        sqrt_one_minus_alphas_cumprod,
-        sqrt_recip_alphas,
         T,
+        betas,
+        alphas_cumprod,
+        alphas_cumprod_prev,
+        posterior_variance,
     )[-1]
-    # normalize
-    samp = samp - samp.min(dim=0)[0]
-    samp = samp / samp.max(dim=0)[0]
 
     # log samples to board
-    img_grid = torchvision.utils.make_grid(samp)
-    imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
-    writer.add_image("generated samples", img_grid)
-    writer.close()
+    write_sample_to_board(samp, writer, "generated samples")
 
     samp = samp.cpu().numpy()
     for i in range(n_samp):

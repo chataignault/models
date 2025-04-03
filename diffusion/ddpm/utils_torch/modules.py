@@ -1,6 +1,9 @@
+import numpy as np
+from functools import partial
 import torch
 from torch import nn, Tensor
-import numpy as np
+import torch.nn.functional as F
+from einops import rearrange, repeat
 # from torchtune.modules import RotaryPositionalEmbeddings
 
 
@@ -30,7 +33,7 @@ class SinusoidalPositionEmbeddings(nn.Module):
 
 
 class ResBlock(nn.Module):
-    def __init__(self, in_ch: int, time_emb_dim: int, dropout: float = 0.01):
+    def __init__(self, in_ch: int, time_emb_dim: int, dropout: float = 0.0):
         """
         in_ch refers to the number of channels in the input to the operation and out_ch how many should be in the output
         """
@@ -42,7 +45,6 @@ class ResBlock(nn.Module):
         self.bnorm1 = nn.BatchNorm2d(in_ch)
         self.bnorm2 = nn.BatchNorm2d(in_ch)
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(dropout)
 
     def forward(self, x: Tensor, t: Tensor) -> Tensor:
         """
@@ -53,17 +55,15 @@ class ResBlock(nn.Module):
         A second convolution should be applied and finally passed through the self.transform.
         """
         h = x
+        x = self.conv1(x)
         x = self.bnorm1(x)
         x = self.relu(x)
-        x = self.conv1(x)
-        x = self.dropout(x)
         t = self.lintemb(self.relu(t)).unsqueeze(-1).unsqueeze(-1)
         x = x + t
+        x = self.conv2(x)
         x = self.bnorm2(x)
         x = self.relu(x)
-        x = self.conv2(x)
-        x = x + h
-        return x
+        return x + h
 
 
 class UpConvBlock(nn.Module):
@@ -100,7 +100,7 @@ class UpConvBlock(nn.Module):
         return x
 
 
-class Block(nn.Module):
+class InterBlock(nn.Module):
     def __init__(
         self,
         in_ch: int,
@@ -113,10 +113,10 @@ class Block(nn.Module):
         self.use_attention = attention > 0
         self.n_heads = attention
         self.up = up
-        self.lintemb = nn.Linear(time_emb_dim, in_ch)
+        # self.lintemb = nn.Linear(time_emb_dim, in_ch)
 
         if up:
-            self.bnorm1 = nn.BatchNorm2d(2 * in_ch)
+            self.bnorm1 = nn.BatchNorm2d(in_ch)
             self.conv1 = nn.Conv2d(2 * in_ch, in_ch, 3, padding=1, stride=1)
             self.squish_conv = nn.Conv2d(
                 2 * in_ch, in_ch, kernel_size=3, padding=1, stride=1
@@ -133,10 +133,12 @@ class Block(nn.Module):
         self.conv2 = nn.Conv2d(in_ch, in_ch, 3, padding=1, stride=1)
         self.bnorm2 = nn.BatchNorm2d(in_ch)
         self.relu = nn.ReLU()
-        self.dropout = nn.Dropout(0.05)
+        # self.dropout = nn.Dropout(0.0)
 
         if attention:
-            self.attention = AttentionBlock(in_ch, in_ch, self.n_heads, time_emb_dim)
+            self.attention = AttentionBlock(
+                in_ch, in_ch // 2, self.n_heads, time_emb_dim
+            )
 
     def forward(self, x: Tensor, t: Tensor) -> Tensor:
         """
@@ -146,23 +148,20 @@ class Block(nn.Module):
         A second convolution should be applied and finally passed through the self.transform.
         """
         h = x
+        x = self.conv1(x)
         x = self.bnorm1(x)
         x = self.relu(x)
-        x = self.conv1(x)
-        t_ = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
-        x = x + t_
-        x = self.bnorm2(x)
-        x = self.dropout(x)
+        # t_ = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
+        # x = x + t_
         x = self.conv2(x)
+        x = self.bnorm2(x)
         x = self.relu(x)
+        # x = self.dropout(x)
         if self.up:
             h = self.squish_conv(h)
-        # x = self.relu(x)  # ! check
         x = x + h
-
         if self.use_attention:
             x = self.attention(x, t)
-
         return self.transform(x), x
 
 
@@ -184,26 +183,27 @@ class AttentionBlock(nn.Module):
         self.lintemb = nn.Linear(time_embed_dim, in_ch)
         self.relu = nn.ReLU()
         self.bnorm = nn.BatchNorm2d(in_ch)
-        self.k = nn.Linear(in_ch, hidden_dim, bias=True)
-        self.q = nn.Linear(in_ch, hidden_dim, bias=True)
-        self.v = nn.Linear(in_ch, hidden_dim, bias=True)
+        self.k = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.q = nn.Linear(in_ch, hidden_dim, bias=False)
+        self.v = nn.Linear(in_ch, hidden_dim, bias=False)
         self.attention = nn.MultiheadAttention(hidden_dim, n_heads, batch_first=True)
         self.proj = nn.Linear(hidden_dim, in_ch)
 
     def forward(self, x, t):
-        h = x
+        # h = x
         t = self.relu(self.lintemb(t)).unsqueeze(-1).unsqueeze(-1)
-        x = x + t
         x = self.bnorm(x)
+        x = x + t
         N, B, D, _ = x.shape
         x = x.reshape((N, B, D * D)).transpose(1, 2)
         query = self.q(x)
         key = self.k(x)
         value = self.v(x)
+        # x = F.scaled_dot_product_attention(query, key, value)
         x, _ = self.attention(query, key, value)
         x = self.proj(x)
         x = x.transpose(1, 2).reshape((N, B, D, D))
-        return x + h
+        return x  # + h
 
 
 class AttentionBlockManual(nn.Module):
@@ -273,3 +273,88 @@ class AttentionBlockManual(nn.Module):
             res = self.res_proj(res)
 
         return x + res
+
+
+class RMSNorm(nn.Module):
+    def __init__(self, dim):
+        super().__init__()
+        self.scale = dim**0.5
+        self.g = nn.Parameter(torch.ones(1, dim, 1, 1))
+
+    def forward(self, x):
+        return F.normalize(x, dim=1) * self.g * self.scale
+
+
+class LinearAttention(nn.Module):
+    def __init__(self, dim, heads=4, dim_head=32, num_mem_kv=4):
+        super().__init__()
+        self.scale = dim_head**-0.5
+        self.heads = heads
+        hidden_dim = dim_head * heads
+
+        self.norm = RMSNorm(dim)
+
+        self.mem_kv = nn.Parameter(torch.randn(2, heads, dim_head, num_mem_kv))
+        self.to_qkv = nn.Conv2d(dim, hidden_dim * 3, 1, bias=False)
+
+        self.to_out = nn.Sequential(nn.Conv2d(hidden_dim, dim, 1), RMSNorm(dim))
+
+    def forward(self, x):
+        b, c, h, w = x.shape
+
+        x = self.norm(x)
+
+        qkv = self.to_qkv(x).chunk(3, dim=1)
+        q, k, v = map(
+            lambda t: rearrange(t, "b (h c) x y -> b h c (x y)", h=self.heads), qkv
+        )
+
+        mk, mv = map(lambda t: repeat(t, "h c n -> b h c n", b=b), self.mem_kv)
+        k, v = map(partial(torch.cat, dim=-1), ((mk, k), (mv, v)))
+
+        q = q.softmax(dim=-2)
+        k = k.softmax(dim=-1)
+
+        q = q * self.scale
+
+        context = torch.einsum("b h d n, b h e n -> b h d e", k, v)
+
+        out = torch.einsum("b h d e, b h d n -> b h e n", context, q)
+        out = rearrange(out, "b h c (x y) -> b (h c) x y", h=self.heads, x=h, y=w)
+        return self.to_out(out)
+
+
+class Block(nn.Module):
+    def __init__(self, dim, dim_out, dropout=0.0):
+        super().__init__()
+        self.proj = nn.Conv2d(dim, dim_out, 3, padding=1)
+        self.norm = RMSNorm(dim_out)
+        self.act = nn.SiLU()
+        self.dropout = nn.Dropout(dropout)
+
+    def forward(self, x):
+        x = self.proj(x)
+        x = self.norm(x)
+
+        x = self.act(x)
+        return self.dropout(x)
+
+
+class ResnetBlock(nn.Module):
+    def __init__(self, dim, dim_out, time_emb_dim: int):
+        super().__init__()
+        self.mlp = nn.Sequential(nn.SiLU(), nn.Linear(time_emb_dim, dim_out * 2))
+
+        self.block1 = Block(dim, dim_out)
+        self.block2 = Block(dim_out, dim_out)
+        self.res_conv = nn.Conv2d(dim, dim_out, 1) if dim != dim_out else nn.Identity()
+
+    def forward(self, x, t):
+        t = self.mlp(t)
+        t = rearrange(t, "b c -> b c 1 1")
+
+        h = self.block1(x)
+
+        h = self.block2(h)
+
+        return h + self.res_conv(x)

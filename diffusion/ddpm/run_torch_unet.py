@@ -151,10 +151,10 @@ if __name__ == "__main__":
             optimiser.step()
             if k % n_steps_refresh_progress_bar == 0:
                 description = (
-                    f'Epoch {epoch} | Step {k} | '
-                    f'Loss {(sum(loss_history[-n_steps_refresh_progress_bar:]) / n_steps_refresh_progress_bar):.4f} | '
-                    f'grad norm {np.array(torch.nn.utils.clip_grad_norm_(unet.parameters(), 1.).cpu()).mean():.2f} | '
-                    f'learning rate {optimiser.param_groups[0]["lr"]:.9f}'
+                    f"Epoch {epoch} | Step {k} | "
+                    f"Loss {(sum(loss_history[-n_steps_refresh_progress_bar:]) / n_steps_refresh_progress_bar):.4f} | "
+                    f"grad norm {np.array(torch.nn.utils.clip_grad_norm_(unet.parameters(), 1.0).cpu()).mean():.2f} | "
+                    f"learning rate {optimiser.param_groups[0]['lr']:.9f}"
                 )
                 pbar_batch.set_description(description)
         logger.debug(description)
@@ -178,7 +178,7 @@ if __name__ == "__main__":
     )
 
     name = (
-        f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime("%Y%m%d-%H")}.pt"
+        f"{unet._get_name()}{model_tag}_{dt.datetime.today().strftime('%Y%m%d-%H')}.pt"
     )
     location = os.path.join(models_dir, name)
     torch.save(unet.state_dict(), location)

@@ -20,3 +20,5 @@ debug
 *.gif
 *.png
 *.exe
+*.code-workspace
+

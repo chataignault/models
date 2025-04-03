@@ -1,6 +1,5 @@
 from datasets import load_dataset
-
-# from torchtune import ConcatDataset
+from enum import Enum
 from torchvision.transforms import (
     Compose,
     ToTensor,
@@ -13,16 +12,25 @@ import torch
 from torch.utils.data import DataLoader
 
 
+class DataSets(str, Enum):
+    fashion_mnist = "fashion_mnist"
+    mnist = "mnist"
+
+
 def get_transforms(
-    examples, device: str, channels_last: bool = True, zero_pad_images: bool = False
+    examples,
+    device: str,
+    dataset_name: str,
+    channels_last: bool = True,
+    zero_pad_images: bool = False,
 ):
     """
     Extract images from dataset and perform data augmentation
     """
-    t_ = [
-        RandomHorizontalFlip(),
-        ToTensor(),
-    ]
+    t_ = []
+    if dataset_name != DataSets.fashion_mnist:
+        t_.append(RandomHorizontalFlip())
+    t_.append(ToTensor())
     if zero_pad_images:
         t_.append(Pad(2))
     t_.append(Lambda(lambda t: (t * 2) - 1))
@@ -45,16 +53,18 @@ def get_transforms(
 def get_dataloader(
     batch_size: int,
     device: str,
+    dataset_name: DataSets,
     channels_last: bool = True,
     zero_pad_images: bool = False,
 ):
-    dataset = load_dataset("fashion_mnist")
+    dataset = load_dataset(dataset_name, num_proc=4)
 
     transforms_dev = partial(
         get_transforms,
         device=device,
         channels_last=channels_last,
         zero_pad_images=zero_pad_images,
+        dataset_name=dataset_name,
     )
     transformed_dataset = dataset.with_transform(transforms_dev).remove_columns("label")
 
@@ -66,6 +76,5 @@ def get_dataloader(
         shuffle=True,
         drop_last=True,
         generator=torch.Generator(device=device),
-        # num_workers=15
     )
     return dataloader

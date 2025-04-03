@@ -20,8 +20,13 @@
 
 ## Path Development
 - Leverage path development inside models
-- implement a jax version
+- Application to time-series classification
 
+## Mastery
+- Litterature review on path developments 
+
+## Fixed Income 
+- Validate intuition on the difference between **PV01 and DV01** 
 
 ## Numerical implementation
 Implement in Rust numerical verification of math questions.
@@ -29,3 +34,4 @@ Implement in Rust numerical verification of math questions.
 - Counting discrete positive paths starting and ending at zero,
 - Probability of a random walk to reach zero under time constraint,
 - Optimal strategy to minimize a capped uniform law sequentially under constraints.
+
