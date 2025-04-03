@@ -31,37 +31,73 @@ def forward_diffusion_sample(
     return mean + std * random.normal(rng, x_0.shape)
 
 
+def q_posterior(
+    x_start,
+    x_t,
+    t,
+    posterior_mean_coef1,
+    posterior_mean_coef2,
+    posterior_variance,
+    posterior_log_variance_clipped,
+):
+    posterior_mean = (
+        get_index_from_list(posterior_mean_coef1, t, x_t.shape) * x_start
+        + get_index_from_list(posterior_mean_coef2, t, x_t.shape) * x_t
+    )
+    posterior_variance = get_index_from_list(posterior_variance, t, x_t.shape)
+    posterior_log_variance_clipped = get_index_from_list(
+        posterior_log_variance_clipped, t, x_t.shape
+    )
+
+    return posterior_mean, posterior_variance, posterior_log_variance_clipped
+
+
 def sample_timestep(
     state,
     x: jnp.ndarray,
     t: jnp.ndarray,
     i: int,
     posterior_variance: jnp.ndarray,
-    sqrt_one_minus_alphas_cumprod: jnp.ndarray,
-    sqrt_recip_alphas: jnp.ndarray,
+    sqrt_recip_alphas_cumprod: jnp.ndarray,
+    sqrt_recipm1_alphas_cumprod: jnp.ndarray,
+    posterior_mean_coef1: jnp.ndarray,
+    posterior_mean_coef2: jnp.ndarray,
+    posterior_log_variance_clipped: jnp.ndarray,
     rng: jax.random.PRNGKey,
 ) -> jnp.ndarray:
     """
     Calls the model to predict the noise in the image and returns
     the denoised image.
     Applies noise to this image, if we are not in the last step yet.
-    Note that it also needs additional arguments about the posterior_variance, sqrt_minus_alphas_cumprod and sqrt_recip_alphas.
     """
-    # Compute the denoised image
-    pred_noise = state.apply_fn(
+    # Compute the predicted noise
+    eps = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats}, x, t, train=False
     )
-    x = sqrt_recip_alphas[i] * (
-        x - (posterior_variance[i]) / sqrt_one_minus_alphas_cumprod[i] * pred_noise
+    x_start = (
+        get_index_from_list(sqrt_recip_alphas_cumprod, t, x.shape) * x
+        - get_index_from_list(sqrt_recipm1_alphas_cumprod, t, x.shape) * eps
+    )
+
+    x_start.clamp_(-1.0, 1.0)
+
+    mu_prev, posterior_variance, posterior_log_variance = q_posterior(
+        x_start=x_start,
+        x_t=x,
+        t=t,
+        posterior_mean_coef1=posterior_mean_coef1,
+        posterior_mean_coef2=posterior_mean_coef2,
+        posterior_variance=posterior_variance,
+        posterior_log_variance_clipped=posterior_log_variance_clipped,
     )
 
     # Apply noise if we are not in the last step
     if i > 0:
         rng, step_rng = jax.random.split(rng)
         z = jax.random.normal(step_rng, shape=x.shape)
-        x += jnp.sqrt(posterior_variance[i]) * z
+        mu_prev += (0.5 * posterior_log_variance).exp() * z
 
-    return x
+    return mu_prev
 
 
 def sample(
@@ -69,14 +105,28 @@ def sample(
     shape,
     rng,
     T,
-    posterior_variance,
-    sqrt_one_minus_alphas_cumprod,
-    sqrt_recip_alphas,
+    betas: jnp.ndarray,
+    alphas_cumprod: jnp.ndarray,
+    alphas_cumprod_prev: jnp.ndarray,
+    posterior_variance: jnp.ndarray,
+    pseudo_video: bool = False,
 ):
+    device = "cpu"
     b = shape[0]
     rng, rng_samp = random.split(rng)
     img = random.normal(rng_samp, shape)
     imgs = []
+
+    posterior_mean_coef1 = (
+        betas * jnp.sqrt(alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+    )
+    posterior_mean_coef2 = (
+        (1.0 - alphas_cumprod_prev) * jnp.sqrt(1.0 - betas) / (1.0 - alphas_cumprod)
+    )
+    sqrt_recip_alphas_cumprod = jnp.sqrt(1.0 / alphas_cumprod)
+    sqrt_recipm1_alphas_cumprod = jnp.sqrt(1.0 / alphas_cumprod - 1)
+    posterior_log_variance_clipped = jnp.log(posterior_variance.clamp(min=1e-20))
+
     for i in tqdm(
         reversed(range(1, T)), desc="sampling loop time step", total=T
     ):  # range started at 0
@@ -87,9 +137,19 @@ def sample(
             t,
             i,
             posterior_variance,
-            sqrt_one_minus_alphas_cumprod,
-            sqrt_recip_alphas,
-            rng,
+            posterior_mean_coef1=posterior_mean_coef1,
+            posterior_mean_coef2=posterior_mean_coef2,
+            posterior_log_variance_clipped=posterior_log_variance_clipped,
+            sqrt_recip_alphas_cumprod=sqrt_recip_alphas_cumprod,
+            sqrt_recipm1_alphas_cumprod=sqrt_recipm1_alphas_cumprod,
+            device=device,
+            rng=rng,
         )
-        imgs.append(img)
+        if pseudo_video:
+            imgs.append(unnormalize_to_zero_to_one(img))
+    imgs.append(unnormalize_to_zero_to_one(img))
     return imgs
+
+
+def unnormalize_to_zero_to_one(t: jnp.ndarray):
+    return (t + 1) * 0.5

@@ -1,6 +1,3 @@
-# example run
-# * python run_jax_unet.py --nepochs=2
-
 import os
 import jax
 import shutil
@@ -14,7 +11,7 @@ import jax.numpy as jnp
 from matplotlib import pyplot as plt
 
 from utils_jax.classes import UNetConv
-from utils.fashion_mnist_dataloader import get_dataloader
+from utils.dataloader import get_dataloader, DataSets
 from utils_jax.training import (
     linear_beta_schedule,
     create_train_state,
@@ -62,12 +59,15 @@ if __name__ == "__main__":
     load_checkpoint = args.load_checkpoint
 
     betas = linear_beta_schedule(timesteps=T)
-    sqrt_alphas_cumprod = jnp.sqrt(jnp.cumprod(1.0 - betas, -1))
-    sqrt_one_minus_alphas_cumprod = jnp.sqrt(1.0 - jnp.cumprod(1.0 - betas, -1))
-    posterior_variance = betas
-    sqrt_recip_alphas = 1.0 / jnp.sqrt(1 - betas)
+    alphas = 1.0 - betas
+    alphas_cumprod = jnp.cumprod(alphas, -1)
+    alphas_cumprod_prev = jnp.pad(alphas_cumprod[:-1], (1, 0), value=1.0)  # ! check
+    sqrt_alphas_cumprod = jnp.sqrt(alphas_cumprod)
+    sqrt_one_minus_alphas_cumprod = jnp.sqrt(1.0 - alphas_cumprod)
+    posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
+    sqrt_recip_alphas = 1.0 / jnp.sqrt(alphas)
 
-    dataloader = get_dataloader(BATCH_SIZE, device)
+    dataloader = get_dataloader(BATCH_SIZE, device, DataSets.fashion_mnist)
 
     unet = UNetConv()
 

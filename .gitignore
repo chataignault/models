@@ -23,4 +23,5 @@ MNIST/
 *.exe
 *.code-workspace
 *.lock
+*.zip
 
