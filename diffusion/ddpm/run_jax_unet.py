@@ -152,13 +152,15 @@ if __name__ == "__main__":
         alphas_cumprod,
         alphas_cumprod_prev,
         posterior_variance,
-    )
+    )[-1]
 
     _, axs = plt.subplots(
-        nrows=N_SAMPLE // N_COLS + ((N_SAMPLE % N_COLS) > 0), ncols=N_COLS, figsize=(16, 16)
+        nrows=N_SAMPLE // N_COLS + ((N_SAMPLE % N_COLS) > 0),
+        ncols=N_COLS,
+        figsize=(16, 16),
     )
 
-    samp = samp.cpu().numpy()
+    # samp = samp .numpy()
     for i in range(N_SAMPLE):
         r, c = i // N_COLS, i % N_COLS
         axs[r, c].imshow(samp[i, :, :, 0], cmap="gray")
@@ -169,7 +171,6 @@ if __name__ == "__main__":
     plt.savefig(
         os.path.join(out_dir, sample_base_name + ".png"),
     )
-
 
     if os.path.exists(ckpt_dir):
         shutil.rmtree(ckpt_dir)
