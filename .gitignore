@@ -10,6 +10,7 @@ log
 pdevnet/data
 target
 debug
+MNIST/
 
 *.ipynb
 *.csv
