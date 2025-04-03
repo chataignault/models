@@ -4,8 +4,10 @@ version = "0.1.0"
 description = "Mock configuration to run test scripts"
 requires-python = ">=3.12"
 dependencies = [
+    "accelerate>=1.6.0",
     "diffusers>=0.32.2",
     "torch>=2.6.0",
+    "transformers>=4.50.3",
 ]
 
 [tool.uv.workspace]

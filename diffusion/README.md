@@ -24,4 +24,12 @@ uv run test_stable_diffusion.py --prompt "Jacques Prévert en maillot de bain"
 > [!CAUTION]
 > Prompt should be in English
 
+**Debug bash**
+If UTF-8 is not supported by default, one can specify the following variables :
+
+```bash
+# export LC_ALL=en_US.UTF-8
+export LANG=en_US.UTF-8
+export LANGUAGE=en_US.UTF-8
+```
 
