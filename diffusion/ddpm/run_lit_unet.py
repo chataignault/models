@@ -191,9 +191,6 @@ if __name__ == "__main__":
     n_cols = 8
     SAMP_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
 
-    _, axs = plt.subplots(
-        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 8)
-    )
 
     samp = sample(
         unet,
@@ -208,6 +205,9 @@ if __name__ == "__main__":
     # log samples to board
     write_sample_to_board(samp, writer, "generated samples")
 
+    _, axs = plt.subplots(
+        nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 8)
+    )
     samp = samp.cpu().numpy()
     for i in range(n_samp):
         r, c = i // n_cols, i % n_cols

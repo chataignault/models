@@ -138,11 +138,14 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(out_dir, img_base_name + "_lr.png"), bbox_inches="tight")
 
     logger.info("Generate sample")
-    sample_base_name = f"sample_{datetime_str}_"
+    sample_base_name = f"sample_jax_{datetime_str}_"
     rng, subrng = random.split(rng)
+    N_SAMPLE = 16
+    N_COLS = 4
+    SAMP_SHAPE = (N_SAMPLE, 28, 28, 1)
     samp = sample(
         state,
-        (1, 28, 28, 1),
+        SAMP_SHAPE,
         subrng,
         T,
         betas,
@@ -151,11 +154,22 @@ if __name__ == "__main__":
         posterior_variance,
     )
 
-    plt.imsave(
-        os.path.join(out_dir, sample_base_name + "final.png"),
-        samp[-1].reshape(28, 28),
-        cmap="gray",
+    _, axs = plt.subplots(
+        nrows=N_SAMPLE // N_COLS + ((N_SAMPLE % N_COLS) > 0), ncols=N_COLS, figsize=(16, 16)
     )
+
+    samp = samp.cpu().numpy()
+    for i in range(N_SAMPLE):
+        r, c = i // N_COLS, i % N_COLS
+        axs[r, c].imshow(samp[i, :, :, 0], cmap="gray")
+        axs[r, c].axis("off")
+
+    plt.tight_layout()
+
+    plt.savefig(
+        os.path.join(out_dir, sample_base_name + ".png"),
+    )
+
 
     if os.path.exists(ckpt_dir):
         shutil.rmtree(ckpt_dir)
