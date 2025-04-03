@@ -7,6 +7,7 @@ from torchvision.transforms import (
     RandomHorizontalFlip,
     Pad,
 )
+from torchvision.datasets import CelebA
 from functools import partial
 import torch
 from torch.utils.data import DataLoader
@@ -15,6 +16,7 @@ from torch.utils.data import DataLoader
 class DataSets(str, Enum):
     fashion_mnist = "fashion_mnist"
     mnist = "mnist"
+    celeb_a = "celeb_a"
 
 
 def get_transforms(
@@ -28,7 +30,7 @@ def get_transforms(
     Extract images from dataset and perform data augmentation
     """
     t_ = []
-    if dataset_name != DataSets.fashion_mnist:
+    if dataset_name != DataSets.mnist:
         t_.append(RandomHorizontalFlip())
     t_.append(ToTensor())
     if zero_pad_images:
@@ -57,7 +59,10 @@ def get_dataloader(
     channels_last: bool = True,
     zero_pad_images: bool = False,
 ):
-    dataset = load_dataset(dataset_name, num_proc=4)
+    if dataset_name == DataSets.celeb_a:
+        dataset = CelebA("data", split="train", download=True)
+    else:
+        dataset = load_dataset(dataset_name, num_proc=4)
 
     transforms_dev = partial(
         get_transforms,
