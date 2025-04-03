@@ -74,17 +74,18 @@ def sample_timestep(
     eps = state.apply_fn(
         {"params": state.params, "batch_stats": state.batch_stats}, x, t, train=False
     )
+    t_int = t.astype(dtype=jnp.int32)
     x_start = (
-        get_index_from_list(sqrt_recip_alphas_cumprod, t, x.shape) * x
-        - get_index_from_list(sqrt_recipm1_alphas_cumprod, t, x.shape) * eps
+        get_index_from_list(sqrt_recip_alphas_cumprod, t_int, x.shape) * x
+        - get_index_from_list(sqrt_recipm1_alphas_cumprod, t_int, x.shape) * eps
     )
 
-    x_start.clamp_(-1.0, 1.0)
+    jnp.clip(x_start, -1.0, 1.0)
 
     mu_prev, posterior_variance, posterior_log_variance = q_posterior(
         x_start=x_start,
         x_t=x,
-        t=t,
+        t=t_int,
         posterior_mean_coef1=posterior_mean_coef1,
         posterior_mean_coef2=posterior_mean_coef2,
         posterior_variance=posterior_variance,
@@ -95,7 +96,7 @@ def sample_timestep(
     if i > 0:
         rng, step_rng = jax.random.split(rng)
         z = jax.random.normal(step_rng, shape=x.shape)
-        mu_prev += (0.5 * posterior_log_variance).exp() * z
+        mu_prev += jnp.exp(0.5 * posterior_log_variance) * z
 
     return mu_prev
 
@@ -111,7 +112,6 @@ def sample(
     posterior_variance: jnp.ndarray,
     pseudo_video: bool = False,
 ):
-    device = "cpu"
     b = shape[0]
     rng, rng_samp = random.split(rng)
     img = random.normal(rng_samp, shape)
@@ -125,7 +125,7 @@ def sample(
     )
     sqrt_recip_alphas_cumprod = jnp.sqrt(1.0 / alphas_cumprod)
     sqrt_recipm1_alphas_cumprod = jnp.sqrt(1.0 / alphas_cumprod - 1)
-    posterior_log_variance_clipped = jnp.log(posterior_variance.clamp(min=1e-20))
+    posterior_log_variance_clipped = jnp.log(jnp.clip(posterior_variance, min=1e-20))
 
     for i in tqdm(
         reversed(range(1, T)), desc="sampling loop time step", total=T
@@ -142,7 +142,6 @@ def sample(
             posterior_log_variance_clipped=posterior_log_variance_clipped,
             sqrt_recip_alphas_cumprod=sqrt_recip_alphas_cumprod,
             sqrt_recipm1_alphas_cumprod=sqrt_recipm1_alphas_cumprod,
-            device=device,
             rng=rng,
         )
         if pseudo_video:

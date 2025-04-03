@@ -61,7 +61,9 @@ if __name__ == "__main__":
     betas = linear_beta_schedule(timesteps=T)
     alphas = 1.0 - betas
     alphas_cumprod = jnp.cumprod(alphas, -1)
-    alphas_cumprod_prev = jnp.pad(alphas_cumprod[:-1], (1, 0), value=1.0)  # ! check
+    alphas_cumprod_prev = jnp.pad(
+        alphas_cumprod[:-1], pad_width=(1, 0), mode="constant", constant_values=1.0
+    )  # ! check
     sqrt_alphas_cumprod = jnp.sqrt(alphas_cumprod)
     sqrt_one_minus_alphas_cumprod = jnp.sqrt(1.0 - alphas_cumprod)
     posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
@@ -122,7 +124,7 @@ if __name__ == "__main__":
 
         logger.info(description)
 
-    datetime_str = dt.date.today().strftime("%Y%m%d-%H%M")
+    datetime_str = dt.datetime.now().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
     _, ax = plt.subplots()
     ax.plot(range(len(loss_history)), loss_history)
@@ -143,19 +145,12 @@ if __name__ == "__main__":
         (1, 28, 28, 1),
         subrng,
         T,
+        betas,
+        alphas_cumprod,
+        alphas_cumprod_prev,
         posterior_variance,
-        sqrt_one_minus_alphas_cumprod,
-        sqrt_recip_alphas,
     )
 
-    i = 0
-    for im in samp[:: (T // 4)]:
-        plt.imsave(
-            os.path.join(out_dir, sample_base_name + str(i) + ".png"),
-            im.reshape(28, 28),
-            cmap="gray",
-        )
-        i += 1
     plt.imsave(
         os.path.join(out_dir, sample_base_name + "final.png"),
         samp[-1].reshape(28, 28),
