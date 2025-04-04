@@ -31,13 +31,16 @@ def load_model(
     device,
     load_checkpoint,
     model_name,
+    channels: int,
 ):
     """
     Load appropriate backbone model
     """
     match model_name:
         case "Unet":
-            unet = Unet(downs=downs, time_emb_dim=time_emb_dim).to(device)
+            unet = Unet(downs=downs, time_emb_dim=time_emb_dim, channels=channels).to(
+                device
+            )
         case "SimpleUnet":
             unet = SimpleUnet(
                 downs=downs,
@@ -71,9 +74,9 @@ class Unet(nn.Module):
         time_emb_dim: int = 16,
         n_heads: int = 4,
         n_heads_inter: int = 4,
+        channels: int = 1,
     ):
         super().__init__()
-        image_channels = 1
         ups = downs[::-1]
         in_out = list(zip(downs[:-1], downs[1:]))
         self.time_emb_dim = time_emb_dim
@@ -85,7 +88,7 @@ class Unet(nn.Module):
             nn.Linear(4 * time_emb_dim, 4 * time_emb_dim),
         )
 
-        self.init_conv = nn.Conv2d(image_channels, downs[0], 7, padding=3)
+        self.init_conv = nn.Conv2d(channels, downs[0], 7, padding=3)
 
         self.downsampling = ModuleList([])
         self.upsampling = ModuleList([])
@@ -127,7 +130,9 @@ class Unet(nn.Module):
             )
 
         self.end_res = ResnetBlock(2 * ups[-1], ups[-1], 4 * time_emb_dim)
-        self.out_conv = nn.Conv2d(in_channels=ups[-1], out_channels=1, kernel_size=1)
+        self.out_conv = nn.Conv2d(
+            in_channels=ups[-1], out_channels=channels, kernel_size=1
+        )
 
         assert (
             len(self.upsampling) == len(self.downsampling)
@@ -317,8 +322,8 @@ class LitUnet(L.LightningModule):
         norms = grad_norm(self.unet, norm_type=2)
         self.log_dict(norms)
 
-    def training_step(self, batch, batch_idx):
-        x = batch["pixel_values"]
+    def training_step(self, batch, *_):
+        x = batch
         timestep = torch.randint(1, self.T, (x.shape[0],))
         loss_per_pixel = get_loss(
             self.unet,
