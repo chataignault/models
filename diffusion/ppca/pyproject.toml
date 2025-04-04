@@ -1,0 +1,10 @@
+[project]
+name = "probabilistic_principal_component_analysis"
+version = "0.1.0"
+description = "Apply computational linear algebra methods to generate images"
+requires-python = ">=3.12"
+dependencies = [
+    "datasets>=3.5.0",
+    "matplotlib>=3.10.1",
+    "numpy>=2.2.4",
+]
