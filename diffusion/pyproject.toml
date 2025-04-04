@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [tool.uv.workspace]
-exclude = ["ddpm/", "vae/"]
+exclude = ["ddpm/", "vae/", "ppca/"]
 
 [tool.uv.sources]
 torch = [
