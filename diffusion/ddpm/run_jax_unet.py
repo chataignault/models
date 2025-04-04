@@ -11,7 +11,7 @@ import jax.numpy as jnp
 from matplotlib import pyplot as plt
 
 from utils_jax.classes import UNetConv
-from utils.dataloader import get_dataloader, DataSets
+from utils.dataloader import get_dataloader, Data
 from utils_jax.training import (
     linear_beta_schedule,
     create_train_state,
@@ -69,7 +69,7 @@ if __name__ == "__main__":
     posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
     sqrt_recip_alphas = 1.0 / jnp.sqrt(alphas)
 
-    dataloader = get_dataloader(BATCH_SIZE, device, DataSets.fashion_mnist)
+    dataloader = get_dataloader(BATCH_SIZE, device, Data.fashion_mnist)
 
     unet = UNetConv()
 

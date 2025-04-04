@@ -7,79 +7,105 @@ from torchvision.transforms import (
     RandomHorizontalFlip,
     Pad,
 )
-from torchvision.datasets import CelebA
-from functools import partial
+from torchvision.datasets import CelebA, CIFAR10
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
 
-class DataSets(str, Enum):
+class CIFAR10Dataset(Dataset):
+    def __init__(self, root, train=True, transform=None, download=True):
+        """
+        Custom CIFAR10 dataset that returns only images with transforms applied
+
+        Args:
+            root (str): Root directory of dataset
+            train (bool): If True, load training data, else load test data
+            transform (callable, optional): Optional transform to be applied on images
+            download (bool): If True, downloads the dataset if not already downloaded
+        """
+        self.cifar = CIFAR10(root=root, train=train, download=download)
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.cifar)
+
+    def __getitem__(self, idx):
+        image, _ = self.cifar[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image
+
+
+class XMNISTDataset(Dataset):
+    def __init__(self, name: str, transform=None):
+        """
+        Custom xMNIST dataset that returns only images with transforms applied
+
+        Args:
+            name: name of the HuggingFace dataset
+            transform (callable, optional): Optional transform to be applied on images
+        """
+        dsd = load_dataset(name, num_proc=4)
+        self.data = dsd["train"]["image"] + dsd["test"]["image"]
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        image = self.data[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image
+
+
+class Data(str, Enum):
     fashion_mnist = "fashion_mnist"
     mnist = "mnist"
-    celeb_a = "celeb_a"
-
-
-def get_transforms(
-    examples,
-    device: str,
-    dataset_name: str,
-    channels_last: bool = True,
-    zero_pad_images: bool = False,
-):
-    """
-    Extract images from dataset and perform data augmentation
-    """
-    t_ = []
-    if dataset_name != DataSets.mnist:
-        t_.append(RandomHorizontalFlip())
-    t_.append(ToTensor())
-    if zero_pad_images:
-        t_.append(Pad(2))
-    t_.append(Lambda(lambda t: (t * 2) - 1))
-    transform = Compose(transforms=t_)
-
-    if channels_last:
-        examples["pixel_values"] = [
-            transform(image.convert("L")).to(device).permute(1, 2, 0)
-            for image in examples["image"]
-        ]
-    else:
-        examples["pixel_values"] = [
-            transform(image.convert("L")).to(device) for image in examples["image"]
-        ]
-
-    del examples["image"]
-    return examples
+    cifar_10 = "cifar_10"
+    # celeb_a = "celeb_a"
 
 
 def get_dataloader(
     batch_size: int,
     device: str,
-    dataset_name: DataSets,
-    channels_last: bool = True,
+    dataset_name: Data,
     zero_pad_images: bool = False,
 ):
-    if dataset_name == DataSets.celeb_a:
-        dataset = CelebA("data", split="train", download=True)
+    # if dataset_name == Data.celeb_a:
+    #     dataset = CelebA("data", split="train", download=True)
+    #     NotImplemented
+    if dataset_name == Data.cifar_10:
+        transform = Compose(
+            transforms=[
+                ToTensor(),
+                RandomHorizontalFlip(),
+                Lambda(lambda t: (t * 2) - 1),
+            ]
+        )
+        transformed_dataset = CIFAR10Dataset(
+            root="data", train=True, transform=transform, download=True
+        )
     else:
-        dataset = load_dataset(dataset_name, num_proc=4)
-
-    transforms_dev = partial(
-        get_transforms,
-        device=device,
-        channels_last=channels_last,
-        zero_pad_images=zero_pad_images,
-        dataset_name=dataset_name,
-    )
-    transformed_dataset = dataset.with_transform(transforms_dev).remove_columns("label")
+        t = [ToTensor()]
+        if dataset_name != Data.mnist:
+            t.append(RandomHorizontalFlip())
+        if zero_pad_images:
+            t.append(Pad(2))
+        t.append(Lambda(lambda t: (t * 2) - 1))
+        transform = Compose(t)
+        transformed_dataset = XMNISTDataset(dataset_name, transform=transform)
 
     dataloader = DataLoader(
-        torch.utils.data.ConcatDataset(
-            [transformed_dataset["train"], transformed_dataset["test"]]
-        ),
+        transformed_dataset,
         batch_size=batch_size,
         shuffle=True,
         drop_last=True,
         generator=torch.Generator(device=device),
     )
+
     return dataloader

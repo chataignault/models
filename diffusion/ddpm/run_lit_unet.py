@@ -15,7 +15,7 @@ from matplotlib.pyplot import imshow
 
 from utils.logger import get_logger
 from utils_torch.unet import LitUnet, write_sample_to_board, load_model
-from utils.dataloader import get_dataloader, DataSets
+from utils.dataloader import get_dataloader, Data
 from utils_torch.diffusion import (
     sample,
     linear_beta_schedule,
@@ -24,7 +24,38 @@ from utils_torch.diffusion import (
     NoiseSchedule,
 )
 
-DEFAULT_IMG_SIZE = 28
+
+def get_args():
+    parser = ArgumentParser(description="Run Attention Unet")
+    parser.add_argument("--channels", type=int, default=1)
+    parser.add_argument("--downs", nargs="+", type=int, default=[32, 64, 128])
+    parser.add_argument("--time_emb_dim", type=int, default=16)
+    parser.add_argument(
+        "--zero_pad",
+        action="store_true",
+        help="Extend the image size to 32x32 to allow deeper network",
+    )
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument(
+        "--dataset",
+        type=str,
+        default=Data.fashion_mnist,
+        help="dataset name from HuggingFace",
+    )
+    parser.add_argument("--batch_size", type=int, default=256)
+    parser.add_argument("--nepochs", type=int, default=50)
+    parser.add_argument("--lr", type=float, default=5e-4)
+    parser.add_argument("--timesteps", type=int, default=1000)
+    parser.add_argument("--model_tag", type=str, default="", help="name identifier")
+    parser.add_argument("--model_name", type=str, default="Unet")
+    parser.add_argument(
+        "--noise_schedule", type=NoiseSchedule, default=NoiseSchedule.sigmoid
+    )
+    parser.add_argument("--load_checkpoint", type=str, default="")
+    parser.add_argument("--only_generate_sample", action="store_true")
+    args = parser.parse_args()
+
+    return args
 
 
 if __name__ == "__main__":
@@ -44,37 +75,12 @@ if __name__ == "__main__":
 
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
-    parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--downs", nargs="+", type=int, default=[32, 64, 128])
-    parser.add_argument("--time_emb_dim", type=int, default=16)
-    parser.add_argument(
-        "--zero_pad",
-        action="store_true",
-        help="Extend the image size to 32x32 to allow deeper network",
-    )
-    parser.add_argument("--device", type=str, default="cuda")
-    parser.add_argument(
-        "--dataset",
-        type=str,
-        default=DataSets.fashion_mnist,
-        help="dataset name from HuggingFace",
-    )
-    parser.add_argument("--batch_size", type=int, default=256)
-    parser.add_argument("--nepochs", type=int, default=50)
-    parser.add_argument("--lr", type=float, default=5e-4)
-    parser.add_argument("--timesteps", type=int, default=1000)
-    parser.add_argument("--model_tag", type=str, default="", help="name identifier")
-    parser.add_argument("--model_name", type=str, default="Unet")
-    parser.add_argument(
-        "--noise_schedule", type=NoiseSchedule, default=NoiseSchedule.sigmoid
-    )
-    parser.add_argument("--load_checkpoint", type=str, default="")
-    parser.add_argument("--only_generate_sample", action="store_true")
+    args = get_args()
 
-    args = parser.parse_args()
     logger.info(f"{args}")
 
     downs = args.downs
+    channels = args.channels
     time_emb_dim = args.time_emb_dim
     zero_pad_images = args.zero_pad
     device = args.device
@@ -89,7 +95,18 @@ if __name__ == "__main__":
     model_tag = args.model_tag
     only_generate_sample = args.only_generate_sample
 
-    IMG_SIZE = 32 if zero_pad_images else DEFAULT_IMG_SIZE
+    match dataset_name:
+        case Data.mnist:
+            IMG_SIZE = 28
+        case Data.fashion_mnist:
+            IMG_SIZE = 28
+        case Data.cifar_10:
+            IMG_SIZE = 32
+        # case Data.celeb_a:
+        #     NotImplemented
+
+    if zero_pad_images:
+        IMG_SIZE += 4
 
     torch.set_default_device(device)
     torch.backends.cuda.matmul.allow_tf32 = True
@@ -115,7 +132,6 @@ if __name__ == "__main__":
     dataloader = get_dataloader(
         BATCH_SIZE,
         device,
-        channels_last=False,
         zero_pad_images=zero_pad_images,
         dataset_name=dataset_name,
     )
@@ -131,19 +147,16 @@ if __name__ == "__main__":
         device,
         load_checkpoint,
         model_name,
+        channels=channels,
     )
 
     # plot original samples to board
     writer = SummaryWriter()
     dataiter = iter(dataloader)
     images = next(dataiter)
-    images = images["pixel_values"]
     img_grid = torchvision.utils.make_grid(images[:16])
     imshow(np.transpose(img_grid.cpu().numpy(), (1, 2, 0)), aspect="auto")
     writer.add_image("original fMNIST samples", img_grid)
-
-    # add model to board
-    writer.add_graph(unet, [images, torch.ones(BATCH_SIZE)])
 
     # train
     unet = LitUnet(
@@ -186,11 +199,10 @@ if __name__ == "__main__":
 
     # generate samples
     logger.info("Generate sample")
-    sample_base_name = f"sample_{script_name}_{datetime_str}_"
+    sample_base_name = f"{script_name}_{dataset_name}_{datetime_str}_"
     n_samp = 32
     n_cols = 8
-    SAMP_SHAPE = (n_samp, 1, 32, 32) if zero_pad_images else (n_samp, 1, 28, 28)
-
+    SAMP_SHAPE = (n_samp, channels, IMG_SIZE, IMG_SIZE)
 
     samp = sample(
         unet,
@@ -208,10 +220,13 @@ if __name__ == "__main__":
     _, axs = plt.subplots(
         nrows=n_samp // n_cols + ((n_samp % n_cols) > 0), ncols=n_cols, figsize=(16, 8)
     )
-    samp = samp.cpu().numpy()
+    samp = samp.permute(0, 2, 3, 1).cpu().numpy()
     for i in range(n_samp):
         r, c = i // n_cols, i % n_cols
-        axs[r, c].imshow(samp[i, 0, :, :], cmap="gray")
+        if channels == 1:
+            axs[r, c].imshow(samp[i, :, :, 0], cmap="gray")
+        else:
+            axs[r, c].imshow(samp[i], cmap="gray")
         axs[r, c].axis("off")
 
     plt.tight_layout()
