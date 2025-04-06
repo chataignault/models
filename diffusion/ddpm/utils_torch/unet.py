@@ -80,7 +80,7 @@ class Unet(nn.Module):
         ups = downs[::-1]
         in_out = list(zip(downs[:-1], downs[1:]))
         self.time_emb_dim = time_emb_dim
-
+        self.channels = channels
         self.pos_emb = nn.Sequential(
             SinusoidalPositionEmbeddings(dim=time_emb_dim),
             nn.Linear(time_emb_dim, 4 * time_emb_dim),
@@ -351,12 +351,12 @@ class LitUnet(L.LightningModule):
         self.writer.add_scalar("Loss 500", self.timestep_losses[500], self.global_step)
         self.writer.add_scalar("Loss 850", self.timestep_losses[850], self.global_step)
 
-        if self.global_step % 500 == 0 and self.global_step > 0:
+        if self.global_step % 500 == 0 and self.global_step >= 0:
             self.unet.eval()
 
             samp = sample(
                 self.unet,
-                (16, 1, self.img_size, self.img_size),
+                (16, self.unet.channels, self.img_size, self.img_size),
                 self.T,
                 self.betas,
                 self.alphas_cumprod,
