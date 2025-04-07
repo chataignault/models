@@ -252,8 +252,24 @@ indistinguishable units are left to place in $k$ distinct buckets.
 
 Both algorithms from  https://jeromekelleher.net/generating-integer-partitions.html are implemented, 
 with the significant difference that they are eager, whereas the Python 
-example generates an iterator which much more memory-efficient.
+example generates an iterator which in practice is a lot more memory-efficient.
 
 Still, using the `bench` tool from rust, the efficient algorithm has a smaller variance than the simpler one :
 
 ![integer_partition_bench](proba_negative_asset/integer_partition_bench.png)
+
+**
+## Splitting a deck of cards in two, having the same number of cards facing upwards while being in a dark room
+
+With a deck of 52 cards 
+and the initial information that it comprises 17 cards facing up and 35 facing down,
+find an algorithm so that by only flipping cards 
+and sharing them in two piles,
+the two piles would have the same number of cards facing upwards.
+
+First of all, 
+the number of cards facing upwards must be equal,
+which can be obtained by flipping an odd number of cards in the original deck.
+
+
+
