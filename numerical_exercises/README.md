@@ -2,6 +2,11 @@
 
 Implement numerically some algorithms to confirm intuition on problems of combinatorics and discrete probabilities.
 
+1. [Counting positive paths](#positive-paths-count)
+2. [Optimising some discrete order execution](#discrete-optimal-execution)
+3. [Random walk crossing threshold probability](#negative-price-probability)
+4. [Dealing cards evenly without observation](#dealing-indistinguishable-cards)
+
 *Also includes :*
 - detours on combinatorics and proofs
 - detours revolving around the Rust environment
