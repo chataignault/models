@@ -258,18 +258,18 @@ Still, using the `bench` tool from rust, the efficient algorithm has a smaller v
 
 ![integer_partition_bench](proba_negative_asset/integer_partition_bench.png)
 
-**
-## Splitting a deck of cards in two, having the same number of cards facing upwards while being in a dark room
+***
+
+## Dealing indistinguishable cards 
 
 With a deck of 52 cards 
 and the initial information that it comprises 17 cards facing up and 35 facing down,
-find an algorithm so that by only flipping cards 
-and sharing them in two piles,
-the two piles would have the same number of cards facing upwards.
+find an algorithm so to dealing the deck in two piles,
+such that the two piles have the same number of cards facing upwards.
+The only allowed operation is to flip an arbitrary amount of cards.
+Cards are not visible before or at any time during the algorithm.
 
-First of all, 
-the number of cards facing upwards must be equal,
-which can be obtained by flipping an odd number of cards in the original deck.
-
-
-
+<p style="color:green">
+Take 17 of those cards, flip all of them. 
+This forms one pile and the other cards - untouched - go in the other pile.
+</p>
