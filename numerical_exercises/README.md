@@ -2,6 +2,11 @@
 
 Implement numerically some algorithms to confirm intuition on problems of combinatorics and discrete probabilities.
 
+1. [Counting positive paths](#positive-paths-count)
+2. [Optimising some discrete order execution](#discrete-optimal-execution)
+3. [Random walk crossing threshold probability](#negative-price-probability)
+4. [Dealing cards evenly without observation](#dealing-indistinguishable-cards)
+
 *Also includes :*
 - detours on combinatorics and proofs
 - detours revolving around the Rust environment
@@ -252,8 +257,24 @@ indistinguishable units are left to place in $k$ distinct buckets.
 
 Both algorithms from  https://jeromekelleher.net/generating-integer-partitions.html are implemented, 
 with the significant difference that they are eager, whereas the Python 
-example generates an iterator which much more memory-efficient.
+example generates an iterator which in practice is a lot more memory-efficient.
 
 Still, using the `bench` tool from rust, the efficient algorithm has a smaller variance than the simpler one :
 
 ![integer_partition_bench](proba_negative_asset/integer_partition_bench.png)
+
+***
+
+## Dealing indistinguishable cards 
+
+With a deck of 52 cards 
+and the initial information that it comprises 17 cards facing up and 35 facing down,
+find an algorithm so to dealing the deck in two piles,
+such that the two piles have the same number of cards facing upwards.
+The only allowed operation is to flip an arbitrary amount of cards.
+Cards are not visible before or at any time during the algorithm.
+
+<p style="color:green">
+Take 17 of those cards, flip all of them. 
+This forms one pile and the other cards - untouched - go in the other pile.
+</p>
