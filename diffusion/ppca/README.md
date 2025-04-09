@@ -6,6 +6,8 @@ is to consider the PCA on some dataset, and to add noise to the decomposed matri
 to generate samples that were not in the training set, 
 but that share the same principal components with their respective amplitude.
 
+![image](ppca_mnist.png)
+
 
 ```bibtex
 @book{bengio2017deep,
