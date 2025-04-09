@@ -3,32 +3,15 @@ from datasets import load_dataset
 from matplotlib import pyplot as plt
 from matplotlib.pyplot import imshow
 
-from src.pure_qr import pure_QR
+from src.svd import naive_svd
 
 
-if __name__ == "__main__":
-
-    data_dict = load_dataset("mnist", num_proc=4)["train"]
-    data, c = data_dict["image"], data_dict["label"]
-
-    label = 2
-
-    data = [pil for (pil, l) in zip(data, c) if l == label]
-    data = np.array([np.array(pil).reshape(784) for pil in data]) / 25.0
-
-    # make it square for now
-    data = data[:784]
-    # imshow(data[0].reshape(28, 28))
-    # plt.show()
-
+def generate_sample_naive_conditionned(X: np.array, keep: int):
     # can't have zero columns
-    data += 0.5 * np.random.randn(*data.shape)
+    X += 0.5 * np.random.randn(*X.shape)
 
-    U, S, V = naive_svd(data)
+    U, S, V = naive_svd(X.copy())
 
-    print(U[:5, :5])
-
-    keep = 5
     s = np.diag(S).copy()
     s[keep:] = 0.0
 
@@ -38,7 +21,28 @@ if __name__ == "__main__":
 
     sample = samples[0]
     sample = sample.reshape(28, 28)
+    return sample
 
-    imshow(sample)
 
+if __name__ == "__main__":
+    data_dict = load_dataset("mnist", num_proc=4)["train"]
+    data, cl = data_dict["image"], data_dict["label"]
+
+    fig, axs = plt.subplots(figsize=(10, 4), ncols=5, nrows=2)
+
+    keep = 5
+    for label in range(10):
+        X = [pil for (pil, l) in zip(data, cl) if l == label]
+        X = np.array([np.array(pil).reshape(784) for pil in X]) / 25.0
+        # need be square for now
+        X = X[:784]
+
+        sample = generate_sample_naive_conditionned(X, keep)
+
+        r, c = label // 5, label % 5
+        axs[r, c].axis("off")
+        axs[r, c].imshow(sample.copy(), cmap="gray")
+
+    plt.tight_layout()
     plt.show()
+    fig.savefig("ppca_mnist.png", bbox_inches="tight")
