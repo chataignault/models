@@ -6,36 +6,7 @@ from matplotlib.pyplot import imshow
 from src.pure_qr import pure_QR
 
 
-def naive_svd(A: np.ndarray):
-    cov = A.T.dot(A)
-    S, V = pure_QR(cov, maxit=10, tol=1e-4, trid=False, track=False, shift=False)
-    s = np.sqrt(np.diag(S))
-    s = np.clip(s, min=1e-5)
-    U = np.divide(A @ V, s)
-
-    return U, np.diag(s), V
-
-
 if __name__ == "__main__":
-    # n = 10
-    # A = np.random.randn(n, n)
-    # print(A)
-
-    # S, V = pure_QR(
-    #     A.T @ A,
-    #     maxit=10000,
-    #     tol=1e-4,
-    #     trid=False,
-    #     track=False,
-    #     shift=False,
-    #     )
-    # print(np.linalg.norm(V.T @ V - np.eye(len(A))))
-    # print(np.linalg.norm(A.T @ A - V @ S @ V.T))
-
-    # U, S, V = naive_svd(A)
-
-    # print(np.linalg.norm(A - U @ S @ V.T))
-    # print(np.diag(S))
 
     data_dict = load_dataset("mnist", num_proc=4)["train"]
     data, c = data_dict["image"], data_dict["label"]
