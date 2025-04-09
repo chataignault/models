@@ -8,10 +8,11 @@ from src.pure_qr import pure_QR
 TOL = 1e-8
 
 
-@pytest.mark.parametrize("n", [5, 7, 10, 20])
-def test_naive_svd(n):
+# @pytest.mark.parametrize("n", [5, 7, 10, 20])
+@pytest.mark.parametrize("n, m", [(5, 5), (7, 8), (10, 3), (20, 36)])
+def test_naive_svd(n, m):
     random.seed(n)
-    A = random.randn(n, n)
+    A = random.randn(n, m)
 
     # dependency with the pure QR algorithm
     S, V = pure_QR(
@@ -22,7 +23,7 @@ def test_naive_svd(n):
         track=False,
         shift=False,
     )
-    assert np.linalg.norm(V.T @ V - np.eye(len(A))) < TOL
+    assert np.linalg.norm(V.T @ V - np.eye(m)) < TOL
     assert np.linalg.norm(A.T @ A - V @ S @ V.T) < TOL
 
     U, S, V = naive_svd(A)
