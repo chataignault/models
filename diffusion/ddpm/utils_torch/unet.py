@@ -351,7 +351,7 @@ class LitUnet(L.LightningModule):
         self.writer.add_scalar("Loss 500", self.timestep_losses[500], self.global_step)
         self.writer.add_scalar("Loss 850", self.timestep_losses[850], self.global_step)
 
-        if self.global_step % 500 == 0 and self.global_step >= 0:
+        if self.global_step % 500 == 0 and self.global_step > 0:
             self.unet.eval()
 
             samp = sample(
