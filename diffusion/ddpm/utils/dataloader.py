@@ -38,6 +38,23 @@ class CIFAR10Dataset(Dataset):
         return image
 
 
+class CelebADataset(Dataset):
+    def __init__(self, root, split="train", transform=None, download=True):
+        self.celeba = CelebA(root=root, split=split, download=download)
+        self.transform = transform
+
+    def __len__(self):
+        return len(self.celeba)
+
+    def __getitem__(self, idx):
+        image, _ = self.celeba[idx]
+
+        if self.transform:
+            image = self.transform(image)
+
+        return image
+
+
 class XMNISTDataset(Dataset):
     def __init__(self, name: str, transform=None):
         """
@@ -67,7 +84,7 @@ class Data(str, Enum):
     fashion_mnist = "fashion_mnist"
     mnist = "mnist"
     cifar_10 = "cifar_10"
-    # celeb_a = "celeb_a"
+    celeb_a = "celeb_a"
 
 
 def get_dataloader(
@@ -76,9 +93,17 @@ def get_dataloader(
     dataset_name: Data,
     zero_pad_images: bool = False,
 ):
-    # if dataset_name == Data.celeb_a:
-    #     dataset = CelebA("data", split="train", download=True)
-    #     NotImplemented
+    if dataset_name == Data.celeb_a:
+        transform = Compose(
+            transforms=[
+                ToTensor(),
+                RandomHorizontalFlip(),
+                Lambda(lambda t: (t * 2) - 1),
+            ]
+        )
+        transformed_dataset = CelebADataset(
+            root="data", split="train", transform=transform
+        )
     if dataset_name == Data.cifar_10:
         transform = Compose(
             transforms=[

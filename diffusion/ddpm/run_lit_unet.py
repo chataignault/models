@@ -102,8 +102,8 @@ if __name__ == "__main__":
             IMG_SIZE = 28
         case Data.cifar_10:
             IMG_SIZE = 32
-        # case Data.celeb_a:
-        #     NotImplemented
+        case Data.celeb_a:
+            IMG_SIZE = 256
 
     if zero_pad_images:
         IMG_SIZE += 4
