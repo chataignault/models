@@ -10,7 +10,8 @@ log
 data
 target
 debug
-MNIST/
+MNIST
+.vscode
 
 *.ipynb
 *.csv
