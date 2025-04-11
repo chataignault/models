@@ -2,6 +2,7 @@ import torch
 from torch import Tensor
 from torch.nn import functional as F
 import numpy as np
+from rich import print
 
 
 def arctanh(x: Tensor) -> Tensor:
@@ -131,5 +132,8 @@ def train(
 
         # print results for last batch
         print(
-            f"Epoch: {epoch:03} | ELBO loss: {loss:03} | KL divergence: {KL_divergence:03} | Negative log-likelihood: {neg_loglikelihood:03}"
+            f"Epoch: {epoch:03} | "
+            f"ELBO loss: {np.round(loss.cpu().detach().numpy(), decimals=3)} | "
+            f"KL divergence: {np.round(KL_divergence.cpu().detach().numpy(), decimals=3)} | "
+            f"Negative log-likelihood: {np.round(neg_loglikelihood.cpu().detach().numpy(), decimals=2)}"
         )

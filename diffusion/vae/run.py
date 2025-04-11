@@ -14,6 +14,7 @@ if __name__ == "__main__":
     parser.add_argument("--nepoch", type=int, default=30)
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--dataset", type=str, default="mnist")
     parser.add_argument(
         "--cb",
         action="store_true",
@@ -27,15 +28,28 @@ if __name__ == "__main__":
     lr = args.lr
     device = args.device
     cb = args.cb
+    dataset = args.dataset
 
     torch.set_default_device(device)
 
-    trainset = torchvision.datasets.MNIST(
-        root="./",
-        train=True,
-        download=True,
-        transform=transforms.Compose([transforms.ToTensor()]),
-    )
+    if dataset == "mnist":
+        trainset = torchvision.datasets.MNIST(
+            root="./",
+            train=True,
+            download=True,
+            transform=transforms.Compose([transforms.ToTensor()]),
+        )
+    elif dataset == "fashion_mnist":
+        trainset = torchvision.datasets.FashionMNIST(
+            root="./",
+            train=True,
+            download=True,
+            transform=transforms.Compose(
+                [transforms.ToTensor(), transforms.RandomHorizontalFlip()]
+            ),
+        )
+    else:
+        NotImplemented
 
     trainloader = torch.utils.data.DataLoader(
         trainset,
@@ -60,4 +74,4 @@ if __name__ == "__main__":
 
     vae.eval()
 
-    sample_images(vae, N_SAMPLES)
+    sample_images(vae, N_SAMPLES, dataset)

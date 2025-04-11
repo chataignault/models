@@ -80,7 +80,7 @@ class VAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
-def sample_images(model: VAE, num_im: int):
+def sample_images(model: VAE, num_im: int, name: str):
     n_cols = 5
     # sample latent variables from p(z)
     mu_batch, logvar_batch = (
@@ -104,7 +104,7 @@ def sample_images(model: VAE, num_im: int):
         axs[r, c].axis("off")
 
     plt.tight_layout()
-    fig.savefig("vae_mnist.png")
+    fig.savefig(f"vae_{name}.png")
     plt.show()
 
 
