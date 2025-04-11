@@ -2,6 +2,7 @@ import torch
 import torchvision
 from torchvision import transforms
 from argparse import ArgumentParser
+import numpy as np
 from vae_utils import VAE, ELBO_loss, train, sample_images
 
 N_SAMPLES = 15
@@ -9,8 +10,8 @@ N_SAMPLES = 15
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=512)
-    parser.add_argument("--nepoch", type=int, default=20)
-    parser.add_argument("--lr", type=float, default=1e-3)
+    parser.add_argument("--nepoch", type=int, default=30)
+    parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--device", type=str, default="cuda")
 
     args = parser.parse_args()
@@ -38,6 +39,9 @@ if __name__ == "__main__":
     )
 
     vae = VAE().to(device)
+    print(
+        "Number of parameters :", np.sum([np.prod(p.size()) for p in vae.parameters()])
+    )
     train(
         model=vae,
         nr_epochs=nepoch,
