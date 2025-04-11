@@ -7,7 +7,7 @@ from diffusers import StableDiffusionPipeline, DPMSolverMultistepScheduler
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--prompt", type=str, help="comma-seperated keywords")
-    args = parser.parse_arguments()
+    args = parser.parse_args()
     prompt = args.prompt
 
     model_id = "stabilityai/stable-diffusion-2-1"
