@@ -4,6 +4,7 @@ from torchvision import transforms
 from argparse import ArgumentParser
 import numpy as np
 from vae_utils import VAE, ELBO_loss, train, sample_images
+from functools import partial
 
 N_SAMPLES = 15
 
@@ -13,6 +14,11 @@ if __name__ == "__main__":
     parser.add_argument("--nepoch", type=int, default=30)
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument(
+        "--cb",
+        action="store_true",
+        help="Whether to add the continuous Bernoulli distribution normalizing term",
+    )
 
     args = parser.parse_args()
 
@@ -20,6 +26,7 @@ if __name__ == "__main__":
     nepoch = args.nepoch
     lr = args.lr
     device = args.device
+    cb = args.cb
 
     torch.set_default_device(device)
 
@@ -46,7 +53,7 @@ if __name__ == "__main__":
         model=vae,
         nr_epochs=nepoch,
         optimizer=torch.optim.Adam(vae.parameters(), lr=lr),
-        criterion=ELBO_loss,
+        criterion=partial(ELBO_loss, continuous_bernoulli=cb),
         dataloader=trainloader,
         device=device,
     )

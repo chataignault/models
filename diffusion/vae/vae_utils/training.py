@@ -1,9 +1,46 @@
 import torch
 from torch import Tensor
 from torch.nn import functional as F
+import numpy as np
 
 
-def ELBO_loss(x: Tensor, reconstructed_x: Tensor, mu: Tensor, logvar: Tensor) -> Tensor:
+def arctanh(x: Tensor) -> Tensor:
+    return 0.5 * torch.log((1 - x) / (1 + x))
+
+
+def compute_cb_normalizing_cte(x: Tensor, l_lim: float = 0.49, u_lim: float = 0.51):
+    """
+    Computes the value of the log of the normalizing constant of the Continuous Bernoulli loss
+    In a computationnally stable way as defined in
+    https://github.com/cunningham-lab/cb_and_cc/blob/master/cb/utils.py
+    """
+    x_safe = torch.where(
+        torch.logical_or(x < l_lim, x > u_lim), x, l_lim * torch.ones_like(x)
+    )
+    x_unsafe = torch.where(
+        torch.logical_and(x >= l_lim, x <= u_lim), x_safe, l_lim * torch.ones_like(x)
+    )
+    log_norm = (
+        np.log(2.0)
+        + torch.log(torch.abs(arctanh(1.0 - 2.0 * x_safe)))
+        - torch.log(torch.abs(1.0 - 2.0 * x_safe))
+    )
+    taylor = (
+        np.log(2.0)
+        + 4.0 / 3.0 * torch.pow(x_unsafe - 0.5, 2)
+        + 104.0 / 45.0 * torch.pow(x_unsafe - 0.5, 4)
+    )
+    return torch.where(torch.logical_or(x < l_lim, x > u_lim), log_norm, taylor)
+
+
+def ELBO_loss(
+    x: Tensor,
+    reconstructed_x: Tensor,
+    mu: Tensor,
+    logvar: Tensor,
+    continuous_bernoulli: bool = False,
+    eps: float = 1e-5,
+) -> Tensor:
     """
     calculates ELBO loss
     Inputs:
@@ -16,7 +53,6 @@ def ELBO_loss(x: Tensor, reconstructed_x: Tensor, mu: Tensor, logvar: Tensor) ->
         - KL_divergence: average value of KL divergence term across batch
         - loss: average ELBO loss across batch
     """
-    eps = 1e-5
     x = torch.clamp(x.view(-1, 784), eps, 1.0 - eps)
     reconstructed_x = torch.clamp(reconstructed_x, eps, 1.0 - eps)
 
@@ -25,16 +61,19 @@ def ELBO_loss(x: Tensor, reconstructed_x: Tensor, mu: Tensor, logvar: Tensor) ->
     )
 
     # continuous bernoulli normalizing constant
-    c = torch.log(2.0 * x) / ((1.0 - 2.0 * x) * torch.log(2.0 - 2.0 * x))
-    neg_loglikelihood = neg_loglikelihood * c
+    if continuous_bernoulli:
+        neg_loglikelihood -= compute_cb_normalizing_cte(reconstructed_x)
 
     neg_loglikelihood = torch.sum(neg_loglikelihood) / x.size(0)
 
+    # KL divergence term
     var = torch.exp(logvar)
     KL_divergence = 0.5 * (
         torch.clamp(torch.sum(logvar), min=0.0) + torch.sum(var) + torch.sum(mu**2)
     ).div(x.size(0))
-    loss = neg_loglikelihood + 0.5 * KL_divergence
+
+    loss = neg_loglikelihood + KL_divergence
+
     return neg_loglikelihood, KL_divergence, loss
 
 
@@ -92,5 +131,5 @@ def train(
 
         # print results for last batch
         print(
-            f"Epoch: {epoch:03} | ELBO loss: {loss} | KL divergence: {KL_divergence} | Negative log-likelihood: {neg_loglikelihood}"
+            f"Epoch: {epoch:03} | ELBO loss: {loss:03} | KL divergence: {KL_divergence:03} | Negative log-likelihood: {neg_loglikelihood:03}"
         )
