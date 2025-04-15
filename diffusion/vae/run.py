@@ -1,3 +1,5 @@
+import os
+import datetime as dt
 import torch
 import torchvision
 from torchvision import transforms
@@ -7,14 +9,18 @@ from vae_utils import VAE, ELBO_loss, train, sample_images
 from functools import partial
 
 N_SAMPLES = 15
+SAVE_DIR = "models"
 
 if __name__ == "__main__":
     parser = ArgumentParser()
     parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--latent_dim", type=int, default=2)
     parser.add_argument("--nepoch", type=int, default=30)
     parser.add_argument("--lr", type=float, default=5e-4)
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--dataset", type=str, default="mnist")
+    parser.add_argument("--save", action="store_true")
+    parser.add_argument("--load_checkpoint", type=str, default="")
     parser.add_argument(
         "--cb",
         action="store_true",
@@ -24,11 +30,14 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     batch_size = args.batch_size
+    latent_dim = args.latent_dim
     nepoch = args.nepoch
     lr = args.lr
     device = args.device
     cb = args.cb
     dataset = args.dataset
+    save = args.save
+    load_checkpoint = args.load_checkpoint
 
     torch.set_default_device(device)
 
@@ -59,10 +68,13 @@ if __name__ == "__main__":
         generator=torch.Generator(device=device),
     )
 
-    vae = VAE().to(device)
+    vae = VAE(latent_dim=latent_dim).to(device)
     print(
         "Number of parameters :", np.sum([np.prod(p.size()) for p in vae.parameters()])
     )
+    if len(load_checkpoint) > 0:
+        vae.load_state_dict(torch.load(os.path.join(SAVE_DIR, load_checkpoint)))
+
     train(
         model=vae,
         nr_epochs=nepoch,
@@ -74,4 +86,11 @@ if __name__ == "__main__":
 
     vae.eval()
 
-    sample_images(vae, N_SAMPLES, dataset)
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H")
+    sample_images(vae, N_SAMPLES, "_".join([dataset, stamp]))
+
+    if save:
+        if not os.path.exists(SAVE_DIR):
+            os.mkdir(SAVE_DIR)
+        name = f"vae_{stamp}_{latent_dim}.pt"
+        torch.save(vae.state_dict(), os.path.join(SAVE_DIR, name))

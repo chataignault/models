@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 
 
 class VAE(nn.Module):
-    def __init__(self, latent_dim=2, input_dim=784):
+    def __init__(self, latent_dim: int = 2, input_dim: int = 784):
         """builds VAE
         Inputs:
             - latent_dim: dimension of latent space
@@ -82,10 +82,11 @@ class VAE(nn.Module):
 
 def sample_images(model: VAE, num_im: int, name: str):
     n_cols = 5
+    latent_dim = model.latent_dim
     # sample latent variables from p(z)
     mu_batch, logvar_batch = (
-        0.0 * torch.ones((num_im, 2)),
-        1.0 * torch.ones((num_im, 2)),
+        0.0 * torch.ones((num_im, latent_dim)),
+        1.0 * torch.ones((num_im, latent_dim)),
     )
     z = model.reparametrise(mu_batch, logvar_batch)
 
