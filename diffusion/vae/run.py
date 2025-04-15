@@ -9,9 +9,11 @@ from vae_utils import VAE, ELBO_loss, train, sample_images
 from functools import partial
 import mlflow
 from torchinfo import summary
+from lion_pytorch import Lion
 
 N_SAMPLES = 15
 SAVE_DIR = "models"
+OUT_DIR = "out"
 
 if __name__ == "__main__":
     parser = ArgumentParser()
@@ -22,6 +24,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--dataset", type=str, default="mnist")
     parser.add_argument("--save", action="store_true")
+    parser.add_argument("--lion_optimizer", action="store_true")
     parser.add_argument("--load_checkpoint", type=str, default="")
     parser.add_argument(
         "--cb",
@@ -40,6 +43,7 @@ if __name__ == "__main__":
     dataset = args.dataset
     save = args.save
     load_checkpoint = args.load_checkpoint
+    lion_optimizer = args.lion_optimizer
 
     mlflow.set_experiment("VAE")
 
@@ -85,7 +89,9 @@ if __name__ == "__main__":
         train(
             model=vae,
             nr_epochs=nepoch,
-            optimizer=torch.optim.Adam(vae.parameters(), lr=lr),
+            optimizer=torch.optim.Adam(vae.parameters(), lr=lr)
+            if not lion_optimizer
+            else Lion(vae.parameters(), lr=lr, weight_decay=1e-2),
             criterion=partial(ELBO_loss, continuous_bernoulli=cb),
             dataloader=trainloader,
             device=device,
@@ -94,8 +100,11 @@ if __name__ == "__main__":
 
     vae.eval()
 
+    if not os.path.exists(OUT_DIR):
+        os.mkdir(OUT_DIR)
+
     stamp = dt.datetime.now().strftime("%Y%m%d-%H")
-    sample_images(vae, N_SAMPLES, "_".join([dataset, stamp]))
+    sample_images(vae, N_SAMPLES, OUT_DIR, "_".join([dataset, stamp]))
 
     with open("model_summary.txt", "w", encoding="utf-8") as f:
         f.write(str(summary(vae)))

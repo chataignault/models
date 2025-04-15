@@ -144,7 +144,7 @@ def train(
         # print results for last batch
         print(
             f"Epoch: {epoch:03} | "
-            f"ELBO loss: {np.round(loss.cpu().detach().numpy(), decimals=3)} | "
-            f"KL divergence: {np.round(KL_divergence.cpu().detach().numpy(), decimals=3)} | "
-            f"Negative log-likelihood: {np.round(neg_loglikelihood.cpu().detach().numpy(), decimals=2)}"
+            f"ELBO loss: {np.round(loss.cpu().detach().numpy().item(), decimals=3)} | "
+            f"KL divergence: {np.round(KL_divergence.cpu().detach().numpy().item(), decimals=3)} | "
+            f"Negative log-likelihood: {np.round(neg_loglikelihood.cpu().detach().numpy().item(), decimals=2)}"
         )

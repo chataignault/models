@@ -1,3 +1,4 @@
+import os
 import torch
 from torch import nn, Tensor
 from matplotlib import pyplot as plt
@@ -80,7 +81,7 @@ class VAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
-def sample_images(model: VAE, num_im: int, name: str):
+def sample_images(model: VAE, num_im: int, path: str, name: str):
     n_cols = 5
     latent_dim = model.latent_dim
     # sample latent variables from p(z)
@@ -105,7 +106,7 @@ def sample_images(model: VAE, num_im: int, name: str):
         axs[r, c].axis("off")
 
     plt.tight_layout()
-    fig.savefig(f"vae_{name}.png")
+    fig.savefig(os.path.join(path, f"vae_{name}.png"))
     plt.show()
 
 
