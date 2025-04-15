@@ -12,6 +12,8 @@ target
 debug
 MNIST
 .vscode
+.todos
+FashionMNIST
 
 *.ipynb
 *.csv

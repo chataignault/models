@@ -1,0 +1,77 @@
+import torch
+import torchvision
+from torchvision import transforms
+from argparse import ArgumentParser
+import numpy as np
+from vae_utils import VAE, ELBO_loss, train, sample_images
+from functools import partial
+
+N_SAMPLES = 15
+
+if __name__ == "__main__":
+    parser = ArgumentParser()
+    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--nepoch", type=int, default=30)
+    parser.add_argument("--lr", type=float, default=5e-4)
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--dataset", type=str, default="mnist")
+    parser.add_argument(
+        "--cb",
+        action="store_true",
+        help="Whether to add the continuous Bernoulli distribution normalizing term",
+    )
+
+    args = parser.parse_args()
+
+    batch_size = args.batch_size
+    nepoch = args.nepoch
+    lr = args.lr
+    device = args.device
+    cb = args.cb
+    dataset = args.dataset
+
+    torch.set_default_device(device)
+
+    if dataset == "mnist":
+        trainset = torchvision.datasets.MNIST(
+            root="./",
+            train=True,
+            download=True,
+            transform=transforms.Compose([transforms.ToTensor()]),
+        )
+    elif dataset == "fashion_mnist":
+        trainset = torchvision.datasets.FashionMNIST(
+            root="./",
+            train=True,
+            download=True,
+            transform=transforms.Compose(
+                [transforms.ToTensor(), transforms.RandomHorizontalFlip()]
+            ),
+        )
+    else:
+        NotImplemented
+
+    trainloader = torch.utils.data.DataLoader(
+        trainset,
+        batch_size=batch_size,
+        shuffle=True,
+        num_workers=2,
+        generator=torch.Generator(device=device),
+    )
+
+    vae = VAE().to(device)
+    print(
+        "Number of parameters :", np.sum([np.prod(p.size()) for p in vae.parameters()])
+    )
+    train(
+        model=vae,
+        nr_epochs=nepoch,
+        optimizer=torch.optim.Adam(vae.parameters(), lr=lr),
+        criterion=partial(ELBO_loss, continuous_bernoulli=cb),
+        dataloader=trainloader,
+        device=device,
+    )
+
+    vae.eval()
+
+    sample_images(vae, N_SAMPLES, dataset)

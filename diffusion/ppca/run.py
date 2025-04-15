@@ -32,6 +32,7 @@ def get_samples_and_normalize(data:np.array, cl:np.array, n_samples:int, label:i
     X = X[idx]
     return X
 
+
 if __name__ == "__main__":
     data_dict = load_dataset("mnist", num_proc=4)["train"]
     data, cl = data_dict["image"], data_dict["label"]
@@ -42,7 +43,7 @@ if __name__ == "__main__":
     n_samples = 1000
 
     for label in range(10):
-        
+
         X = get_samples_and_normalize(data, cl, n_samples, label)
 
         sample = generate_sample_naive_conditionned(X, n_components)
