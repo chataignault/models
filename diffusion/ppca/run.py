@@ -1,4 +1,5 @@
 import numpy as np
+from argparse import ArgumentParser
 from numpy import random
 from datasets import load_dataset
 from matplotlib import pyplot as plt
@@ -34,13 +35,21 @@ def get_samples_and_normalize(data:np.array, cl:np.array, n_samples:int, label:i
 
 
 if __name__ == "__main__":
+    
+    parser = ArgumentParser()
+
+    parser.add_argument("--n_samples", type=int, default=1000)
+    parser.add_argument("--n_components", type=int, default=3)
+
+    args = parser.parse_args()
+
+    n_samples = args.n_samples
+    n_components = args.n_components
+    
     data_dict = load_dataset("mnist", num_proc=4)["train"]
     data, cl = data_dict["image"], data_dict["label"]
 
     fig, axs = plt.subplots(figsize=(10, 4), ncols=5, nrows=2)
-
-    n_components = 3
-    n_samples = 1000
 
     for label in range(10):
 
