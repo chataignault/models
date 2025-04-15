@@ -10,7 +10,9 @@ log
 data
 target
 debug
-MNIST/
+MNIST
+.todos
+FashionMNIST
 
 *.ipynb
 *.csv
