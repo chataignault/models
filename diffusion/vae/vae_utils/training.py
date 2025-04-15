@@ -3,6 +3,7 @@ from torch import Tensor
 from torch.nn import functional as F
 import numpy as np
 from rich import print
+import mlflow
 
 
 def arctanh(x: Tensor) -> Tensor:
@@ -105,9 +106,11 @@ def ELBO_loss_Gaussian(x, reconstructed_x, mu, logvar):
 def train(
     model, nr_epochs, optimizer, criterion, dataloader, device: str, has_labels=True
 ):
+    total_step = 0
     for epoch in range(nr_epochs):
         # iterate through batches
         for i, data in enumerate(dataloader, 0):
+            total_step += 1
             # get inputs
             if has_labels == True:
                 # get the inputs if data is a list of [inputs, labels]
@@ -124,6 +127,14 @@ def train(
             # Compute the loss value
             neg_loglikelihood, KL_divergence, loss = criterion(
                 images, reconstructed_images, mu, logvar
+            )
+            mlflow.log_metrics(
+                {
+                    "loss": loss.cpu().detach().item(),
+                    "neg_logl": neg_loglikelihood.cpu().detach().item(),
+                    "kl_div": KL_divergence.cpu().detach().item(),
+                },
+                step=total_step,
             )
             # Compute the gradients
             loss.backward()

@@ -7,6 +7,8 @@ from argparse import ArgumentParser
 import numpy as np
 from vae_utils import VAE, ELBO_loss, train, sample_images
 from functools import partial
+import mlflow
+from torchinfo import summary
 
 N_SAMPLES = 15
 SAVE_DIR = "models"
@@ -38,6 +40,8 @@ if __name__ == "__main__":
     dataset = args.dataset
     save = args.save
     load_checkpoint = args.load_checkpoint
+
+    mlflow.set_experiment("VAE")
 
     torch.set_default_device(device)
 
@@ -75,19 +79,27 @@ if __name__ == "__main__":
     if len(load_checkpoint) > 0:
         vae.load_state_dict(torch.load(os.path.join(SAVE_DIR, load_checkpoint)))
 
-    train(
-        model=vae,
-        nr_epochs=nepoch,
-        optimizer=torch.optim.Adam(vae.parameters(), lr=lr),
-        criterion=partial(ELBO_loss, continuous_bernoulli=cb),
-        dataloader=trainloader,
-        device=device,
-    )
+    with mlflow.start_run():
+        mlflow.log_params(args.__dict__)
+
+        train(
+            model=vae,
+            nr_epochs=nepoch,
+            optimizer=torch.optim.Adam(vae.parameters(), lr=lr),
+            criterion=partial(ELBO_loss, continuous_bernoulli=cb),
+            dataloader=trainloader,
+            device=device,
+        )
+        mlflow.pytorch.log_model(vae, "vae")
 
     vae.eval()
 
     stamp = dt.datetime.now().strftime("%Y%m%d-%H")
     sample_images(vae, N_SAMPLES, "_".join([dataset, stamp]))
+
+    with open("model_summary.txt", "w", encoding="utf-8") as f:
+        f.write(str(summary(vae)))
+    mlflow.log_artifact("model_summary.txt")
 
     if save:
         if not os.path.exists(SAVE_DIR):

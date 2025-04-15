@@ -13,6 +13,7 @@ debug
 MNIST
 .todos
 FashionMNIST
+mlruns
 
 *.ipynb
 *.csv
