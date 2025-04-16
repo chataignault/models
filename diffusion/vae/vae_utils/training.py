@@ -55,7 +55,7 @@ def ELBO_loss(
         - KL_divergence: average value of KL divergence term across batch
         - loss: average ELBO loss across batch
     """
-    x = torch.clamp(x.view(-1, 784), eps, 1.0 - eps)
+    x = torch.clamp(x, eps, 1.0 - eps)
     reconstructed_x = torch.clamp(reconstructed_x, eps, 1.0 - eps)
 
     neg_loglikelihood = -1 * (
@@ -92,9 +92,7 @@ def ELBO_loss_Gaussian(x, reconstructed_x, mu, logvar):
         - KL_divergence: average value of KL divergence term across batch
         - loss: average ELBO loss across batch
     """
-    neg_loglikelihood = F.mse_loss(
-        reconstructed_x, x
-    )  # torch.linalg.norm(x - reconstructed_x)**2
+    neg_loglikelihood = F.mse_loss(reconstructed_x, x)
     var = torch.exp(logvar)
     KL_divergence = 0.5 * (
         torch.clamp(torch.sum(logvar), min=0.0) + torch.sum(var) + torch.sum(mu**2)
@@ -126,7 +124,7 @@ def train(
             reconstructed_images, mu, logvar = model(images)
             # Compute the loss value
             neg_loglikelihood, KL_divergence, loss = criterion(
-                images, reconstructed_images, mu, logvar
+                images.view(-1, 784), reconstructed_images.view(-1, 784), mu, logvar
             )
             mlflow.log_metrics(
                 {

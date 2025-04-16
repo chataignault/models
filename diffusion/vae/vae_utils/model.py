@@ -127,72 +127,64 @@ class View(nn.Module):
         super(View, self).__init__()
         self.size = size
 
-    def forward(self, tensor):
-        return tensor.view(self.size)  # used to resize tensor to self.size
+    def forward(self, x):
+        return x.view(self.size)  # used to resize tensor to self.size
 
 
 class CVAE(nn.Module):
-    def __init__(self, d=20):
+    def __init__(self, latent_dim=20):
         """builds VAE
         Inputs:
             - d: dimension of latent space
         """
         super(CVAE, self).__init__()
-        self.d = d
+        self.latent_dim = latent_dim
         # Build VAE here
         self.encoder, self.decoder, self.encoder_mean, self.encoder_lv = self.build_VAE(
-            d
+            latent_dim
         )
 
-    def build_VAE(self, d):
+    def build_VAE(self, latent_dim: int):
         """builds VAE with specified latent dimension and number of layers
         Inputs:
             -d: latent dimension
         """
-        # Input size: 64x64
         encoder = nn.Sequential(
-            # Convolutional layers - args: in_channels, out_channels, kernel_size, stride, padding
-            nn.Conv2d(
-                3, 32, 4, 2, 1
-            ),  # example of how your encoder could start - you may want to change this
-            nn.ReLU(True),
-            # Fill in
-            nn.Conv2d(32, 64, 4, 1, 1),
-            # nn.ReLU(True),
+            nn.Conv2d(1, 8, 3, 1, 1),
+            nn.ReLU(),
+            nn.Conv2d(8, 32, 7, 3, 0),  # 32, 8, 8
+            nn.ReLU(),
+            nn.Conv2d(32, 64, 3, 1, 1),
+            nn.BatchNorm2d(64),
+            nn.ReLU(),
+            nn.Conv2d(64, 128, 5, 3, 0),  # 128, 2, 2
             # Flatten images
-            nn.Flatten(start_dim=1),
+            View((-1, 128 * 2 * 2)),
             # Linear layers
-            # Fill in
-            nn.Linear(64 * 31 * 31, 1024),
-            nn.Linear(1024, 512),
-            # nn.Linear(512, 128),
+            nn.Linear(128 * 2 * 2, 16),
+            nn.ReLU(),
         )
 
-        encoder_mean = nn.Linear(512, d)
-        encoder_lv = nn.Linear(512, d)
+        encoder_mean = nn.Linear(16, latent_dim)
+        encoder_lv = nn.Linear(16, latent_dim)
 
         decoder = nn.Sequential(
-            # Linear layers
-            # Fill in
-            nn.Linear(d, 512),
-            # nn.Linear(128, 512),
-            nn.Linear(512, 1024),
-            # nn.Linear(1024, 32*32*32),
-            nn.Linear(1024, 64 * 31 * 31),
-            # Reshape images
-            # View((-1, 32, 32, 32)), # args should be (-1, num_channels, n, n) where you want to resize to images of dimension nxn
-            View((-1, 64, 31, 31)),
+            nn.Linear(latent_dim, 128 * 2 * 2),
+            View((-1, 128, 2, 2)),
             # Transposed convolution layers - args: in_channels, out_channels, kernel_size, stride, padding
-            # Fill in - make sure the output size is 64x64. Do not pass your final output through any activation functions
-            nn.ConvTranspose2d(64, 32, 4, 1, 1),
-            nn.ReLU(True),
-            nn.ConvTranspose2d(32, 3, 4, 2, 1),
-            # nn.Linear(128, 64)
+            nn.ConvTranspose2d(128, 64, 5, 3, 0),
+            nn.ReLU(),
+            nn.Conv2d(64, 32, 3, 1, 1),
+            nn.BatchNorm2d(32),
+            nn.ReLU(),
+            nn.ConvTranspose2d(32, 8, 7, 3, 0),
+            nn.ReLU(),
+            nn.Conv2d(8, 1, 3, 1, 1),
         )
 
         return encoder, decoder, encoder_mean, encoder_lv
 
-    def encode(self, x):
+    def encode(self, x: Tensor):
         """take an image, and return latent space mean + log variance
         Inputs:
             -images, x
@@ -200,10 +192,10 @@ class CVAE(nn.Module):
             -means in latent dimension
             -logvariances in latent dimension
         """
-        h1 = self.encoder(x)
-        return self.encoder_mean(h1), self.encoder_lv(h1)
+        h = self.encoder(x)
+        return self.encoder_mean(h), self.encoder_lv(h)
 
-    def reparametrise(self, mu, logvar):
+    def reparametrise(self, mu: Tensor, logvar: Tensor):
         """Sample in latent space according to mean and logvariance
         Inputs:
             -mu: batch of means
@@ -211,10 +203,12 @@ class CVAE(nn.Module):
         Outputs:
             -samples: batch of latent samples
         """
-        samples = mu + torch.exp(logvar) * torch.normal(torch.zeros(mu.shape), std=1.0)
+        samples = mu + torch.exp(0.5 * logvar) * torch.normal(
+            torch.zeros(mu.shape), std=1.0
+        )
         return samples
 
-    def decode(self, z):
+    def decode(self, z: Tensor):
         """Decode latent space samples
         Inputs:
             -z: batch of latent samples
@@ -227,7 +221,7 @@ class CVAE(nn.Module):
         )  # pass raw output through sigmoid activation function
         return x_recon
 
-    def forward(self, x):
+    def forward(self, x: Tensor):
         """Do full encode and decode of images
         Inputs:
             - x: batch of images
