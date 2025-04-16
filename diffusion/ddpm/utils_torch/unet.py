@@ -80,7 +80,7 @@ class Unet(nn.Module):
         ups = downs[::-1]
         in_out = list(zip(downs[:-1], downs[1:]))
         self.time_emb_dim = time_emb_dim
-
+        self.channels = channels
         self.pos_emb = nn.Sequential(
             SinusoidalPositionEmbeddings(dim=time_emb_dim),
             nn.Linear(time_emb_dim, 4 * time_emb_dim),
@@ -356,7 +356,7 @@ class LitUnet(L.LightningModule):
 
             samp = sample(
                 self.unet,
-                (16, 1, self.img_size, self.img_size),
+                (16, self.unet.channels, self.img_size, self.img_size),
                 self.T,
                 self.betas,
                 self.alphas_cumprod,

@@ -12,6 +12,10 @@
 python -m run_lit_unet
 ```
 
+**Sample**
+
+<img src="generated_sample.gif" width="510" >
+
 **Derivation of the sampling process**
 
 The notations are taken from :
