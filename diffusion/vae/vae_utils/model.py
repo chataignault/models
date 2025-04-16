@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 
 
 class VAE(nn.Module):
-    def __init__(self, latent_dim: int = 2, input_dim: int = 784):
+    def __init__(self, latent_dim: int = 2, input_dim: int = 784, depth: int = 3):
         """builds VAE
         Inputs:
             - latent_dim: dimension of latent space
@@ -15,18 +15,33 @@ class VAE(nn.Module):
         self.latent_dim = latent_dim
         self.relu = nn.ReLU()
 
+        dim_step = (input_dim - latent_dim) // depth
+        self.encoder_dimensions = [input_dim - dim_step * k for k in range(depth)]
+
         # Encoder layers
-        self.fc1 = nn.Linear(input_dim, 512)
-        self.fc2 = nn.Linear(512, 256)
-        self.fc3 = nn.Linear(256, 64)
-        self.encoder_mean = nn.Linear(64, latent_dim)
-        self.encoder_logvar = nn.Linear(64, latent_dim)
+        self.encoder = nn.ModuleList([])
+        for d, d_next in zip(self.encoder_dimensions[:-1], self.encoder_dimensions[1:]):
+            self.encoder.append(nn.ModuleList([nn.Linear(d, d_next), nn.ReLU()]))
+
+        self.encoder_mean = nn.Linear(self.encoder_dimensions[-1], latent_dim)
+        self.encoder_logvar = nn.Linear(self.encoder_dimensions[-1], latent_dim)
 
         # Decoder layers
-        self.fc4 = nn.Linear(latent_dim, 64)
-        self.fc5 = nn.Linear(64, 256)
-        self.fc6 = nn.Linear(256, 512)
-        self.fc7 = nn.Linear(512, input_dim)
+        self.decoder = nn.ModuleList(
+            [
+                nn.ModuleList(
+                    [nn.Linear(latent_dim, self.encoder_dimensions[-1]), nn.ReLU()]
+                )
+            ]
+        )
+        for d, d_next in zip(
+            self.encoder_dimensions[:0:-1], self.encoder_dimensions[-2::-1]
+        ):
+            is_last = d_next == self.encoder_dimensions[0]
+            if is_last:
+                self.decoder.append(nn.ModuleList([nn.Linear(d, d_next), nn.Sigmoid()]))
+            else:
+                self.decoder.append(nn.ModuleList([nn.Linear(d, d_next), nn.ReLU()]))
 
     def encode(self, x):
         """take an image, and return latent space mean and log variance
@@ -36,9 +51,8 @@ class VAE(nn.Module):
             -means in latent dimension
             -logvariances in latent dimension
         """
-        x = self.relu(self.fc1(x))
-        x = self.relu(self.fc2(x))
-        x = self.relu(self.fc3(x))
+        for lin, relu in self.encoder:
+            x = relu(lin(x))
         return self.encoder_mean(x), self.encoder_logvar(x)
 
     def reparametrise(self, mu: Tensor, logvar: Tensor):
@@ -49,8 +63,8 @@ class VAE(nn.Module):
         Outputs:
             -samples: batch of latent samples
         """
-        var = torch.exp(logvar)
-        samples = mu + torch.sqrt(var) * torch.normal(torch.zeros(mu.shape), std=1.0)
+        std = torch.exp(0.5 * logvar)
+        samples = mu + std * torch.normal(torch.zeros(mu.shape), std=1.0)
         return samples
 
     def decode(self, z: Tensor):
@@ -60,12 +74,9 @@ class VAE(nn.Module):
         Outputs:
             -x_recon: batch of reconstructed images
         """
-        x_recon = self.relu(self.fc4(z))
-        x_recon = self.relu(self.fc5(x_recon))
-        x_recon = self.relu(self.fc6(x_recon))
-        x_recon = self.fc7(x_recon)
-        x_recon = torch.sigmoid(x_recon)
-        return x_recon
+        for lin, relu_or_sig in self.decoder:
+            z = relu_or_sig(lin(z))
+        return z
 
     def forward(self, x):
         """Do full encode and decode of images
