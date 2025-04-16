@@ -71,10 +71,10 @@ def ELBO_loss(
     # KL divergence term
     var = torch.exp(logvar)
     KL_divergence = 0.5 * (
-        torch.clamp(torch.sum(logvar), min=0.0) + torch.sum(var) + torch.sum(mu**2)
+        torch.clamp(torch.sum(logvar), min=0.0) - torch.sum(var) - torch.sum(mu**2)
     ).div(x.size(0))
 
-    loss = neg_loglikelihood + KL_divergence
+    loss = neg_loglikelihood - KL_divergence
 
     return neg_loglikelihood, KL_divergence, loss
 
