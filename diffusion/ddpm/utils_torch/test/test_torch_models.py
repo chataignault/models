@@ -21,7 +21,7 @@ def test_unet_forward(b: int, c: int, d: int):
 def test_simple_unet_forward(b: int, c: int, d: int):
     s = (b, c, d, d)
 
-    unet = SimpleUnet(down_channels=[16, 32, 64], channels=c)
+    unet = SimpleUnet(downs=[16, 32, 64], channels=c)
 
     t = torch.zeros(b)
     x = torch.zeros(s)
