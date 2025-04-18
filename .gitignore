@@ -10,7 +10,10 @@ log
 data
 target
 debug
-MNIST/
+MNIST
+.todos
+FashionMNIST
+mlruns
 
 *.ipynb
 *.csv
