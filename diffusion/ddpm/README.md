@@ -15,6 +15,7 @@ python -m run_lit_unet
 **Sample**
 
 <img src="generated_sample.gif" width="510" >
+<img src="generated_CIFAR10.png" width="510" >
 
 **Derivation of the sampling process**
 

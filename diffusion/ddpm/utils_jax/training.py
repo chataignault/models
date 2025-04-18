@@ -52,7 +52,7 @@ def create_train_state(rng, model, learning_rate_fn, train: bool):
     # )
     rng, rng_init = random.split(rng)
     variables = model.init(
-        rng_init, jnp.ones([1, 28, 28, 1]), jnp.ones([1]), train=train
+        rng_init, jnp.ones([1, 28, 28, model.channels]), jnp.ones([1]), train=train
     )
     params = variables["params"]
     batch_stats = variables["batch_stats"]
