@@ -36,9 +36,10 @@ class UNetBlock(nn.Module):
     @nn.compact
     def __call__(self, x, train: bool):
         x = nn.Conv(self.out_ch, (3, 3), padding="SAME")(x)
-        x = nn.relu(x)
         x = nn.BatchNorm(use_running_average=not train)(x)
+        x = nn.relu(x)
         x = nn.Conv(self.out_ch, (3, 3), padding="SAME")(x)
+        x = nn.BatchNorm(use_running_average=not train)(x)
         x = nn.relu(x)
         return x
 
@@ -65,15 +66,21 @@ class BlockAttention(nn.Module):
 
 
 class UNet(nn.Module):
+    channels: int
+
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
         shape = x.shape
-        t = SinusoidalPositionEmbeddings(shape[1] * shape[2])(t)
-        t = t.reshape((shape[0], shape[1], shape[2], 1))
-        x = x + t
+        t = SinusoidalPositionEmbeddings(shape[0])(t)
+        t = nn.Dense(1)(t).reshape(len(t))
+        # t = t.reshape((shape[0], shape[1], shape[2], 1))
+        x = x + t[:, None, None, None]
+
+        # initial convolution
+        x = nn.Conv(8, (5, 5), padding="SAME")(x)
 
         # Downsampling path
-        x1 = UNetBlock(1, 16)(x, train)
+        x1 = UNetBlock(8, 16)(x, train)
         p1 = nn.max_pool(x1, (2, 2), strides=(2, 2))
 
         x2 = UNetBlock(16, 32)(p1, train)
@@ -83,7 +90,8 @@ class UNet(nn.Module):
         p3 = nn.max_pool(x3, (2, 2), strides=(2, 2))
 
         # Bottleneck
-        b = UNetBlock(64, 64)(p3, train)
+        b = UNetBlock(64, 64)(p3, train) + p3
+        b = UNetBlock(64, 64)(b, train) + b
 
         # Upsampling path
         u3 = nn.ConvTranspose(64, (2, 2), strides=(2, 2))(b)
@@ -101,7 +109,10 @@ class UNet(nn.Module):
         c1 = jnp.concatenate([u1, x1], axis=-1)
         x1 = UNetBlock(32, 16)(c1, train)
 
-        out = UNetBlock(16, 1)(x1, train)
+        out = UNetBlock(16, 8)(x1, train)
+
+        # out convolution
+        out = nn.Conv(self.channels, (1, 1))(x)
 
         return out
 
@@ -186,9 +197,3 @@ class UNetAttention(nn.Module):
         out = nn.Conv(1, 1)(x1)
 
         return out
-
-
-if __name__ == "__main__":
-    unet = UNet()
-
-    print(unet)
