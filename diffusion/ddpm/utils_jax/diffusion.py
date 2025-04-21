@@ -141,7 +141,7 @@ def sample(
     posterior_log_variance_clipped = jnp.log(jnp.clip(posterior_variance, min=1e-20))
 
     for i in tqdm(
-        reversed(range(1, T)), desc="sampling loop time step", total=T
+        reversed(range(T)), desc="sampling loop time step", total=T
     ):  # range started at 0
         t = jnp.ones((b,), dtype=jnp.float32) * i
         img = sample_timestep(
