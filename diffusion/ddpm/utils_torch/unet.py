@@ -93,8 +93,8 @@ class Unet(nn.Module):
         self.downsampling = ModuleList([])
         self.upsampling = ModuleList([])
 
-        for in_dim, out_dim in in_out:
-            is_last = out_dim == downs[-1]
+        for i, (in_dim, out_dim) in enumerate(in_out):
+            is_last = i == len(in_out) - 1
             self.downsampling.append(
                 ModuleList(
                     [
@@ -112,8 +112,8 @@ class Unet(nn.Module):
         self.attention_int = LinearAttention(downs[-1], heads=n_heads)
         self.resint2 = ResnetBlock(downs[-1], downs[-1], 4 * time_emb_dim)
 
-        for in_dim, out_dim in in_out[::-1]:
-            is_last = in_dim == ups[-1]
+        for i, (in_dim, out_dim) in enumerate(in_out[::-1]):
+            is_last = i == len(in_out) - 1
             self.upsampling.append(
                 ModuleList(
                     [
@@ -352,7 +352,7 @@ class LitUnet(L.LightningModule):
         self.writer.add_scalar("Loss 500", self.timestep_losses[500], self.global_step)
         self.writer.add_scalar("Loss 850", self.timestep_losses[850], self.global_step)
 
-        if self.global_step % 500 == 0 and self.global_step > 0:
+        if self.global_step % 1000 == 0 and self.global_step > 0:
             self.unet.eval()
 
             samp = sample(
