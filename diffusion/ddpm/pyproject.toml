@@ -5,13 +5,9 @@ description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
     "datasets>=3.5.0",
-    "einops>=0.8.1",
-    "gdown>=5.2.0",
-    "lightning>=2.5.1",
     "matplotlib>=3.10.1",
     "numpy>=2.2.4",
     "rich>=14.0.0",
-    "tensorboard>=2.19.0",
     "torch>=2.6.0",
     "torchvision>=0.21.0",
 ]
@@ -22,9 +18,15 @@ dev = [
     "pytest>=8.3.5",
 ]
 jax = [
+    "jax[cuda12]>=0.5.3",
     "flax>=0.10.5",
-    "jax>=0.6.0",
     "orbax>=0.1.9",
+]
+torch = [
+    "gdown>=5.2.0",
+    "einops>=0.8.1",
+    "tensorboard>=2.19.0",
+    "lightning>=2.5.1",
 ]
 
 [tool.uv.sources]
