@@ -64,7 +64,7 @@ class XMNISTDataset(Dataset):
             name: name of the HuggingFace dataset
             transform (callable, optional): Optional transform to be applied on images
         """
-        dsd = load_dataset(name, num_proc=4)
+        dsd = load_dataset(name.value, num_proc=4)
         self.data = dsd["train"]["image"] + dsd["test"]["image"]
         self.transform = transform
 

@@ -17,7 +17,7 @@ def get_index_from_list(vals, t, x_shape):
 
 def linear_beta_schedule(
     timesteps: int, start: float = 1e-4, end: float = 2e-2
-) -> jnp.arary:
+) -> jnp.array:
     return jnp.linspace(start=start, end=end, num=timesteps)
 
 

@@ -70,11 +70,12 @@ class UNet(nn.Module):
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
-        shape = x.shape
-        t = SinusoidalPositionEmbeddings(shape[0])(t)
-        t = nn.Dense(1)(t).reshape(len(t))
+        # shape = x.shape
+        t = SinusoidalPositionEmbeddings(16)(t)
+        t = nn.Dense(32)(t) #.reshape(len(t))
+        t = nn.Dense(self.channels)(nn.relu(t))
         # t = t.reshape((shape[0], shape[1], shape[2], 1))
-        x = x + t[:, None, None, None]
+        x = x + t[:, :, None, None]
 
         # initial convolution
         x = nn.Conv(8, (5, 5), padding="SAME")(x)
@@ -118,6 +119,7 @@ class UNet(nn.Module):
 
 
 class UNetConv(nn.Module):
+    channels: int
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
         shape = x.shape
