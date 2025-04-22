@@ -115,10 +115,9 @@ if __name__ == "__main__":
             optimizer=torch.optim.Adam(vae.parameters(), lr=lr)
             if not lion_optimizer
             else Lion(vae.parameters(), lr=lr, weight_decay=1e-2),
-            criterion=partial(ELBO_loss, continuous_bernoulli=cb),
+            criterion=partial(ELBO_loss, continuous_bernoulli=cb, beta=beta),
             dataloader=trainloader,
             device=device,
-            beta=beta,
         )
         mlflow.pytorch.log_model(vae, "vae")
 
