@@ -8,8 +8,8 @@ Toy implementation of Variational Autoencoder for image generation.
 ![image](img/vae_mnist.png)
 
 TODO :
-- [ ] Compare CVAE
-- [ ] Scale to other dataset
+- [x] Compare CVAE
+- [x] Scale to other dataset
 
 ```bibtex
 @article{loaiza2019continuous,
@@ -20,3 +20,14 @@ TODO :
   year={2019}
 }
 ```
+
+```bibtex
+@article{weng2018VAE,
+  title   = "From Autoencoder to Beta-VAE",
+  author  = "Weng, Lilian",
+  journal = "lilianweng.github.io",
+  year    = "2018",
+  url     = "https://lilianweng.github.io/posts/2018-08-12-vae/"
+}
+```
+

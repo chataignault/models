@@ -30,6 +30,12 @@ if __name__ == "__main__":
     parser.add_argument("--depth", type=int, default=2)
     parser.add_argument("--nepoch", type=int, default=30)
     parser.add_argument("--lr", type=float, default=5e-4)
+    parser.add_argument(
+        "--beta",
+        type=float,
+        default=1.0,
+        help="parameter referring to beta-VAE for disentangling the latent space",
+    )
     parser.add_argument("--device", type=str, default="cuda")
     parser.add_argument("--dataset", type=str, default="mnist")
     parser.add_argument("--save", action="store_true")
@@ -49,6 +55,7 @@ if __name__ == "__main__":
     depth = args.depth
     nepoch = args.nepoch
     lr = args.lr
+    beta = args.beta
     device = args.device
     cb = args.cb
     dataset = args.dataset
@@ -111,6 +118,7 @@ if __name__ == "__main__":
             criterion=partial(ELBO_loss, continuous_bernoulli=cb),
             dataloader=trainloader,
             device=device,
+            beta=beta,
         )
         mlflow.pytorch.log_model(vae, "vae")
 

@@ -42,6 +42,7 @@ def ELBO_loss(
     logvar: Tensor,
     continuous_bernoulli: bool = False,
     eps: float = 1e-5,
+    beta: float = 1.0,
 ) -> Tensor:
     """
     calculates ELBO loss
@@ -74,7 +75,7 @@ def ELBO_loss(
         torch.clamp(torch.sum(logvar), min=0.0) - torch.sum(var) - torch.sum(mu**2)
     ).div(x.size(0))
 
-    loss = neg_loglikelihood - KL_divergence
+    loss = neg_loglikelihood + beta * KL_divergence
 
     return neg_loglikelihood, KL_divergence, loss
 
