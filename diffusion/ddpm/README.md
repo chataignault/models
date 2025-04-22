@@ -12,6 +12,11 @@
 python -m run_lit_unet
 ```
 
+**Sample**
+
+<img src="img/generated_fMNIST.gif" width="510" >
+<img src="img/generated_CIFAR10.gif" width="510" >
+
 **Derivation of the sampling process**
 
 The notations are taken from :
