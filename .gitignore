@@ -11,6 +11,7 @@ data
 target
 debug
 MNIST
+.vscode
 .todos
 FashionMNIST
 mlruns
