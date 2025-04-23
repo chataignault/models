@@ -1,10 +1,61 @@
 import os
+import mlflow
 import torch
 from torch import nn, Tensor
 from matplotlib import pyplot as plt
+from abc import ABCMeta
 
 
-class VAE(nn.Module):
+class VAEBase(nn.Module, ABCMeta):
+    def __init__(self, dim: int, latent_dim: int):
+        self.__super__().__init__()
+        self.latent_dim = latent_dim
+
+    def encode(self, x):
+        NotImplemented
+
+    def decode(self, z):
+        NotImplemented
+
+    def reparametrise(self, mu: Tensor, logvar: Tensor):
+        NotImplemented
+
+    def forward(self, x):
+        NotImplemented
+
+    def sample_images(self, num_im: int, path: str, name: str):
+        n_cols = 5
+        latent_dim = self.latent_dim
+        # sample latent variables from p(z)
+        mu_batch, logvar_batch = (
+            0.0 * torch.ones((num_im, latent_dim)),
+            1.0 * torch.ones((num_im, latent_dim)),
+        )
+        z = self.reparametrise(mu_batch, logvar_batch)
+
+        # pass latent variables through the decoder
+        output = self.decode(z)
+
+        # reshape output of model into 28x28
+        images = output.reshape((num_im, 28, 28))
+
+        # plot images
+        fig, axs = plt.subplots(nrows=num_im // n_cols, ncols=n_cols)
+        for i in range(num_im):
+            r, c = i // n_cols, i % n_cols
+            image = images[i]
+            axs[r, c].imshow(image.detach().cpu().numpy(), cmap="gray")
+            axs[r, c].axis("off")
+
+        plt.tight_layout()
+        img_name = f"vae_{name}.png"
+        fig.savefig(os.path.join(path, img_name))
+        mlflow.log_artifacts(img_name, path)
+        mlflow.log_image(fig)
+        plt.show()
+
+
+class VAE(VAEBase):
     def __init__(self, latent_dim: int = 2, input_dim: int = 784, depth: int = 3):
         """builds VAE
         Inputs:
@@ -92,35 +143,6 @@ class VAE(nn.Module):
         return self.decode(z), mu, logvar
 
 
-def sample_images(model: VAE, num_im: int, path: str, name: str):
-    n_cols = 5
-    latent_dim = model.latent_dim
-    # sample latent variables from p(z)
-    mu_batch, logvar_batch = (
-        0.0 * torch.ones((num_im, latent_dim)),
-        1.0 * torch.ones((num_im, latent_dim)),
-    )
-    z = model.reparametrise(mu_batch, logvar_batch)
-
-    # pass latent variables through the decoder
-    output = model.decode(z)
-
-    # reshape output of model into 28x28
-    images = output.reshape((num_im, 28, 28))
-
-    # plot images
-    fig, axs = plt.subplots(nrows=num_im // n_cols, ncols=n_cols)
-    for i in range(num_im):
-        r, c = i // n_cols, i % n_cols
-        image = images[i]
-        axs[r, c].imshow(image.detach().cpu().numpy(), cmap="gray")
-        axs[r, c].axis("off")
-
-    plt.tight_layout()
-    fig.savefig(os.path.join(path, f"vae_{name}.png"))
-    plt.show()
-
-
 # We will use nn.Sequential to build the encoders and decoders - we will use the View class to resize the images
 class View(nn.Module):
     def __init__(self, size):
@@ -131,7 +153,7 @@ class View(nn.Module):
         return x.view(self.size)  # used to resize tensor to self.size
 
 
-class CVAE(nn.Module):
+class CVAE(VAEBase):
     def __init__(self, latent_dim=20):
         """builds VAE
         Inputs:
