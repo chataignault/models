@@ -3,7 +3,6 @@ import datetime as dt
 import torch
 from torch.optim import Adam
 from torch.optim.lr_scheduler import (
-    LinearLR,
     ConstantLR,
     ExponentialLR,
     SequentialLR,
@@ -40,7 +39,7 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--down_channels", nargs="+", type=int, default=[8, 16, 32])
+    parser.add_argument("--downs", nargs="+", type=int, default=[8, 16, 32])
     parser.add_argument("--time_emb_dim", type=int, default=4)
     parser.add_argument(
         "--zero_pad",
@@ -59,7 +58,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger.info(f"{args}")
 
-    down_channels = args.down_channels
+    downs = args.downs
     time_emb_dim = args.time_emb_dim
     zero_pad_images = args.zero_pad
     device = args.device
@@ -89,13 +88,9 @@ if __name__ == "__main__":
 
     match model_name:
         case "Unet":
-            unet = Unet(down_channels=down_channels, time_emb_dim=time_emb_dim).to(
-                device
-            )
+            unet = Unet(downs=downs, time_emb_dim=time_emb_dim).to(device)
         case "SimpleUnet":
-            unet = SimpleUnet(
-                down_channels=down_channels, time_emb_dim=time_emb_dim
-            ).to(device)
+            unet = SimpleUnet(downs=downs, time_emb_dim=time_emb_dim).to(device)
         case _:
             raise ValueError(f"{model_name} is not implemented")
 
@@ -133,7 +128,7 @@ if __name__ == "__main__":
     for epoch in range(nepochs):
         pbar_batch = tqdm(enumerate(dataloader), total=len(dataloader), leave=True)
         for k, x in pbar_batch:
-            x = x["pixel_values"].to(self.dev)
+            x = x["pixel_values"].to(device)
             timestep = torch.randint(1, T, (x.shape[0],))
             optimiser.zero_grad()
             lr_history.append(optimiser.param_groups[0]["lr"])

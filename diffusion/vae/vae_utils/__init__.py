@@ -1,2 +1,2 @@
-from .model import VAE, sample_images
+from .model import VAE, CVAE, sample_images
 from .training import ELBO_loss, train

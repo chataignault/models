@@ -3,6 +3,7 @@ from torch import Tensor
 from torch.nn import functional as F
 import numpy as np
 from rich import print
+import mlflow
 
 
 def arctanh(x: Tensor) -> Tensor:
@@ -54,7 +55,7 @@ def ELBO_loss(
         - KL_divergence: average value of KL divergence term across batch
         - loss: average ELBO loss across batch
     """
-    x = torch.clamp(x.view(-1, 784), eps, 1.0 - eps)
+    x = torch.clamp(x, eps, 1.0 - eps)
     reconstructed_x = torch.clamp(reconstructed_x, eps, 1.0 - eps)
 
     neg_loglikelihood = -1 * (
@@ -70,10 +71,10 @@ def ELBO_loss(
     # KL divergence term
     var = torch.exp(logvar)
     KL_divergence = 0.5 * (
-        torch.clamp(torch.sum(logvar), min=0.0) + torch.sum(var) + torch.sum(mu**2)
+        torch.clamp(torch.sum(logvar), min=0.0) - torch.sum(var) - torch.sum(mu**2)
     ).div(x.size(0))
 
-    loss = neg_loglikelihood + KL_divergence
+    loss = neg_loglikelihood - KL_divergence
 
     return neg_loglikelihood, KL_divergence, loss
 
@@ -91,9 +92,7 @@ def ELBO_loss_Gaussian(x, reconstructed_x, mu, logvar):
         - KL_divergence: average value of KL divergence term across batch
         - loss: average ELBO loss across batch
     """
-    neg_loglikelihood = F.mse_loss(
-        reconstructed_x, x
-    )  # torch.linalg.norm(x - reconstructed_x)**2
+    neg_loglikelihood = F.mse_loss(reconstructed_x, x)
     var = torch.exp(logvar)
     KL_divergence = 0.5 * (
         torch.clamp(torch.sum(logvar), min=0.0) + torch.sum(var) + torch.sum(mu**2)
@@ -105,9 +104,11 @@ def ELBO_loss_Gaussian(x, reconstructed_x, mu, logvar):
 def train(
     model, nr_epochs, optimizer, criterion, dataloader, device: str, has_labels=True
 ):
+    total_step = 0
     for epoch in range(nr_epochs):
         # iterate through batches
         for i, data in enumerate(dataloader, 0):
+            total_step += 1
             # get inputs
             if has_labels == True:
                 # get the inputs if data is a list of [inputs, labels]
@@ -123,7 +124,15 @@ def train(
             reconstructed_images, mu, logvar = model(images)
             # Compute the loss value
             neg_loglikelihood, KL_divergence, loss = criterion(
-                images, reconstructed_images, mu, logvar
+                images.view(-1, 784), reconstructed_images.view(-1, 784), mu, logvar
+            )
+            mlflow.log_metrics(
+                {
+                    "loss": loss.cpu().detach().item(),
+                    "neg_logl": neg_loglikelihood.cpu().detach().item(),
+                    "kl_div": KL_divergence.cpu().detach().item(),
+                },
+                step=total_step,
             )
             # Compute the gradients
             loss.backward()
@@ -133,7 +142,7 @@ def train(
         # print results for last batch
         print(
             f"Epoch: {epoch:03} | "
-            f"ELBO loss: {np.round(loss.cpu().detach().numpy(), decimals=3)} | "
-            f"KL divergence: {np.round(KL_divergence.cpu().detach().numpy(), decimals=3)} | "
-            f"Negative log-likelihood: {np.round(neg_loglikelihood.cpu().detach().numpy(), decimals=2)}"
+            f"ELBO loss: {np.round(loss.cpu().detach().numpy().item(), decimals=3)} | "
+            f"KL divergence: {np.round(KL_divergence.cpu().detach().numpy().item(), decimals=3)} | "
+            f"Negative log-likelihood: {np.round(neg_loglikelihood.cpu().detach().numpy().item(), decimals=2)}"
         )

@@ -1,7 +1,7 @@
 import numpy as np
 from tqdm import tqdm
 from enum import Enum
-from typing import Tuple, List
+from typing import Tuple, List, Optional
 import torch
 from torch import Tensor
 from torch.nn import Module
@@ -164,6 +164,8 @@ def sample(
     alphas_cumprod_prev: Tensor,
     posterior_variance: Tensor,
     pseudo_video: bool = False,
+    img: Optional[Tensor] = None,
+    t_inter: int = 0,
 ) -> List[Tensor]:
     b = shape[0]
     device = next(model.parameters()).device
@@ -178,20 +180,22 @@ def sample(
     posterior_log_variance_clipped = torch.log(posterior_variance.clamp(min=1e-20))
 
     # start from pure noise (for each example in the batch)
-    img = torch.randn(
-        shape,
-        device=device,
-    )
+    # unless intermediate image is provided
+    if img is None:
+        img = torch.randn(
+            shape,
+            device=device,
+        )
     imgs = []
-    for i in tqdm(
-        reversed(range(1, T)), desc="sampling loop time step", total=T
+    for step in tqdm(
+        reversed(range(t_inter, T)), desc="sampling loop time step", total=T - t_inter
     ):  # range started at 0
-        t = torch.full((b,), i, device=device, dtype=torch.long)
+        t = torch.full((b,), step, device=device, dtype=torch.long)
         img = sample_timestep(
             model,
             img,
             t,
-            i,
+            step,
             posterior_variance,
             posterior_mean_coef1=posterior_mean_coef1,
             posterior_mean_coef2=posterior_mean_coef2,
