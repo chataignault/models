@@ -4,11 +4,11 @@ import shutil
 import torch
 import datetime as dt
 import orbax.checkpoint
+from jax import random
+import jax.numpy as jnp
+from flax.training import orbax_utils
 from tqdm import tqdm
 from argparse import ArgumentParser
-from jax import random
-from flax.training import orbax_utils
-import jax.numpy as jnp
 from matplotlib import pyplot as plt
 
 from utils_jax.classes import UNetConv, UNet
@@ -70,7 +70,7 @@ if __name__ == "__main__":
     alphas_cumprod = jnp.cumprod(alphas, -1)
     alphas_cumprod_prev = jnp.pad(
         alphas_cumprod[:-1], pad_width=(1, 0), mode="constant", constant_values=1.0
-    )  # ! check
+    )
     sqrt_alphas_cumprod = jnp.sqrt(alphas_cumprod)
     sqrt_one_minus_alphas_cumprod = jnp.sqrt(1.0 - alphas_cumprod)
     posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
@@ -79,13 +79,9 @@ if __name__ == "__main__":
     dataloader = get_dataloader(BATCH_SIZE, device, Data.fashion_mnist)
 
     if model_name == "UNet":
-        unet = UNet(
-            channels=channels
-        )
+        unet = UNet(channels=channels)
     elif model_name == "UNetConv":
-        unet = UNetConv(
-            channels=channels
-        )
+        unet = UNetConv(channels=channels)
     else:
         NotImplemented
     rng = random.PRNGKey(0)
@@ -126,7 +122,7 @@ if __name__ == "__main__":
 
             # channel last
             x = jnp.permute_dims(batch.numpy().astype(jnp.float32), (0, 2, 3, 1))
-            
+
             state, train_loss, lr = train_step(
                 state, x, diff_params, rng_train_batch, learning_rate_fn
             )

@@ -70,12 +70,11 @@ class UNet(nn.Module):
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
-        # shape = x.shape
         t = SinusoidalPositionEmbeddings(16)(t)
-        t = nn.Dense(32)(t) #.reshape(len(t))
+        t = nn.Dense(32)(t)
         t = nn.Dense(self.channels)(nn.relu(t))
-        # t = t.reshape((shape[0], shape[1], shape[2], 1))
-        x = x + t[:, :, None, None]
+
+        x = x + jnp.permute_dims(t[:, :, None, None], (0, 2, 3, 1))
 
         # initial convolution
         x = nn.Conv(8, (5, 5), padding="SAME")(x)
@@ -120,21 +119,26 @@ class UNet(nn.Module):
 
 class UNetConv(nn.Module):
     channels: int
+
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
-        shape = x.shape
-        t = SinusoidalPositionEmbeddings(shape[1] * shape[2])(t)
-        t = t.reshape((shape[0], shape[1], shape[2], 1))
-        x = x + t
+        t = SinusoidalPositionEmbeddings(16)(t)
+        t = nn.Dense(32)(t)
+        t = nn.Dense(self.channels)(nn.relu(t))
+
+        x = x + jnp.permute_dims(t[:, :, None, None], (0, 2, 3, 1))
+
         # Downsampling path
-        x1 = UNetBlock(1, 16)(x, train)
-        p1 = nn.Conv(16, (4, 4), 2, 1)(x1)
+        x1 = UNetBlock(self.channels, 16)(x, train)
+        # p1 = nn.Conv(16, (2, 2), strides=(2, 2))(x1)
+        p1 = nn.max_pool(x1, (2, 2), strides=(2, 2))
 
         x2 = UNetBlock(16, 32)(p1, train)
         p2 = nn.max_pool(x2, (2, 2), strides=(2, 2), padding=((1, 1), (1, 1)))
 
         x3 = UNetBlock(32, 64)(p2, train)
-        p3 = nn.Conv(64, (4, 4), 2, 1)(x3)
+        # p3 = nn.Conv(64, (4, 4), 2, 1)(x3)
+        p3 = nn.max_pool(x3, (2, 2), strides=(2, 2))
 
         # Bottleneck
         b = UNetBlock(64, 64)(p3, train)
@@ -155,21 +159,26 @@ class UNetConv(nn.Module):
         c1 = jnp.concatenate([u1, x1], axis=-1)
         x1 = UNetBlock(32, 16)(c1, train)
 
-        out = UNetBlock(16, 1)(x1, train)
+        out = UNetBlock(16, self.channels)(x1, train)
 
         return out
 
 
 class UNetAttention(nn.Module):
+    channels: int
+
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
-        shape = x.shape
-        t = SinusoidalPositionEmbeddings(shape[1] * shape[2])(t)
-        t = t.reshape((shape[0], shape[1], shape[2], 1))
-        x = x + t
+        t = SinusoidalPositionEmbeddings(16)(t)
+        t = nn.Dense(32)(t)
+        t = nn.Dense(self.channels)(nn.relu(t))
+
+        x = x + jnp.permute_dims(t[:, :, None, None], (0, 2, 3, 1))
+
         # Downsampling path
-        x1 = BlockAttention(1, 16, 1)(x, train)
-        p1 = nn.max_pool(x1, (2, 2), strides=(2, 2))
+        x1 = BlockAttention(self.channels, 16, 1)(x, train)
+        # p1 = nn.max_pool(x1, (2, 2), strides=(2, 2))
+        p1 = nn.Conv(16, (2, 2), strides=(2, 2))(x1)
 
         x2 = BlockAttention(16, 32, 2)(p1, train)
         p2 = nn.max_pool(x2, (2, 2), strides=(2, 2), padding=((1, 1), (1, 1)))
@@ -196,6 +205,6 @@ class UNetAttention(nn.Module):
         c1 = jnp.concatenate([u1, x1], axis=-1)
         x1 = BlockAttention(32, 16, 1)(c1, train)
 
-        out = nn.Conv(1, 1)(x1)
+        out = nn.Conv(self.channels, kernel_size=1)(x1)
 
         return out
