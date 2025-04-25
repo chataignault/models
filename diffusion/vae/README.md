@@ -2,10 +2,14 @@
 
 Toy implementation of Variational Autoencoder for image generation.
 
-- Visualize the impact of using the Continuous Bernoulli distribution over Bernoulli for the MNIST dataset
+- Visualize the impact of using the Continuous Bernoulli distribution over Bernoulli for the MNIST dataset :
 
+Original :
+![image](img/vae_2d_latent_representation.png)
 
-![image](img/vae_mnist.png)
+With Continuous Bernoulli correction :
+![image](img/vae_2d_latent_representation_continuous_bernoulli.png)
+
 
 TODO :
 - [x] Compare CVAE
