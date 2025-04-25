@@ -60,7 +60,7 @@ def ELBO_loss(
     reconstructed_x = torch.clamp(reconstructed_x, eps, 1.0 - eps)
 
     neg_loglikelihood = -1 * (
-        x * torch.log(reconstructed_x) + (1 - x) * torch.log(1.0 - reconstructed_x)
+        x * torch.log(reconstructed_x) + (1.0 - x) * torch.log(1.0 - reconstructed_x)
     )
 
     # continuous bernoulli normalizing constant
@@ -71,7 +71,7 @@ def ELBO_loss(
 
     # KL divergence term
     var = torch.exp(logvar)
-    KL_divergence = 0.5 * (
+    KL_divergence = -0.5 * (
         torch.clamp(torch.sum(logvar), min=0.0) - torch.sum(var) - torch.sum(mu**2)
     ).div(x.size(0))
 

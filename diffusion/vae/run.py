@@ -126,7 +126,7 @@ if __name__ == "__main__":
     if not os.path.exists(OUT_DIR):
         os.mkdir(OUT_DIR)
 
-    stamp = dt.datetime.now().strftime("%Y%m%d-%H")
+    stamp = dt.datetime.now().strftime("%Y%m%d-%H%M")
     vae.sample_images(N_SAMPLES, OUT_DIR, "_".join([dataset, stamp, model.value]))
 
     with open("model_summary.txt", "w", encoding="utf-8") as f:

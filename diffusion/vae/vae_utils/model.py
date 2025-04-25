@@ -1,25 +1,40 @@
 import os
+import PIL
 import mlflow
 import torch
 from torch import nn, Tensor
 from matplotlib import pyplot as plt
-from abc import ABCMeta
+from abc import ABC, abstractmethod
 
 
-class VAEBase(nn.Module, ABCMeta):
+# We will use nn.Sequential to build the encoders and decoders - we will use the View class to resize the images
+class View(nn.Module):
+    def __init__(self, size):
+        super(View, self).__init__()
+        self.size = size
+
+    def forward(self, x):
+        return x.view(self.size)  # used to resize tensor to self.size
+
+
+class VAEBase(ABC):
     def __init__(self, dim: int, latent_dim: int):
-        self.__super__().__init__()
         self.latent_dim = latent_dim
+        self.dim = dim
 
+    @abstractmethod
     def encode(self, x):
         NotImplemented
 
+    @abstractmethod
     def decode(self, z):
         NotImplemented
 
+    @abstractmethod
     def reparametrise(self, mu: Tensor, logvar: Tensor):
         NotImplemented
 
+    @abstractmethod
     def forward(self, x):
         NotImplemented
 
@@ -49,21 +64,21 @@ class VAEBase(nn.Module, ABCMeta):
 
         plt.tight_layout()
         img_name = f"vae_{name}.png"
-        fig.savefig(os.path.join(path, img_name))
-        mlflow.log_artifacts(img_name, path)
-        mlflow.log_image(fig)
+        img_path = os.path.join(path, img_name)
+        fig.savefig(img_path)
+        mlflow.log_artifact(img_path)
         plt.show()
 
 
-class VAE(VAEBase):
+class VAE(VAEBase, nn.Module):
     def __init__(self, latent_dim: int = 2, input_dim: int = 784, depth: int = 3):
         """builds VAE
         Inputs:
             - latent_dim: dimension of latent space
             - input_dim: dimension of input space
         """
-        super(VAE, self).__init__()
-        self.latent_dim = latent_dim
+        VAEBase.__init__(self, input_dim, latent_dim)
+        nn.Module.__init__(self)
         self.relu = nn.ReLU()
 
         dim_step = (input_dim - latent_dim) // depth
@@ -143,25 +158,10 @@ class VAE(VAEBase):
         return self.decode(z), mu, logvar
 
 
-# We will use nn.Sequential to build the encoders and decoders - we will use the View class to resize the images
-class View(nn.Module):
-    def __init__(self, size):
-        super(View, self).__init__()
-        self.size = size
-
-    def forward(self, x):
-        return x.view(self.size)  # used to resize tensor to self.size
-
-
-class CVAE(VAEBase):
+class CVAE(VAEBase, nn.Module):
     def __init__(self, latent_dim=20):
-        """builds VAE
-        Inputs:
-            - d: dimension of latent space
-        """
-        super(CVAE, self).__init__()
-        self.latent_dim = latent_dim
-        # Build VAE here
+        VAEBase.__init__(self, 1, latent_dim)
+        nn.Module.__init__(self)
         self.encoder, self.decoder, self.encoder_mean, self.encoder_lv = self.build_VAE(
             latent_dim
         )
