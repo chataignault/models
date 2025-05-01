@@ -8,6 +8,7 @@ but that share the same principal components with their respective amplitude.
 
 ![image](img/ppca_mnist.png)
 
+### References :
 
 ```bibtex
 @book{bengio2017deep,
@@ -18,8 +19,10 @@ but that share the same principal components with their respective amplitude.
   publisher={MIT press Cambridge, MA, USA}
 }
 ```
+**For the computation of the Singular Value Decomposition :** 
 
-For the computation of the Singular Value Decomposition : 
+The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`, 
+while the SVD implementation with Givens rotations is from `Golub`.
 
 ```bibtex
 @book{trefethen2022numerical,
