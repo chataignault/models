@@ -47,6 +47,9 @@ def householder(A: np.ndarray, kmax=None, decomposed: bool = False):
     for k in range(kmax):
         v = compute_v_householder(A[k:, k])
         A[k:, k:] -= 2.0 * v @ (np.conj(v.T) @ A[k:, k:])
+        Q = A[:, m:].copy()
+        print("Q ort")
+        print(np.round(Q.T @ Q, decimals=2))
         if decomposed:
             if k > 0:
                 v = np.concatenate([np.zeros((k, 1)), v])

@@ -25,17 +25,16 @@ def generate_sample_naive_conditionned(X: np.array, keep: int):
     return sample
 
 
-def get_samples_and_normalize(data:np.array, cl:np.array, n_samples:int, label:int):
+def get_samples_and_normalize(data: np.array, cl: np.array, n_samples: int, label: int):
     X = [pil for (pil, l) in zip(data, cl) if l == label]
     X = np.array([np.array(pil).reshape(784) for pil in X]) / 25.0
-        
+
     idx = random.choice(np.arange(len(X)), n_samples, replace=False)
     X = X[idx]
     return X
 
 
 if __name__ == "__main__":
-    
     parser = ArgumentParser()
 
     parser.add_argument("--n_samples", type=int, default=1000)
@@ -45,14 +44,13 @@ if __name__ == "__main__":
 
     n_samples = args.n_samples
     n_components = args.n_components
-    
+
     data_dict = load_dataset("mnist", num_proc=4)["train"]
     data, cl = data_dict["image"], data_dict["label"]
 
     fig, axs = plt.subplots(figsize=(10, 4), ncols=5, nrows=2)
 
     for label in range(10):
-
         X = get_samples_and_normalize(data, cl, n_samples, label)
 
         sample = generate_sample_naive_conditionned(X, n_components)
