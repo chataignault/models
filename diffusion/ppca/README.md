@@ -11,6 +11,19 @@ but that share the same principal components with their respective amplitude.
 ### References :
 
 ```bibtex
+@article{tipping1999probabilistic,
+  title={Probabilistic principal component analysis},
+  author={Tipping, Michael E and Bishop, Christopher M},
+  journal={Journal of the Royal Statistical Society Series B: Statistical Methodology},
+  volume={61},
+  number={3},
+  pages={611--622},
+  year={1999},
+  publisher={Oxford University Press}
+}
+```
+
+```bibtex
 @book{bengio2017deep,
   title={Deep learning},
   author={Bengio, Yoshua and Goodfellow, Ian and Courville, Aaron and others},
