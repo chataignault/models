@@ -22,46 +22,49 @@ def naive_svd(A: np.ndarray, maxit: int = 10, tol: float = 1e-4):
     return U, np.diag(s), V
 
 
-def givens(a:float, b:float) -> Tuple[float, float]:
+def givens(a: float, b: float) -> Tuple[float, float]:
     """
     Givens rotation computation that prevents from overflow
     """
-    if b == 0.:
-        return 1., 0.
-    
+    if b == 0.0:
+        return 1.0, 0.0
+
     if abs(b) > abs(a):
-        t = - a / b
-        s = 1. / np.sqrt(1. + t ** 2)
+        t = -a / b
+        s = 1.0 / np.sqrt(1.0 + t**2)
         return t * s, s
     else:
-        t = - b / a
-        c = 1. / np.sqrt(1. + t ** 2)
+        t = -b / a
+        c = 1.0 / np.sqrt(1.0 + t**2)
         return c, t * s
 
 
-def eigenvalues_2_2(A:np.ndarray) -> Tuple[float, float]:
+def eigenvalues_2_2(A: np.ndarray) -> Tuple[float, float]:
     """
     Compute the eigenvalues of a 2-by-2 matrix
+    by finding roots of the characteristic polynomial
     """
     x, y, z, t = A[0, 0], A[0, 1], A[1, 0], A[1, 1]
     c = x * t - y * z
-    b = - ( x + t )
+    b = -(x + t)
     d = b**2 - 4 * c
-    assert d > 0.
+    assert d > 0.0
     d = np.sqrt(d)
-    return (-b + d) / 2., (-b - d) / 2.
+    return (-b + d) / 2.0, (-b - d) / 2.0
 
 
-def apply_givens_left(A:np.ndarray, k:int, i:int, c:int, s:int):
+def apply_givens_left(A: np.ndarray, k: int, i: int, c: int, s: int):
     """
     Apply Givens rotation on A between rows i and k to the left
+    Assumes that A is upper-bidiagonal
     """
     ...
 
 
-def apply_givens_right(A:np.ndarray, k:int, i:int, c:float, s:float):
+def apply_givens_right(A: np.ndarray, k: int, i: int, c: float, s: float):
     """
     Apply Givens rotation on A between rows i and k to the right
+    Assumes that A is upper-bidiagonal
     """
     ...
 
@@ -78,21 +81,21 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     T = B[-2:, -2:].T @ B[-2:, -2:]
     l1, l2 = eigenvalues_2_2(T)
     t = T[-1, -1]
-    mu = l1 if abs(t-l1) < abs(t-l2) else l2
+    mu = l1 if abs(t - l1) < abs(t - l2) else l2
     y, z = T[0, 0] - mu
     z = T[0, 1]
 
     # apply Givens rotations
     for k in range(n - 1):
         c, s = givens(y, z)
-        apply_givens_right(B, k, k+1, c, s)
-        apply_givens_right(U, k, k+1, c, s)
-        y, z = B[k, k], B[k+1, k]
+        apply_givens_right(B, k, k + 1, c, s)
+        apply_givens_right(U, k, k + 1, c, s)
+        y, z = B[k, k], B[k + 1, k]
         c, s = givens(y, z)
-        apply_givens_left(B, k, k+1, c, s)
-        apply_givens_left(V, k, k+1, c, s)
+        apply_givens_left(B, k, k + 1, c, s)
+        apply_givens_left(V, k, k + 1, c, s)
         if k < n - 2:
-            y, z = B[k, k+1], B[k, k+2]
+            y, z = B[k, k + 1], B[k, k + 2]
 
     return U, B, V
 
@@ -102,5 +105,8 @@ def golub_kahan_svd(A: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     Bidiagonalise, then SVD steps until criterion reached
     """
     U, B, V = golub_kahan_full(A.copy())
+
+    for i in range(len(A)):
+        ...
 
     return U, B, V
