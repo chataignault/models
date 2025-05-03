@@ -2,7 +2,7 @@ import numpy as np
 from typing import Tuple
 
 from .pure_qr import pure_QR
-from bidiagonalisation import golub_kahan_full
+from src.bidiagonalisation import golub_kahan_full
 
 
 def naive_svd(A: np.ndarray, maxit: int = 10, tol: float = 1e-4):
@@ -36,7 +36,7 @@ def givens(a: float, b: float) -> Tuple[float, float]:
     else:
         t = -b / a
         c = 1.0 / np.sqrt(1.0 + t**2)
-        return c, t * s
+        return c, t * c
 
 
 def eigenvalues_2_2(A: np.ndarray) -> Tuple[float, float]:
@@ -53,20 +53,24 @@ def eigenvalues_2_2(A: np.ndarray) -> Tuple[float, float]:
     return (-b + d) / 2.0, (-b - d) / 2.0
 
 
-def apply_givens_left(A: np.ndarray, k: int, i: int, c: int, s: int):
+def apply_givens_left(A: np.ndarray, i: int, k: int, c: int, s: int):
     """
     Apply Givens rotation on A between rows i and k to the left
     Assumes that A is upper-bidiagonal
     """
-    ...
+    r = A[k, i : (k + 3)].copy()
+    A[k, i : (i + 3)] = c * A[k, i : (i + 3)] + s * A[i, i : (i + 3)]
+    A[i, i : (k + 3)] = c * A[i, i : (k + 3)] - s * r
 
 
-def apply_givens_right(A: np.ndarray, k: int, i: int, c: float, s: float):
+def apply_givens_right(A: np.ndarray, i: int, k: int, c: float, s: float):
     """
     Apply Givens rotation on A between rows i and k to the right
     Assumes that A is upper-bidiagonal
     """
-    ...
+    r = A[i : (k + 3), (k + 1)].copy()
+    A[i : (i + 3), (k + 1)] = c * A[i : (i + 3), (k + 1)] + s * A[i : (i + 3), (i + 1)]
+    A[i : (k + 3), (i + 1)] = c * A[i : (k + 3), (i + 1)] - s * r
 
 
 def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
