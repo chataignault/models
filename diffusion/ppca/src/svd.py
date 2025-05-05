@@ -53,7 +53,7 @@ def eigenvalues_2_2(A: np.ndarray) -> Tuple[float, float]:
     return (-b + d) / 2.0, (-b - d) / 2.0
 
 
-def apply_givens_left(A: np.ndarray, i: int, k: int, c: int, s: int):
+def apply_givens_left_ubi(A: np.ndarray, i: int, k: int, c: int, s: int):
     """
     Apply Givens rotation on A between rows i and k to the left
     Assumes that A is upper-bidiagonal
@@ -63,7 +63,7 @@ def apply_givens_left(A: np.ndarray, i: int, k: int, c: int, s: int):
     A[i, i : (k + 3)] = c * A[i, i : (k + 3)] - s * r
 
 
-def apply_givens_right(A: np.ndarray, i: int, k: int, c: float, s: float):
+def apply_givens_right_ubi(A: np.ndarray, i: int, k: int, c: float, s: float):
     """
     Apply Givens rotation on A between rows i and k to the right
     Assumes that A is upper-bidiagonal
@@ -71,6 +71,20 @@ def apply_givens_right(A: np.ndarray, i: int, k: int, c: float, s: float):
     r = A[i : (k + 3), (k + 1)].copy()
     A[i : (i + 3), (k + 1)] = c * A[i : (i + 3), (k + 1)] + s * A[i : (i + 3), (i + 1)]
     A[i : (k + 3), (i + 1)] = c * A[i : (k + 3), (i + 1)] - s * r
+
+
+def apply_givens_left(A: np.ndarray, i: int, k: int, c: int, s: int):
+    """
+    Apply Givens rotation on A between rows i and k to the left
+    """
+    A[[i, k], :] = np.array([[c, -s], [s, c]]) @ A[[i, k], :]
+
+
+def apply_givens_right(A: np.ndarray, i: int, k: int, c: float, s: float):
+    """
+    Apply Givens rotation on A between rows i and k to the right
+    """
+    A[:, [i, k]] =  A[:, [i, k]] @ np.array([[c, s], [-s, c]])
 
 
 def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -92,11 +106,11 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     # apply Givens rotations
     for k in range(n - 1):
         c, s = givens(y, z)
-        apply_givens_right(B, k, k + 1, c, s)
+        apply_givens_right_ubi(B, k, k + 1, c, s)
         apply_givens_right(U, k, k + 1, c, s)
         y, z = B[k, k], B[k + 1, k]
         c, s = givens(y, z)
-        apply_givens_left(B, k, k + 1, c, s)
+        apply_givens_left_ubi(B, k, k + 1, c, s)
         apply_givens_left(V, k, k + 1, c, s)
         if k < n - 2:
             y, z = B[k, k + 1], B[k, k + 2]

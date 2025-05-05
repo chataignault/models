@@ -3,11 +3,11 @@ import numpy as np
 from numpy import random
 
 from . import TOL
-from src.svd import givens, apply_givens_left, apply_givens_right
+from src.svd import givens, apply_givens_left_ubi, apply_givens_right_ubi
 
 
 @pytest.mark.parametrize("n, i", [(3, 0), (4, 1), (5, 1), (6, 3)])
-def test_givens_left(n, i):
+def test_givens_left_ubi(n, i):
     random.seed(41 * n)
     A = random.randn(n, n)
 
@@ -21,7 +21,7 @@ def test_givens_left(n, i):
     B = A.copy()
 
     c, s = givens(A[i, i], A[i + 1, i])
-    apply_givens_left(A, i, i + 1, c, s)
+    apply_givens_left_ubi(A, i, i + 1, c, s)
 
     assert A.shape == (n, n)
     assert A[i + 1, i] < TOL
@@ -52,7 +52,7 @@ def test_givens_right(n, i):
 
     c, s = givens(A[i, i + 1], A[i, i + 2])
 
-    apply_givens_right(A, i, i + 1, c, s)
+    apply_givens_right_ubi(A, i, i + 1, c, s)
 
     assert A.shape == (n, n)
     assert A[i, i + 2] < TOL

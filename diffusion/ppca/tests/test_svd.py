@@ -37,24 +37,31 @@ def test_naive_svd(n, m):
     assert np.allclose(A, U @ S @ V.T)
 
 
-@pytest.mark.parametrize("n, m", [(5, 5), (7, 8), (10, 3), (20, 36)])
-def test_golub_step(n, m):
+@pytest.mark.parametrize("n", [5, 8, 10, 20])
+def test_golub_step(n):
     random.seed(n)
 
-    B = random.randn(n, m)
+    B = random.randn(n, n)
+    B[np.tril_indices(n, k=-1)] = 0.
+    B[np.triu_indices(n, k=-2)] = 0.
 
     U, Bd, V = golub_kahan_step(B)
 
-    # assert Bd is diagonal
+    # assert Bd is upper bidiagonal diagonal
+    assert np.min(np.abs(Bd[np.tril_indices(n, k=-1)])) == 0.
+    assert np.min(np.abs(Bd[np.triu_indices(n, k=2)])) == 0.
 
     # assert orthonormality
+    assert np.linalg.norm(np.eye(n) - U.T @ U) < TOL
+    assert np.linalg.norm(np.eye(n) - V.T @ V) < TOL
 
     # assert reconstruction error
+    assert np.allclose(B, U @ Bd @ V.T)
 
 
 @pytest.mark.parametrize("n, m", [(5, 5), (7, 8), (10, 3), (20, 36)])
 def test_golub_kahan_svd(n, m):
-    random.seed(n)
+    random.seed(5*n)
     A = random.randn(n, m)
 
     U, S, V = golub_kahan_svd(A)
