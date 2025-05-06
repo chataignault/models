@@ -104,24 +104,17 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     y, z = T[0, 0] - mu, T[0, 1]
 
     # apply Givens rotations
-    for k in range(1):  # n-1
+    for k in range(n - 1):  # n-1
         print(np.round(B, decimals=2))
         c, s = givens(y, z)
         apply_givens_right_ubi(B, k, k + 1, c, s)
-        apply_givens_right(U, k, k + 1, c, s)
+        apply_givens_right(V, k, k + 1, c, s)
         y, z = B[k, k], B[k + 1, k]
         c, s = givens(y, z)
         apply_givens_left_ubi(B, k, k + 1, c, s)
-        apply_givens_left(V, k, k + 1, c, s)
+        apply_givens_left(U, k, k + 1, c, s)
         if k < n - 2:
             y, z = B[k, k + 1], B[k, k + 2]
-    print(np.round(B, decimals=2))
-    # reverse the operation
-    print(np.round(U.T @ U, decimals=2))
-    print("rec")
-    print(np.round(U.T @ B @ V.T))
-    print(U)
-    print(V)
 
     return U.T, B, V
 

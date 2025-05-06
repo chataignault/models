@@ -37,7 +37,7 @@ def test_naive_svd(n, m):
     assert np.allclose(A, U @ S @ V.T)
 
 
-@pytest.mark.parametrize("n", [3, 5])
+@pytest.mark.parametrize("n", [3, 5, 8, 9, 11, 20])
 def test_golub_step(n):
     random.seed(n)
 
@@ -54,14 +54,6 @@ def test_golub_step(n):
     # assert orthonormality
     assert np.linalg.norm(np.eye(n) - U.T @ U) < TOL
     assert np.linalg.norm(np.eye(n) - V.T @ V) < TOL
-
-    # print(np.round(B, decimals=2))
-    # print()
-    #
-    # print(np.round(Bd, decimals=2))
-    # print()
-    #
-    # print(np.round(U @ Bd @ V.T, decimals=2))
 
     # assert reconstruction error
     assert np.allclose(B, U @ Bd @ V.T)
