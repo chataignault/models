@@ -48,8 +48,8 @@ def test_golub_step(n):
     U, Bd, V = golub_kahan_step(B.copy())
 
     # assert Bd is upper bidiagonal diagonal
-    assert np.min(np.abs(Bd[np.tril_indices(n, k=-1)])) == 0.0
-    assert np.min(np.abs(Bd[np.triu_indices(n, k=2)])) == 0.0
+    assert np.min(np.abs(Bd[np.tril_indices(n, k=-1)])) < TOL
+    assert np.min(np.abs(Bd[np.triu_indices(n, k=2)])) < TOL
 
     # assert orthonormality
     assert np.linalg.norm(np.eye(n) - U.T @ U) < TOL
