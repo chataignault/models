@@ -101,11 +101,10 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     l1, l2 = eigenvalues_2_2(T)
     t = T[-1, -1]
     mu = l1 if abs(t - l1) < abs(t - l2) else l2
-    y, z = T[0, 0] - mu, T[0, 1]
+    y, z = B[0, 0] ** 2 - mu, B[0, 0] * B[0, 1]
 
     # apply Givens rotations
     for k in range(n - 1):
-        print(np.round(B, decimals=2))
         c, s = givens(y, z)
         apply_givens_right_ubi(B, k, k + 1, c, s)
         apply_givens_right(V, k, k + 1, c, s)
@@ -120,56 +119,78 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
 
 
 def golub_kahan_svd(
-    A: np.ndarray, tol: float = 1e-8, max_step: int = -1
+    A: np.ndarray, tol: float = 1e-10, max_step: int = -1
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     SVD algorithm from 'Matrix Computations' - Gene H. Golub, Charles F. Van Loan
     """
     n, m, transposed_to_thin = *A.shape, False
-    if n > m:
+    if m > n:
         A = A.T
         n, m = m, n
         transposed_to_thin = True
 
-    q = n - 2
+    q = m - 1
 
     # bidiagonalise
     U, B, V = golub_kahan_full(A.copy())
 
     step = 0
     # apply golub steps until criterion is reached
-    while q > 0 and step < max_step:
+    while q > 0 and (step < max_step or max_step < 0):
         step += 1
-        # clip to zero small off-diagonal coefficients
-        for i in range(q):
-            if B[i, i + 1] < tol * (np.abs(B[i, i]) + np.abs(B[i + 1, i + 1])):
-                B[i, i + 1] = 0.0
+        while q > 0 and np.abs(B[q - 1, q]) < tol * (
+            np.abs(B[q - 1, q - 1]) + np.abs(B[q, q])
+        ):
+            B[q - 1, q] = 0.0
+            q -= 1
 
         p = 1
-        while B[q, q + 1] == 0.0 and q > n:
-            q -= 1
+        # while q > 0 and B[q-1, q] == 0.0:
+        #    q -= 1
         if q == 0:
             break
-        while B[q - p, q - p + 1] != 0.0 and q - p > 0:
+        # find largest submatrix with non-zero off-diag coefficients
+        # starting from bottom right
+        while B[q - p - 1, q - p] != 0.0 and q - p - 1 >= 0:
             p += 1
         for i in range(p):
             has_zero_diag = False
-            if q + i < n and B[q + i, q + i] == 0.0:
+            if q + i < m and B[q + i, q + i] == 0.0:
                 B[q + i, q + i + 1] == 0.0
                 has_zero_diag = True
         if not has_zero_diag:
             # not efficient to return the matrices,
             # should modify U, B and V in place
-            Ug, Bb, Vg = golub_kahan_step(B[q - p : q, q - p : q].copy())
-            B[q - p : q, q - p : q] = Bb
+            Ug, _, Vg = golub_kahan_step(B[q - p : (q + 1), q - p : (q + 1)].copy())
             Ug_ = np.eye(n)
-            Ug_[q - p : q, q - p : q] = Ug
+            Ug_[q - p : (q + 1), q - p : (q + 1)] = Ug.copy()
             Vg_ = np.eye(m)
-            Vg_[q - p : q, q - p : q] = Vg
-            U = Ug_ @ U
-            V = Vg_ @ V
+            Vg_[q - p : (q + 1), q - p : (q + 1)] = Vg.copy()
+            U = U @ Ug_
+            V = V @ Vg_
+            B = Ug_.T @ B @ Vg_
 
     if transposed_to_thin:
-        U, V = V.T, U.T
+        U, V = V, U
+        B = B.T
 
     return U, B, V
+
+
+if __name__ == "__main__":
+    from numpy import random
+
+    n, m = 4, 4
+    A = random.randn(n, m)
+
+    U, D, V = golub_kahan_svd(A.copy())
+
+    svd = np.linalg.svdvals(A)
+
+    # compare absolute svd values
+    print(np.sort(np.round(svd, decimals=3)))
+    print(np.sort(np.abs(np.round(np.diag(D), decimals=3))))
+
+    # check reconstruction
+    print(np.linalg.norm(U @ D @ V.T - A) / np.linalg.norm(A))
