@@ -119,13 +119,58 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     return U.T, B, V
 
 
-def golub_kahan_svd(A: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def golub_kahan_svd(
+    A: np.ndarray, tol: float = 1e-8
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
-    Bidiagonalise, then SVD steps until criterion reached
+    SVD algorithm from 'Matrix Computations' - Gene H. Golub, Charles F. Van Loan
     """
+    n, m, transposed_to_thin = A.shape, False
+    if n > m:
+        A = A.T
+        n, m = m, n
+        transposed_to_thin = True
+
+    q = n - 2
+
+    # bidiagonalise
     U, B, V = golub_kahan_full(A.copy())
 
-    for i in range(len(A)):
-        ...
+    # apply golub steps until criterion is reached
+    while q > 0:
+        # clip to zero small off-diagonal coefficients
+        B[np.diag_indices(m, k=1)] = np.where(
+            B[np.diag_indices(m, k=1)]
+            < tol
+            * (np.abs(B[np.diag_indices(m)][:-1]) + np.abs(B[np.diag_indices(m)][1:])),
+            np.zeros(m - 1),
+            B[np.diag_indices(m, k=1)],
+        )
+        p = 1
+        while B[q, q + 1] == 0.0 and q > n:
+            q -= 1
+        if q == 0:
+            break
+        while B[q - p, q - p + 1] != 0.0 and q - p >= 0:
+            p += 1
+        for i in range(p):
+            has_zero_diag = False
+            if B[q + i, q + i] == 0.0:
+                B[q + i, q + i + 1] == 0.0
+                has_zero_diag = True
+        if not has_zero_diag:
+            # not efficient to return the matrices,
+            # should modify U, B and V in place
+            Ug, Bb, Vg = golub_kahan_step(B[q - p : q, q - p : q].copy())
+            B[q - p : q, q - p : q] = Bb
+            Ug_ = np.eye(n)
+            Ug_[q - p : q, q - p : q] = Ug
+            Vg_ = np.eye(m)
+            Vg_[q - p : q, q - p : q] = Vg
+            U = Ug_ @ U
+            V = Vg_ @ V
+
+    if transposed_to_thin:
+        U, V = V.T, U.T
 
     return U, B, V
