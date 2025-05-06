@@ -54,3 +54,47 @@ while the SVD implementation with Givens rotations is from `Golub`.
   publisher={JHU press}
 }
 ```
+The bidiagonalisation is computed with full orthogonal matrices, 
+that is to say for $A \in \mathbb{R}^{n \times m}$ : 
+
+$$ A = U B V^T $$
+
+where $U\in \mathbb{R}^{n \times n}$ and $V \in \mathbb{R}^{m \times m}$ .
+
+A reduced form can be found, for instance if $m > n$, the matrices would be of the form :
+
+$$
+\begin{cases}
+U\in \mathbb{R}^{n \times n} \\
+A\in \mathbb{R}^{n \times n} \\
+V\in \mathbb{R}^{n \times m}
+\end{cases}
+$$
+
+But doing so, $V$ is not orthogonal anymore.
+
+Decomposing matrices $A$ and $V$ into sub square matrices $\tilde{A}, \tilde{V}$:
+
+$$ 
+\begin{cases} 
+A = \begin{pmatrix} \tilde{A} & R \end{pmatrix} \\
+V = \begin{pmatrix} \tilde{V} & Z \end{pmatrix}
+\end{cases}
+$$
+
+while applying the normal Golub bidiagonalisation algorithm to $\tilde{A}$ :
+
+$$ 
+A = U \begin{pmatrix} \tilde{B} & R \end{pmatrix} 
+\begin{pmatrix} \tilde{V}^T \\ Z^T \end{pmatrix} 
+$$
+
+and $Z$ can be left to compute at the end by solving the system :
+
+$$
+\tilde{B} Z^T = U^T R
+$$
+
+where $\tilde{B}$ is square and upper bi-diagonal.
+
+A similar system is solved if $A$ is thin instead of wide, with the same complexity.
