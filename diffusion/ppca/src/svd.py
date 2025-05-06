@@ -68,7 +68,7 @@ def apply_givens_right_ubi(A: np.ndarray, i: int, k: int, c: float, s: float):
     Apply Givens rotation on A between rows i and k to the right
     Assumes that A is upper-bidiagonal
     """
-    j = i-1 if i > 0 else i
+    j = i - 1 if i > 0 else i
     r = A[j : (k + 3), k].copy()
     A[j : (i + 3), k] = c * A[j : (i + 3), k] + s * A[j : (i + 3), i]
     A[j : (k + 3), i] = c * A[j : (k + 3), i] - s * r
@@ -104,7 +104,8 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     y, z = T[0, 0] - mu, T[0, 1]
 
     # apply Givens rotations
-    for k in range(n - 1):
+    for k in range(1):  # n-1
+        print(np.round(B, decimals=2))
         c, s = givens(y, z)
         apply_givens_right_ubi(B, k, k + 1, c, s)
         apply_givens_right(U, k, k + 1, c, s)
@@ -114,8 +115,15 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
         apply_givens_left(V, k, k + 1, c, s)
         if k < n - 2:
             y, z = B[k, k + 1], B[k, k + 2]
+    print(np.round(B, decimals=2))
+    # reverse the operation
+    print(np.round(U.T @ U, decimals=2))
+    print("rec")
+    print(np.round(U.T @ B @ V.T))
+    print(U)
+    print(V)
 
-    return U, B, V
+    return U.T, B, V
 
 
 def golub_kahan_svd(A: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
