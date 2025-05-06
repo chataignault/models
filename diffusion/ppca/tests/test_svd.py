@@ -42,14 +42,14 @@ def test_golub_step(n):
     random.seed(n)
 
     B = random.randn(n, n)
-    B[np.tril_indices(n, k=-1)] = 0.
-    B[np.triu_indices(n, k=-2)] = 0.
+    B[np.tril_indices(n, k=-1)] = 0.0
+    B[np.triu_indices(n, k=2)] = 0.0
 
     U, Bd, V = golub_kahan_step(B)
 
     # assert Bd is upper bidiagonal diagonal
-    assert np.min(np.abs(Bd[np.tril_indices(n, k=-1)])) == 0.
-    assert np.min(np.abs(Bd[np.triu_indices(n, k=2)])) == 0.
+    assert np.min(np.abs(Bd[np.tril_indices(n, k=-1)])) == 0.0
+    assert np.min(np.abs(Bd[np.triu_indices(n, k=2)])) == 0.0
 
     # assert orthonormality
     assert np.linalg.norm(np.eye(n) - U.T @ U) < TOL
@@ -61,7 +61,7 @@ def test_golub_step(n):
 
 @pytest.mark.parametrize("n, m", [(5, 5), (7, 8), (10, 3), (20, 36)])
 def test_golub_kahan_svd(n, m):
-    random.seed(5*n)
+    random.seed(5 * n)
     A = random.randn(n, m)
 
     U, S, V = golub_kahan_svd(A)

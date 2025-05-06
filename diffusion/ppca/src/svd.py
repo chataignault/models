@@ -84,7 +84,7 @@ def apply_givens_right(A: np.ndarray, i: int, k: int, c: float, s: float):
     """
     Apply Givens rotation on A between rows i and k to the right
     """
-    A[:, [i, k]] =  A[:, [i, k]] @ np.array([[c, s], [-s, c]])
+    A[:, [i, k]] = A[:, [i, k]] @ np.array([[c, s], [-s, c]])
 
 
 def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -96,12 +96,11 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     U, V = np.eye(n), np.eye(m)
 
     # initialisation : find trailing eigenvalue
-    T = B[-2:, -2:].T @ B[-2:, -2:]
+    T = B[-2:, -2:].T.copy() @ B[-2:, -2:].copy()
     l1, l2 = eigenvalues_2_2(T)
     t = T[-1, -1]
     mu = l1 if abs(t - l1) < abs(t - l2) else l2
-    y, z = T[0, 0] - mu
-    z = T[0, 1]
+    y, z = T[0, 0] - mu, T[0, 1]
 
     # apply Givens rotations
     for k in range(n - 1):
