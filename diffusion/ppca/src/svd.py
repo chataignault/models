@@ -104,7 +104,7 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
     y, z = T[0, 0] - mu, T[0, 1]
 
     # apply Givens rotations
-    for k in range(n - 1):  # n-1
+    for k in range(n - 1):
         print(np.round(B, decimals=2))
         c, s = givens(y, z)
         apply_givens_right_ubi(B, k, k + 1, c, s)
@@ -120,12 +120,12 @@ def golub_kahan_step(B: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]
 
 
 def golub_kahan_svd(
-    A: np.ndarray, tol: float = 1e-8
+    A: np.ndarray, tol: float = 1e-8, max_step: int = -1
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     SVD algorithm from 'Matrix Computations' - Gene H. Golub, Charles F. Van Loan
     """
-    n, m, transposed_to_thin = A.shape, False
+    n, m, transposed_to_thin = *A.shape, False
     if n > m:
         A = A.T
         n, m = m, n
@@ -136,26 +136,25 @@ def golub_kahan_svd(
     # bidiagonalise
     U, B, V = golub_kahan_full(A.copy())
 
+    step = 0
     # apply golub steps until criterion is reached
-    while q > 0:
+    while q > 0 and step < max_step:
+        step += 1
         # clip to zero small off-diagonal coefficients
-        B[np.diag_indices(m, k=1)] = np.where(
-            B[np.diag_indices(m, k=1)]
-            < tol
-            * (np.abs(B[np.diag_indices(m)][:-1]) + np.abs(B[np.diag_indices(m)][1:])),
-            np.zeros(m - 1),
-            B[np.diag_indices(m, k=1)],
-        )
+        for i in range(q):
+            if B[i, i + 1] < tol * (np.abs(B[i, i]) + np.abs(B[i + 1, i + 1])):
+                B[i, i + 1] = 0.0
+
         p = 1
         while B[q, q + 1] == 0.0 and q > n:
             q -= 1
         if q == 0:
             break
-        while B[q - p, q - p + 1] != 0.0 and q - p >= 0:
+        while B[q - p, q - p + 1] != 0.0 and q - p > 0:
             p += 1
         for i in range(p):
             has_zero_diag = False
-            if B[q + i, q + i] == 0.0:
+            if q + i < n and B[q + i, q + i] == 0.0:
                 B[q + i, q + i + 1] == 0.0
                 has_zero_diag = True
         if not has_zero_diag:
