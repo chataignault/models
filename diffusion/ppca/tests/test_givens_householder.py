@@ -58,7 +58,7 @@ def test_givens_right_ubi(n, i):
 
     c, s = givens(A[i, i + 1], A[i, i + 2])
 
-    apply_givens_right_ubi(A, i, i + 1, c, s)
+    apply_givens_right_ubi(A, i+1, i + 2, c, s)
 
     assert A.shape == (n, n)
     assert A[i, i + 2] < TOL

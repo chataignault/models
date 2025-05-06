@@ -68,9 +68,10 @@ def apply_givens_right_ubi(A: np.ndarray, i: int, k: int, c: float, s: float):
     Apply Givens rotation on A between rows i and k to the right
     Assumes that A is upper-bidiagonal
     """
-    r = A[i : (k + 3), (k + 1)].copy()
-    A[i : (i + 3), (k + 1)] = c * A[i : (i + 3), (k + 1)] + s * A[i : (i + 3), (i + 1)]
-    A[i : (k + 3), (i + 1)] = c * A[i : (k + 3), (i + 1)] - s * r
+    j = i-1 if i > 0 else i
+    r = A[j : (k + 3), k].copy()
+    A[j : (i + 3), k] = c * A[j : (i + 3), k] + s * A[j : (i + 3), i]
+    A[j : (k + 3), i] = c * A[j : (k + 3), i] - s * r
 
 
 def apply_givens_left(A: np.ndarray, i: int, k: int, c: int, s: int):
