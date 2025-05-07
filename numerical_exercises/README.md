@@ -278,3 +278,8 @@ Cards are not visible before or at any time during the algorithm.
 Take 17 of those cards, flip all of them. 
 This forms one pile and the other cards - untouched - go in the other pile.
 </p>
+
+
+## Other references
+- https://laurentmazare.github.io/
+
