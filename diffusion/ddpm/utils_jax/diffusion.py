@@ -39,9 +39,10 @@ def forward_diffusion_sample(
     Takes an image and a timestep as input and
     returns the noisy version of it.
     """
+    eps = random.normal(rng, x_0.shape)
     mean = get_index_from_list(sqrt_alphas_cumprod, t, x_0.shape) * jnp.array(x_0)
     std = get_index_from_list(sqrt_one_minus_alphas_cumprod, t, x_0.shape)
-    return mean + std * random.normal(rng, x_0.shape)
+    return mean + std * eps, eps
 
 
 def q_posterior(

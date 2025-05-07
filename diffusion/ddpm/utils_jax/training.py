@@ -19,7 +19,7 @@ class SchedulerConfig:
 def create_learning_rate_fn(config, base_learning_rate, steps_per_epoch):
     """Creates learning rate schedule."""
     warmup_fn = optax.linear_schedule(
-        init_value=0.0,
+        init_value=base_learning_rate / 10.0,
         end_value=base_learning_rate,
         transition_steps=config.warmup_epochs * steps_per_epoch,
     )
@@ -83,14 +83,14 @@ def train_step(state, batch, diff_params, rng, learning_rate_function):
         """
         Define the right loss given the model, the true x_0 and the time t
         """
-        x_t = forward_diffusion_sample(
+        x_t, eps = forward_diffusion_sample(
             batch, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
         )
-        eps = (
-            x_t
-            - get_index_from_list(sqrt_alphas_cumprod, t, batch.shape)
-            * jnp.array(batch)
-        ) / get_index_from_list(sqrt_one_minus_alphas_cumprod, t, batch.shape)
+        # eps = (
+        #     x_t
+        #     - get_index_from_list(sqrt_alphas_cumprod, t, batch.shape)
+        #     * jnp.array(batch)
+        # ) / get_index_from_list(sqrt_one_minus_alphas_cumprod, t, batch.shape)
         predicted_eps, updates = state.apply_fn(
             {"params": params, "batch_stats": state.batch_stats},
             x_t,
