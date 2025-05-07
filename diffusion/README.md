@@ -42,3 +42,7 @@ uv run test_stable_diffusion.py --prompt "Jacques Prévert wearing a bow tie"
 
 <img src="img/jp_bowtie.png" width="510" height="510">
 
+**TODO**
+
+- [ ] Update consistency models tests
+- [ ] [Burn](https://burn.dev/) POC

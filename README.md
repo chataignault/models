@@ -16,7 +16,7 @@
 
 ### Probabilistic PCA
 - Link with sample generation
-- Linear algebra numerical implementation
+- Linear algebra numerical implementation : SVD, bidiagonalisation
 - get familiar with `pytest`
 - compare with the EM training
 
@@ -33,6 +33,8 @@
 
 ## Mastery
 - Litterature review on path developments 
+
+- [ ] Add example scripts
 
 ## Fixed Income 
 - Validate intuition on the difference between **PV01 and DV01** 

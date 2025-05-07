@@ -23,6 +23,10 @@ but that share the same principal components with their respective amplitude.
 }
 ```
 
+which has more applications like dealing with missing data,
+maximum likelihood comparison with other probabilistic models for model selection 
+and covariance matrix fitting for Gaussian mixture models.
+
 ```bibtex
 @book{bengio2017deep,
   title={Deep learning},
@@ -98,3 +102,7 @@ $$
 where $\tilde{B}$ is square and upper bi-diagonal.
 
 A similar system is solved if $A$ is thin instead of wide, with the same complexity.
+
+**TODO :**
+- [ ] Implement MLE estimation of PPCA with EM algorithm
+- [ ] Benchmark execution time between naive SVD and Golub-Kahan algorithm
