@@ -35,7 +35,11 @@ interpretation of discretisation as a special case of RNN.
 Hilbert-Schmidt independance criterion, 
 distance on the manifold,
 
-
 ***
+
+## Test scripts
+
+- computing developments
+- separation of measures
 
 
