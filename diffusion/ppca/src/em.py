@@ -2,7 +2,10 @@ import numpy as np
 from typing import Tuple
 
 
-def compute_likelihood_pca(): ...
+def compute_likelihood_pca() -> float: ...
+
+
+def inverse_sdp(M: np.ndarray) -> np.ndarray: ...
 
 
 def update_pca_params(
@@ -17,7 +20,9 @@ def update_pca_params(
     d, q = W.shape
     M = W.T @ W
     M[np.diag_indices(q)] += s
-    M_inv = ...  # inverse of definite positive symmetric matrix with SVD
+    # M_inv = inverse_sdp(M); del M  # inverse of definite positive symmetric matrix with SVD
+    M_inv = np.linalg.inv(M)
+    del M
     SW = S @ W
     R = M_inv @ W.T @ SW
     R[np.diag_indices(q)] += s

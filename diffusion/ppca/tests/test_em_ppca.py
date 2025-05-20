@@ -22,14 +22,14 @@ def test_einsum(d: int, q: int):
 def test_update_pca_params(d: int, q: int):
     random.seed(d)
     W = np.random.randn(d, q)
-    S = np.random.randn(q, q)
+    S = np.random.randn(d, d)
     S = S + S.T
     s = np.random.randn() ** 2
 
     M_inv = np.linalg.inv(s * np.eye(q) + W.T @ W)
 
     W_naive = S @ W @ np.linalg.inv(s * np.eye(q) + M_inv @ W.T @ S @ W)
-    s_naive = np.trace(S - S @ W @ M_inv @ W_naive) / d
+    s_naive = np.trace(S - S @ W @ M_inv @ W_naive.T) / d
 
     W_efficient, s_efficient = update_pca_params(W.copy(), S.copy(), s)
 
