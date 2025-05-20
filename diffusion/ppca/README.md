@@ -8,52 +8,11 @@ but that share the same principal components with their respective amplitude.
 
 ![image](img/ppca_mnist.png)
 
-### References :
-
-```bibtex
-@article{tipping1999probabilistic,
-  title={Probabilistic principal component analysis},
-  author={Tipping, Michael E and Bishop, Christopher M},
-  journal={Journal of the Royal Statistical Society Series B: Statistical Methodology},
-  volume={61},
-  number={3},
-  pages={611--622},
-  year={1999},
-  publisher={Oxford University Press}
-}
-```
-
-```bibtex
-@book{bengio2017deep,
-  title={Deep learning},
-  author={Bengio, Yoshua and Goodfellow, Ian and Courville, Aaron and others},
-  volume={1},
-  year={2017},
-  publisher={MIT press Cambridge, MA, USA}
-}
-```
-**For the computation of the Singular Value Decomposition :** 
+## Using Singular Value Decomposition
 
 The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`, 
 while the SVD implementation with Givens rotations is from `Golub`.
 
-```bibtex
-@book{trefethen2022numerical,
-  title={Numerical linear algebra},
-  author={Trefethen, Lloyd N and Bau, David},
-  year={2022},
-  publisher={SIAM}
-}
-```
-
-```bibtex
-@book{golub2013matrix,
-  title={Matrix computations},
-  author={Golub, Gene H and Van Loan, Charles F},
-  year={2013},
-  publisher={JHU press}
-}
-```
 The bidiagonalisation is computed with full orthogonal matrices, 
 that is to say for $A \in \mathbb{R}^{n \times m}$ : 
 
@@ -98,3 +57,71 @@ $$
 where $\tilde{B}$ is square and upper bi-diagonal.
 
 A similar system is solved if $A$ is thin instead of wide, with the same complexity.
+
+## Using the EM algorithm
+
+Using the same notations as in `Tipping`'s paper, 
+the probabilistic framework being : 
+
+$$
+t = W x + \mu + \epsilon
+$$
+
+Where $ t \in \mathbb{R}^d $ is the observation variable, 
+$x \in \mathbb{R}^q $ is the latent one,
+with $ q \ll d $ and $\epsilon \sim \mathcal{N} (0, \sigma^2) $.
+
+Then log-likelihood is :
+
+$$
+\begin{align*}
+\mathcal{L} & = \sum \log p(x_i, t_i) \\
+& = -Nd \log \sigma \\
+& \ \ \ - \frac{1}{2\sigma^2} \sum 
+\left\{ \text{tr} \left( W^T W x_i x_i^T \right) - 2 \text{tr} \left( W x ( t_i - \mu )^T \right)  + (t_i - \mu)^T (t_i - \mu) \right\}  \\ 
+& \ \ \ - \frac{1}{2} \sum x_i^T x_i 
+\end{align*}
+$$
+
+### References :
+
+```bibtex
+@article{tipping1999probabilistic,
+  title={Probabilistic principal component analysis},
+  author={Tipping, Michael E and Bishop, Christopher M},
+  journal={Journal of the Royal Statistical Society Series B: Statistical Methodology},
+  volume={61},
+  number={3},
+  pages={611--622},
+  year={1999},
+  publisher={Oxford University Press}
+}
+```
+
+```bibtex
+@book{bengio2017deep,
+  title={Deep learning},
+  author={Bengio, Yoshua and Goodfellow, Ian and Courville, Aaron and others},
+  volume={1},
+  year={2017},
+  publisher={MIT press Cambridge, MA, USA}
+}
+```
+
+```bibtex
+@book{trefethen2022numerical,
+  title={Numerical linear algebra},
+  author={Trefethen, Lloyd N and Bau, David},
+  year={2022},
+  publisher={SIAM}
+}
+```
+
+```bibtex
+@book{golub2013matrix,
+  title={Matrix computations},
+  author={Golub, Gene H and Van Loan, Charles F},
+  year={2013},
+  publisher={JHU press}
+}
+```
