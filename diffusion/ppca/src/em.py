@@ -2,7 +2,17 @@ import numpy as np
 from typing import Tuple
 
 
-def compute_likelihood_pca() -> float: ...
+def compute_likelihood_pca(A: np.ndarray, W: np.ndarray, s: float) -> float:
+    """
+    First draft
+    """
+    d, N = A.shape
+    C = W @ W.T
+    C[np.diag_indices(d)] += s
+    return -(
+        np.log(np.clip(np.linalg.det(C), max=1000.0))
+        + np.trace(np.linalg.inv(C) @ A @ A.T / N)
+    )
 
 
 def inverse_sdp(M: np.ndarray) -> np.ndarray: ...
@@ -32,7 +42,9 @@ def update_pca_params(
     return W, s
 
 
-def ppca(A: np.ndarray, q: int, tol: float = 1e-5) -> Tuple[np.ndarray, float]:
+def ppca(
+    A: np.ndarray, q: int, tol: float = 1e-5, maxit: int = 100
+) -> Tuple[np.ndarray, float]:
     """
     Compute the first q principle components
     with iterative EM algorithm,
@@ -41,24 +53,30 @@ def ppca(A: np.ndarray, q: int, tol: float = 1e-5) -> Tuple[np.ndarray, float]:
     d, n = A.shape
     assert q <= n, "Can't have more principal axes than data dimensionality"
     # vector containing the q approximate principal components
-    W = np.zeros((d, q))
+    W = np.random.randn(d, q)
     # average residual variance
     s = 1.0
     # sample mean
-    mu = np.mean(A, axis=1)
+    mu = np.mean(A, axis=1).reshape(-1, 1)
     A -= mu
     # sample covariance
     S = A @ A.T / n
     # likelihood improvement
-    l = compute_likelihood_pca()
+    l = compute_likelihood_pca(A, W, s)
     dl = 1.0
 
+    i = 0
     while dl > tol:
+        i += 1
+        if i > maxit:
+            print(f"EM algorithm hasn't converged but reach max iterations {maxit}")
+            break
+
         # EM step
         W, s = update_pca_params(W, S, s)
 
         # compute new likelihood and update threshold
-        l_new = compute_likelihood_pca()
+        l_new = compute_likelihood_pca(A, W, s)
         dl = l - l_new
         l = l_new
 

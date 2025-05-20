@@ -88,9 +88,9 @@ Taking this expectation step (conditionned on $t, W $ and $\sigma^2 $) gives :
 $$
 \begin{align*}
 \mathbb{E} \left[ \mathcal{L} | t, W, \sigma^2 \right] = & - N d \log \sigma - \frac{N}{2\sigma^2} \text{tr} (S) \\
-& - \frac{N}{2\sigma^2} \left\( 
+& - \frac{N}{2\sigma^2} \left( 
   \text{tr} ( \left( W^T W + \sigma^2 I \right) \langle x^T x \rangle ) - 2 \text{tr} \left( W \langle x \rangle ( t_i - \mu )^T \right)
-  \right\)
+  \right)
 \end{align*}
 $$
 
