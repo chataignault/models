@@ -74,24 +74,23 @@ with $ q \ll d $ and $\epsilon \sim \mathcal{N} (0, \sigma^2) $.
 Then log-likelihood is :
 
 $$
-\begin{align}
+\begin{align*}
 \mathcal{L} = &\sum \log p(x_i, t_i) \\
  = & -Nd \log \sigma \\
  & - \frac{1}{2\sigma^2} \sum 
-\left\{ \text{tr} \left( W^T W x_i x_i^T \right) - 2 \text{tr} \left( W x ( t_i - \mu )^T \right)  + (t_i - \mu)^T (t_i - \mu) \right\}  \\ 
+\left( \text{tr} \left( W^T W x_i x_i^T \right) - 2 \text{tr} \left( W x ( t_i - \mu )^T \right)  + (t_i - \mu)^T (t_i - \mu) \right)  \\ 
 & - \frac{1}{2} \sum x_i^T x_i 
-\end{align}
+\end{align*}
 $$
 
 Taking this expectation step (conditionned on $t, W $ and $\sigma^2 $) gives :
 
 $$
 \begin{align*}
-\mathbb{E} \left[ \mathcal{L} | t, W, \sigma^2 \right] = & 
-- N d \log \sigma - \frac{N}{2\sigma^2} \text{tr} (S) \\
-& - \frac{N}{2\sigma^2} \left\{ 
-  \text{tr} (\left(W^T W + \sigma^2 I \right) \langle x^T x \rangle ) - 2 \text{tr} \left( W \langle x \rangle ( t_i - \mu )^T \right)
-  \right\}
+\mathbb{E} \left[ \mathcal{L} | t, W, \sigma^2 \right] = & - N d \log \sigma - \frac{N}{2\sigma^2} \text{tr} (S) \\
+& - \frac{N}{2\sigma^2} \left\( 
+  \text{tr} ( \left( W^T W + \sigma^2 I \right) \langle x^T x \rangle ) - 2 \text{tr} \left( W \langle x \rangle ( t_i - \mu )^T \right)
+  \right\)
 \end{align*}
 $$
 
