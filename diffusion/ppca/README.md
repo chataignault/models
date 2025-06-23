@@ -6,6 +6,12 @@ is to consider the PCA on some dataset, and to add noise to the decomposed matri
 to generate samples that were not in the training set, 
 but that share the same principal components with their respective amplitude.
 
+First SVD components :
+
+![image](img/svd_mnist.png)
+
+Using Probabilistic PCA :
+
 ![image](img/ppca_mnist.png)
 
 ## Using Singular Value Decomposition
