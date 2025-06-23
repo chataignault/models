@@ -6,37 +6,8 @@ from matplotlib import pyplot as plt
 
 from src.svd import naive_svd
 from src.svd import golub_kahan_svd
-from src.em import ppca
-
-
-def generate_sample_conditionned(X: np.array, keep: int, golub_svd: bool = True):
-    # can't have zero columns
-    X += 0.5 * np.random.randn(*X.shape)
-
-    if golub_svd:
-        U, S, V = golub_kahan_svd(X.copy(), max_step=2)
-    else:
-        U, S, V = naive_svd(X.copy())
-
-    s = np.diag(S).copy()
-    s[keep:] = 0.0
-
-    s = np.diag(s)
-
-    samples = U[:, :keep] @ s[:keep, :keep] @ V.T[:keep, :]
-
-    sample = samples[0]
-    sample = sample.reshape(28, 28)
-    return sample
-
-
-def get_samples_and_normalize(data: np.array, cl: np.array, n_samples: int, label: int):
-    X = [pil for (pil, l) in zip(data, cl) if l == label]
-    X = np.array([np.array(pil).reshape(784) for pil in X]) / 25.0
-
-    idx = random.choice(np.arange(len(X)), n_samples, replace=False)
-    X = X[idx]
-    return X
+from src.em import ppca, rotate_W_orthogonal
+from src.sample_utils import get_samples_and_normalize, generate_sample_conditionned
 
 
 if __name__ == "__main__":
@@ -61,16 +32,24 @@ if __name__ == "__main__":
 
         sample = generate_sample_conditionned(X.copy(), n_components)
 
-        W, s = ppca(X.T.copy(), 2)
+        mu = np.mean(X.T, axis=1).reshape(-1, 1)
+
+        W, s = ppca((X.T - mu).copy(), 2)
+
+        W = rotate_W_orthogonal(W)
 
         r, c = label // 5, label % 5
         axs[r, c].axis("off")
         axs[r, c].imshow(sample.copy(), cmap="gray")
         axs_ppca[r, c].axis("off")
-        axs_ppca[r, c].imshow(W[:, 0].reshape(28, 28).copy(), cmap="gray")
+        axs_ppca[r, c].imshow(
+            np.sum(mu + W, axis=1).reshape(28, 28).copy(), cmap="gray"
+        )
 
     fig.suptitle("Generated samples with SVD algorithm")
     fig_ppca.suptitle("Generated samples with Proba PCA algorithm")
     plt.tight_layout()
     plt.show()
-    fig.savefig("ppca_mnist.png", bbox_inches="tight")
+
+    fig.savefig("svd_mnist.png", bbox_inches="tight")
+    fig_ppca.savefig("ppca_mnist.png", bbox_inches="tight")

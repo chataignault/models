@@ -10,6 +10,11 @@ PPCA has other applications like dealing with missing data,
 maximum likelihood comparison with other probabilistic models for model selection 
 and covariance matrix fitting for Gaussian mixture models.
 
+First SVD components :
+
+![image](img/svd_mnist.png)
+
+Using Probabilistic PCA :
 
 ![image](img/ppca_mnist.png)
 
