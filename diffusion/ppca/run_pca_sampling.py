@@ -6,7 +6,7 @@ from matplotlib import pyplot as plt
 
 from src.svd import naive_svd
 from src.svd import golub_kahan_svd
-from src.em import ppca
+from src.em import ppca, rotate_W_orthogonal
 from src.sample_utils import get_samples_and_normalize, generate_sample_conditionned
 
 
@@ -32,16 +32,24 @@ if __name__ == "__main__":
 
         sample = generate_sample_conditionned(X.copy(), n_components)
 
-        W, s = ppca(X.T.copy(), 2)
+        mu = np.mean(X.T, axis=1).reshape(-1, 1)
+
+        W, s = ppca((X.T - mu).copy(), 2)
+
+        W = rotate_W_orthogonal(W)
 
         r, c = label // 5, label % 5
         axs[r, c].axis("off")
         axs[r, c].imshow(sample.copy(), cmap="gray")
         axs_ppca[r, c].axis("off")
-        axs_ppca[r, c].imshow(W[:, 0].reshape(28, 28).copy(), cmap="gray")
+        axs_ppca[r, c].imshow(
+            np.sum(mu + W, axis=1).reshape(28, 28).copy(), cmap="gray"
+        )
 
     fig.suptitle("Generated samples with SVD algorithm")
     fig_ppca.suptitle("Generated samples with Proba PCA algorithm")
     plt.tight_layout()
     plt.show()
-    fig.savefig("ppca_mnist.png", bbox_inches="tight")
+
+    fig.savefig("svd_mnist.png", bbox_inches="tight")
+    fig_ppca.savefig("ppca_mnist.png", bbox_inches="tight")
