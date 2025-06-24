@@ -1,7 +1,7 @@
 import numpy as np
 from numpy import random
 
-from .svd import golub_kahan_svd
+from .svd import golub_kahan_svd, naive_svd
 
 
 def generate_sample_conditionned(X: np.array, keep: int, golub_svd: bool = True):

@@ -96,7 +96,7 @@ def ppca(
         # compute new likelihood and update threshold
         l_new = compute_likelihood_pca(A, W, s)
 
-        dl = dl * .9 + (l_new - l) * .1
+        dl = dl * 0.9 + (l_new - l) * 0.1
         l = l_new
         print(f"Step {i} : {dl} {l}")
 

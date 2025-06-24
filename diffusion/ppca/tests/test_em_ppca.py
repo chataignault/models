@@ -4,7 +4,8 @@ from numpy import random
 
 from . import TOL
 
-from src.em import update_pca_params
+from src.svd import golub_kahan_svd
+from src.em import update_pca_params, ppca, rotate_W_orthogonal
 
 
 @pytest.mark.parametrize("d,q", [(3, 2), (5, 3), (8, 4)])
@@ -35,3 +36,16 @@ def test_update_pca_params(d: int, q: int):
 
     assert np.linalg.norm(W_naive - W_efficient) < TOL
     assert np.abs(s_naive - s_efficient) < TOL
+
+
+@pytest.mark.parametrize("d,n,q", [(3, 5, 2), (5, 15, 3), (8, 64, 4)])
+def test_ppca_orthogonal(d: int, n: int, q: int):
+    random.seed(d)
+    A = np.random.randn(d, n)
+
+    W, _ = ppca(A, q)
+    W = rotate_W_orthogonal(W)
+
+    S = W.T @ W
+
+    assert np.linalg.norm(S - np.diag(np.diagonal(S))) < TOL

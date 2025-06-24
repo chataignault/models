@@ -1,21 +1,16 @@
 import numpy as np
 from argparse import ArgumentParser
-from numpy import random
 from datasets import load_dataset
 from matplotlib import pyplot as plt
 
-from src.svd import naive_svd
-from src.svd import golub_kahan_svd
 from src.em import ppca, rotate_W_orthogonal
 from src.sample_utils import get_samples_and_normalize, generate_sample_conditionned
 
 
 if __name__ == "__main__":
     parser = ArgumentParser()
-
     parser.add_argument("--n_samples", type=int, default=1000)
     parser.add_argument("--n_components", type=int, default=3)
-
     args = parser.parse_args()
 
     n_samples = args.n_samples
@@ -35,7 +30,6 @@ if __name__ == "__main__":
         mu = np.mean(X.T, axis=1).reshape(-1, 1)
 
         W, s = ppca((X.T - mu).copy(), 2)
-
         W = rotate_W_orthogonal(W)
 
         r, c = label // 5, label % 5
@@ -49,7 +43,7 @@ if __name__ == "__main__":
     fig.suptitle("Generated samples with SVD algorithm")
     fig_ppca.suptitle("Generated samples with Proba PCA algorithm")
     plt.tight_layout()
-    plt.show()
-
     fig.savefig("svd_mnist.png", bbox_inches="tight")
     fig_ppca.savefig("ppca_mnist.png", bbox_inches="tight")
+    plt.tight_layout()
+    plt.show()
