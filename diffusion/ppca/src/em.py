@@ -21,7 +21,7 @@ def inverse_dp(M: np.ndarray) -> np.ndarray:
     Compute the inverse of a symmetric definite positive matrix
     Using the SVD decomposition
     """
-    U, S, _ = golub_kahan_svd(M)
+    U, S, _ = np.linalg.svd(M, hermitian=True)
     assert np.min(S) > 0.0, "Matrix is not definite positive"
     return U @ np.diag(1.0 / S) @ U.T
 
@@ -93,7 +93,7 @@ def ppca(
             break
 
         # EM step
-        W, s_new = update_pca_params_naive(W, S, s)
+        W, s_new = update_pca_params(W, S, s)
 
         ds = s - s_new
         s = s_new
