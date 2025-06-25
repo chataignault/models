@@ -1,5 +1,6 @@
 import numpy as np
 from typing import Tuple
+from src.svd import golub_kahan_svd
 
 
 def compute_likelihood_pca(A: np.ndarray, W: np.ndarray, s: float) -> float:
@@ -15,7 +16,14 @@ def compute_likelihood_pca(A: np.ndarray, W: np.ndarray, s: float) -> float:
     )
 
 
-def inverse_sdp(M: np.ndarray) -> np.ndarray: ...
+def inverse_dp(M: np.ndarray) -> np.ndarray:
+    """
+    Compute the inverse of a symmetric definite positive matrix
+    Using the SVD decomposition
+    """
+    U, S, _ = golub_kahan_svd(M)
+    assert np.min(S) > 0.0, "Matrix is not definite positive"
+    return U @ np.diag(1.0 / S) @ U.T
 
 
 def update_pca_params(
@@ -30,9 +38,8 @@ def update_pca_params(
     d, q = W.shape
     M = W.T @ W
     M[np.diag_indices(q)] += s
-    # M_inv = inverse_sdp(M); del M  # inverse of definite positive symmetric matrix with SVD
-    M_inv = np.linalg.inv(M)
-    del M
+    M_inv = inverse_dp(M)
+    del M  # inverse of definite positive symmetric matrix with SVD
     SW = S @ W
     R = M_inv @ W.T @ SW
     R[np.diag_indices(q)] += s
