@@ -10,16 +10,28 @@ PPCA has other applications like dealing with missing data,
 maximum likelihood comparison with other probabilistic models for model selection 
 and covariance matrix fitting for Gaussian mixture models.
 
-First SVD components :
+**Overview :**
+- Implement Singular Value Decomposition algorithms :
+  - Using the **QR algoritm** on the covariance matrix,
+  - Using the **Golub-Kahan algorithm**,
+- Implement the **EM algorithm** in the Probabilistic PCA framework,
+- Applying the PCA to generate data
+
+**Results :**
+
+With first SVD components :
 
 ![image](img/svd_mnist.png)
 
-Using Probabilistic PCA :
+With Probabilistic PCA :
 
 ![image](img/ppca_mnist.png)
 
+**TODO :**
+- [x] Implement MLE estimation of PPCA with EM algorithm
+- [ ] Benchmark execution time between naive SVD and Golub-Kahan algorithm
 
-**For the computation of the Singular Value Decomposition :** 
+
 ## Using Singular Value Decomposition
 
 The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`, 
@@ -69,10 +81,6 @@ $$
 where $\tilde{B}$ is square and upper bi-diagonal.
 
 A similar system is solved if $A$ is thin instead of wide, with the same complexity.
-
-**TODO :**
-- [x] Implement MLE estimation of PPCA with EM algorithm
-- [ ] Benchmark execution time between naive SVD and Golub-Kahan algorithm
 
 
 ## Using the EM algorithm
