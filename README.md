@@ -2,6 +2,27 @@
 
 **Store implemented models, test scripts and ideas.**
 
+Project structure :
+
+```bash
+├── diffusion
+│   ├── dae
+│   ├── ddpm
+│   ├── ppca
+│   └── vae
+├── fixed_income
+├── mastery
+├── numerical_exercises
+│   ├── dealing_cards
+│   ├── discrete_execution_optimisation
+│   ├── positive_path_count
+│   └── proba_negative_asset
+├── pdevnet
+│   ├── Dockerfile
+│   └── src
+└── unet
+```
+
 ## Diffusion
 
 ### Implement Denoising Diffusion Probabilitic Model (DDPM)
