@@ -61,10 +61,9 @@ def update_pca_params_naive(
     d, q = W.shape
     M = W.T @ W
     M[np.diag_indices(q)] += s
-    # M_inv = inverse_sdp(M); del M  # inverse of definite positive symmetric matrix with SVD
     M_inv = np.linalg.inv(M)
-    W_next = S @ W @ np.linalg.inv(s * np.eye(q) + M_inv @ W.T @ W @ M)
-    return (W_next, (np.linalg.trace(S - S @ W @ M_inv @ W_next.T)) / d)
+    W_next = S @ W @ np.linalg.inv(s * np.eye(q) + M_inv @ W.T @ S @ W)
+    return W_next, (np.linalg.trace(S - S @ W @ M_inv @ W_next.T)) / d
 
 
 def ppca(
@@ -74,38 +73,30 @@ def ppca(
     Compute the first q principle components
     with iterative EM algorithm,
     which stops once likelihood improvement smaller than tol
+    Assumes A is centered
     """
     d, n = A.shape
     assert q <= n, "Can't have more principal axes than data dimensionality"
     # vector containing the q approximate principal components
     W = np.random.randn(d, q)
     # average residual variance
-    s = 1.0
-    # sample mean
-    mu = np.mean(A, axis=1).reshape(-1, 1)
-    A -= mu
     # sample covariance
     S = A @ A.T / n
-    # likelihood improvement
-    l = compute_likelihood_pca(A, W, s)
-    dl = 1.0
+    s = np.linalg.trace(S)
+    ds = s
 
     i = 0
-    while dl > tol:
+    while ds > tol:
         i += 1
         if i > maxit:
             print(f"EM algorithm hasn't converged but reach max iterations {maxit}")
             break
 
         # EM step
-        W, s = update_pca_params_naive(W, S, s)
+        W, s_new = update_pca_params_naive(W, S, s)
 
-        # compute new likelihood and update threshold
-        l_new = compute_likelihood_pca(A, W, s)
-
-        dl = dl * 0.9 + (l_new - l) * 0.1
-        l = l_new
-        print(f"Step {i} : {dl} {l}")
+        ds = s - s_new
+        s = s_new
 
     return W, s
 
