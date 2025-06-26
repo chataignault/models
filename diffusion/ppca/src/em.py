@@ -5,14 +5,14 @@ from src.svd import golub_kahan_svd
 
 def compute_likelihood_pca(A: np.ndarray, W: np.ndarray, s: float) -> float:
     """
-    First draft
+    First draft to compute the log likelihood associated with the current projection
     """
     d, N = A.shape
     C = W @ W.T
     C[np.diag_indices(d)] += s
     return -(
         np.log(np.clip(np.linalg.det(C), min=1e-3, max=1000.0))
-        + np.trace(np.linalg.inv(C) @ A @ A.T / N)
+        + np.trace(inverse_dp(C) @ A @ A.T / N)
     )
 
 
