@@ -2,19 +2,20 @@
 
 Principal Components Analysis aims to describe as much variance in a dataset 
 with orthogonal combinations of features, 
-which is adapted to handle multi-colinearities.
+which is adapted to handle multi-colinearities, 
+at the cost of features interpretability.
 
 In
-*Bengio, Yoshua, Ian Goodfellow, and Aaron Courville. Deep learning. Vol. 1. Cambridge, MA, USA: MIT press, 2017.*, 
-the PCA is used to generalise the data distribution.
+`Bengio, Yoshua, Ian Goodfellow, and Aaron Courville, 2017.`[*](#references), 
+the PCA is used to describe the data distribution.
 With Gaussian assumption, it generates samples assuming an ellipsoid distribution of the data.
 
 Indeed the covariance matrix of the data can be deduced from PCA.
-For instance PCA can be used as a regularization technique 
+For instance it can be used as a regularization technique 
 to fit a covariance matrix in a Gaussian mixture model.
 
 Extending the probabilistic framework further, PCA was then bestowed with a probabilistic optimisation framework 
-and interpretation thereof (Tipping, 1999) 
+and interpretation thereof (`Tipping, 1999`[*](#references)) 
 that allows for a fast approximation. 
 
 Probabilistic PCA (PPCA) has other applications like dealing with missing data
@@ -44,8 +45,8 @@ With Probabilistic PCA :
 
 ## Using Singular Value Decomposition
 
-The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`, 
-while the SVD implementation with Givens rotations is from `Golub`.
+The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`[*](#references), 
+while the SVD implementation with Givens rotations is from `Golub`[*](#references).
 
 The bidiagonalisation is computed with full orthogonal matrices, 
 that is to say for $A \in \mathbb{R}^{n \times m}$ : 
@@ -95,7 +96,7 @@ A similar system is solved if $A$ is thin instead of wide, with the same complex
 
 ## Using the EM algorithm
 
-Using the same notations as in `Tipping`'s paper, 
+Using the same notations as in `Tipping`'s paper[*](#references), 
 the probabilistic framework being : 
 
 $$
