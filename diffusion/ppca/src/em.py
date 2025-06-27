@@ -1,21 +1,29 @@
 import numpy as np
 from typing import Tuple
+from src.svd import golub_kahan_svd
 
 
 def compute_likelihood_pca(A: np.ndarray, W: np.ndarray, s: float) -> float:
     """
-    First draft
+    First draft to compute the log likelihood associated with the current projection
     """
     d, N = A.shape
     C = W @ W.T
     C[np.diag_indices(d)] += s
     return -(
         np.log(np.clip(np.linalg.det(C), min=1e-3, max=1000.0))
-        + np.trace(np.linalg.inv(C) @ A @ A.T / N)
+        + np.trace(inverse_dp(C) @ A @ A.T / N)
     )
 
 
-def inverse_sdp(M: np.ndarray) -> np.ndarray: ...
+def inverse_dp(M: np.ndarray) -> np.ndarray:
+    """
+    Compute the inverse of a symmetric definite positive matrix
+    Using the SVD decomposition
+    """
+    U, S, _ = np.linalg.svd(M, hermitian=True)
+    assert np.min(S) > 0.0, "Matrix is not definite positive"
+    return U @ np.diag(1.0 / S) @ U.T
 
 
 def update_pca_params(
@@ -30,9 +38,8 @@ def update_pca_params(
     d, q = W.shape
     M = W.T @ W
     M[np.diag_indices(q)] += s
-    # M_inv = inverse_sdp(M); del M  # inverse of definite positive symmetric matrix with SVD
-    M_inv = np.linalg.inv(M)
-    del M
+    M_inv = inverse_dp(M)
+    del M  # inverse of definite positive symmetric matrix with SVD
     SW = S @ W
     R = M_inv @ W.T @ SW
     R[np.diag_indices(q)] += s
@@ -54,10 +61,9 @@ def update_pca_params_naive(
     d, q = W.shape
     M = W.T @ W
     M[np.diag_indices(q)] += s
-    # M_inv = inverse_sdp(M); del M  # inverse of definite positive symmetric matrix with SVD
     M_inv = np.linalg.inv(M)
-    W_next = S @ W @ np.linalg.inv(s * np.eye(q) + M_inv @ W.T @ W @ M)
-    return (W_next, (np.linalg.trace(S - S @ W @ M_inv @ W_next.T)) / d)
+    W_next = S @ W @ np.linalg.inv(s * np.eye(q) + M_inv @ W.T @ S @ W)
+    return W_next, (np.linalg.trace(S - S @ W @ M_inv @ W_next.T)) / d
 
 
 def ppca(
@@ -67,38 +73,30 @@ def ppca(
     Compute the first q principle components
     with iterative EM algorithm,
     which stops once likelihood improvement smaller than tol
+    Assumes A is centered
     """
     d, n = A.shape
     assert q <= n, "Can't have more principal axes than data dimensionality"
     # vector containing the q approximate principal components
     W = np.random.randn(d, q)
     # average residual variance
-    s = 1.0
-    # sample mean
-    mu = np.mean(A, axis=1).reshape(-1, 1)
-    A -= mu
     # sample covariance
     S = A @ A.T / n
-    # likelihood improvement
-    l = compute_likelihood_pca(A, W, s)
-    dl = 1.0
+    s = np.linalg.trace(S)
+    ds = s
 
     i = 0
-    while dl > tol:
+    while ds > tol:
         i += 1
         if i > maxit:
             print(f"EM algorithm hasn't converged but reach max iterations {maxit}")
             break
 
         # EM step
-        W, s = update_pca_params_naive(W, S, s)
+        W, s_new = update_pca_params(W, S, s)
 
-        # compute new likelihood and update threshold
-        l_new = compute_likelihood_pca(A, W, s)
-
-        dl = dl * 0.9 + (l_new - l) * 0.1
-        l = l_new
-        print(f"Step {i} : {dl} {l}")
+        ds = s - s_new
+        s = s_new
 
     return W, s
 

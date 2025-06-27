@@ -1,29 +1,52 @@
 # Probabilitic PCA on MNIST dataset
 
-A simple idea to generative modelling, as mentionned in 
-*Bengio, Yoshua, Ian Goodfellow, and Aaron Courville. Deep learning. Vol. 1. Cambridge, MA, USA: MIT press, 2017.* 
-is to consider the PCA on some dataset, and to add noise to the decomposed matrix
-to generate samples that were not in the training set, 
-but that share the same principal components with their respective amplitude.
+Principal Components Analysis aims to describe as much variance in a dataset 
+with orthogonal combinations of features, 
+which is adapted to handle multi-colinearities, 
+at the cost of features interpretability.
 
-PPCA has other applications like dealing with missing data,
-maximum likelihood comparison with other probabilistic models for model selection 
-and covariance matrix fitting for Gaussian mixture models.
+In
+`Bengio, Yoshua, Ian Goodfellow, and Aaron Courville, 2017.`[*](#references), 
+the PCA is used to describe the data distribution.
+With Gaussian assumption, it generates samples assuming an ellipsoid distribution of the data.
 
-First SVD components :
+Indeed the covariance matrix of the data can be deduced from PCA.
+For instance it can be used as a regularization technique 
+to fit a covariance matrix in a Gaussian mixture model.
+
+Extending the probabilistic framework further, PCA was then bestowed with a probabilistic optimisation framework 
+and interpretation thereof (`Tipping, 1999`[*](#references)) 
+that allows for a fast approximation. 
+
+Probabilistic PCA (PPCA) has other applications like dealing with missing data
+and maximum likelihood comparison with other probabilistic models.
+
+**Project Overview :**
+- Implement Singular Value Decomposition algorithms :
+  - Using the **QR algoritm** on the covariance matrix,
+  - Using the **Golub-Kahan algorithm**,
+- Implement the **EM algorithm** in the Probabilistic PCA framework,
+- Applying the PCA to generate MNIST digits
+
+**Results :**
+
+With first SVD components :
 
 ![image](img/svd_mnist.png)
 
-Using Probabilistic PCA :
+With Probabilistic PCA :
 
 ![image](img/ppca_mnist.png)
 
+**TODO :**
+- [x] Implement MLE estimation of PPCA with EM algorithm
+- [ ] Benchmark execution time between naive SVD and Golub-Kahan algorithm
 
-**For the computation of the Singular Value Decomposition :** 
+
 ## Using Singular Value Decomposition
 
-The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`, 
-while the SVD implementation with Givens rotations is from `Golub`.
+The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`[*](#references), 
+while the SVD implementation with Givens rotations is from `Golub`[*](#references).
 
 The bidiagonalisation is computed with full orthogonal matrices, 
 that is to say for $A \in \mathbb{R}^{n \times m}$ : 
@@ -70,14 +93,10 @@ where $\tilde{B}$ is square and upper bi-diagonal.
 
 A similar system is solved if $A$ is thin instead of wide, with the same complexity.
 
-**TODO :**
-- [x] Implement MLE estimation of PPCA with EM algorithm
-- [ ] Benchmark execution time between naive SVD and Golub-Kahan algorithm
-
 
 ## Using the EM algorithm
 
-Using the same notations as in `Tipping`'s paper, 
+Using the same notations as in `Tipping`'s paper[*](#references), 
 the probabilistic framework being : 
 
 $$
@@ -154,5 +173,30 @@ Where expectations are analytic given $x | t$ is gaussian.
   author={Golub, Gene H and Van Loan, Charles F},
   year={2013},
   publisher={JHU press}
+}
+```
+
+**Also read :**
+```bibtex
+@article{collas2021probabilistic,
+  title={Probabilistic PCA from heteroscedastic signals: geometric framework and application to clustering},
+  author={Collas, Antoine and Bouchard, Florent and Breloy, Arnaud and Ginolhac, Guillaume and Ren, Chengfang and Ovarlez, Jean-Philippe},
+  journal={IEEE Transactions on Signal Processing},
+  volume={69},
+  pages={6546--6560},
+  year={2021},
+  publisher={IEEE}
+}
+```
+
+```bibtex
+@misc{papazoglou2025covariancesupervisedprincipalcomponent,
+      title={Covariance Supervised Principal Component Analysis}, 
+      author={Theodosios Papazoglou and Guosheng Yin},
+      year={2025},
+      eprint={2506.19247},
+      archivePrefix={arXiv},
+      primaryClass={stat.AP},
+      url={https://arxiv.org/abs/2506.19247}, 
 }
 ```

@@ -3,7 +3,7 @@ from argparse import ArgumentParser
 from datasets import load_dataset
 from matplotlib import pyplot as plt
 
-from src.em import ppca, rotate_W_orthogonal
+from src.em import ppca, rotate_W_orthogonal, compute_likelihood_pca
 from src.sample_utils import get_samples_and_normalize, generate_sample_conditionned
 
 
@@ -23,22 +23,23 @@ if __name__ == "__main__":
     fig_ppca, axs_ppca = plt.subplots(figsize=(10, 4), ncols=5, nrows=2)
 
     for label in range(10):
+        print(f"\nDigit : {label}")
+        print("Get samples subset...")
         X = get_samples_and_normalize(data, cl, n_samples, label)
 
-        sample = generate_sample_conditionned(X.copy(), n_components)
+        print("Generating new PCA samples from SVD...")
+        sample_svd = generate_sample_conditionned(X.copy(), n_components)
 
-        mu = np.mean(X.T, axis=1).reshape(-1, 1)
-
-        W, s = ppca((X.T - mu).copy(), 2)
-        W = rotate_W_orthogonal(W)
+        print("Generating samples with Probabilistic PCA...")
+        sample_ppca = generate_sample_conditionned(
+            X.copy(), n_components, probabilistic=True
+        )
 
         r, c = label // 5, label % 5
         axs[r, c].axis("off")
-        axs[r, c].imshow(sample.copy(), cmap="gray")
+        axs[r, c].imshow(sample_svd.copy(), cmap="gray")
         axs_ppca[r, c].axis("off")
-        axs_ppca[r, c].imshow(
-            np.sum(mu + W, axis=1).reshape(28, 28).copy(), cmap="gray"
-        )
+        axs_ppca[r, c].imshow(sample_ppca.copy(), cmap="gray")
 
     fig.suptitle("Generated samples with SVD algorithm")
     fig_ppca.suptitle("Generated samples with Proba PCA algorithm")
