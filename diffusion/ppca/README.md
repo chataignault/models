@@ -1,21 +1,31 @@
 # Probabilitic PCA on MNIST dataset
 
-A simple idea to generative modelling, as mentionned in 
-*Bengio, Yoshua, Ian Goodfellow, and Aaron Courville. Deep learning. Vol. 1. Cambridge, MA, USA: MIT press, 2017.* 
-is to consider the PCA on some dataset, and to add noise to the decomposed matrix
-to generate samples that were not in the training set, 
-but that share the same principal components with their respective amplitude.
+Principal Components Analysis aims to describe as much variance in a dataset 
+with orthogonal combinations of features, 
+which is adapted to handle multi-colinearities.
 
-PPCA has other applications like dealing with missing data,
-maximum likelihood comparison with other probabilistic models for model selection 
-and covariance matrix fitting for Gaussian mixture models.
+In
+*Bengio, Yoshua, Ian Goodfellow, and Aaron Courville. Deep learning. Vol. 1. Cambridge, MA, USA: MIT press, 2017.*, 
+the PCA is used to generalise the data distribution.
+With Gaussian assumption, it generates samples assuming an ellipsoid distribution of the data.
 
-**Overview :**
+Indeed the covariance matrix of the data can be deduced from PCA.
+For instance PCA can be used as a regularization technique 
+to fit a covariance matrix in a Gaussian mixture model.
+
+Extending the probabilistic framework further, PCA was then bestowed with a probabilistic optimisation framework 
+and interpretation thereof (Tipping, 1999) 
+that allows for a fast approximation. 
+
+Probabilistic PCA (PPCA) has other applications like dealing with missing data
+and maximum likelihood comparison with other probabilistic models.
+
+**Project Overview :**
 - Implement Singular Value Decomposition algorithms :
   - Using the **QR algoritm** on the covariance matrix,
   - Using the **Golub-Kahan algorithm**,
 - Implement the **EM algorithm** in the Probabilistic PCA framework,
-- Applying the PCA to generate data
+- Applying the PCA to generate MNIST digits
 
 **Results :**
 
@@ -162,5 +172,30 @@ Where expectations are analytic given $x | t$ is gaussian.
   author={Golub, Gene H and Van Loan, Charles F},
   year={2013},
   publisher={JHU press}
+}
+```
+
+**Also read :**
+```bibtex
+@article{collas2021probabilistic,
+  title={Probabilistic PCA from heteroscedastic signals: geometric framework and application to clustering},
+  author={Collas, Antoine and Bouchard, Florent and Breloy, Arnaud and Ginolhac, Guillaume and Ren, Chengfang and Ovarlez, Jean-Philippe},
+  journal={IEEE Transactions on Signal Processing},
+  volume={69},
+  pages={6546--6560},
+  year={2021},
+  publisher={IEEE}
+}
+```
+
+```bibtex
+@misc{papazoglou2025covariancesupervisedprincipalcomponent,
+      title={Covariance Supervised Principal Component Analysis}, 
+      author={Theodosios Papazoglou and Guosheng Yin},
+      year={2025},
+      eprint={2506.19247},
+      archivePrefix={arXiv},
+      primaryClass={stat.AP},
+      url={https://arxiv.org/abs/2506.19247}, 
 }
 ```
