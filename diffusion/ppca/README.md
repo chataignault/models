@@ -32,11 +32,11 @@ and maximum likelihood comparison with other probabilistic models.
 
 With first SVD components :
 
-![image](img/svd_mnist.png)
+<img src="img/svd_mnist.png" width="510" >
 
 With Probabilistic PCA :
 
-![image](img/ppca_mnist.png)
+<img src="img/ppca_mnist.png" width="510" >
 
 **TODO :**
 - [x] Implement MLE estimation of PPCA with EM algorithm
@@ -103,32 +103,33 @@ $$
 t = W x + \mu + \epsilon
 $$
 
-Where $ t \in \mathbb{R}^d $ is the observation variable, 
-$x \in \mathbb{R}^q $ is the latent one,
-with $ q \ll d $ and $\epsilon \sim \mathcal{N} (0, \sigma^2) $.
+Where $t \in \mathbb{R}^d$ is the observation variable, 
+$x \in \mathbb{R}^q$ is the latent one,
+with $q \ll d$ and $\epsilon \sim \mathcal{N} (0, \sigma^2)$.
 
-Then log-likelihood is :
+Then the
+<span style="color:green">log-likelihood </span>
+of the joint observation and latent variables is :
 
-$$
+```math
 \begin{align*}
-\mathcal{L} = &\sum \log p(x_i, t_i) \\
- = & -Nd \log \sigma \\
- & - \frac{1}{2\sigma^2} \sum 
-\left( \text{tr} \left( W^T W x_i x_i^T \right) - 2 \text{tr} \left( W x ( t_i - \mu )^T \right)  + (t_i - \mu)^T (t_i - \mu) \right)  \\ 
-& - \frac{1}{2} \sum x_i^T x_i 
+\mathcal{L}(x, t) = &\sum \log p(x\_i, t\_i) \\
+ = & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} (t\_i-\mu - Wx\_i)^T( t\_i - \mu - Wx\_i) + x\_i^Tx\_i \right\} \\
+ & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left((t\_i-\mu) (t\_i-\mu)^T\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W x\_i x\_i^T\right) -  \frac{2}{\sigma^2}(t\_i-\mu)^TWx\_i + x\_i^Tx\_i \right\} \\
 \end{align*}
-$$
+```
 
-Taking this expectation step (conditionned on $t, W $ and $\sigma^2 $) gives :
+Taking the 
+<span style="color:green">expectation step </span> 
+(conditionned on $t, W $ and $\sigma^2 $) gives :
 
-$$
+```math
 \begin{align*}
-\mathbb{E} \left[ \mathcal{L} | t, W, \sigma^2 \right] = & - N d \log \sigma - \frac{N}{2\sigma^2} \text{tr} (S) \\
-& - \frac{N}{2\sigma^2} \left( 
-  \text{tr} ( \left( W^T W + \sigma^2 I \right) \langle x^T x \rangle ) - 2 \text{tr} \left( W \langle x \rangle ( t_i - \mu )^T \right)
-  \right)
+\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = & - \frac{N}{2} \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left(S\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W \overline{\langle x x^T \rangle} \right) -  \frac{2}{\sigma^2} \sum_{i=1}^N(t\_i-\mu)^TW\langle x\_i\rangle + \overline{\langle x^Tx \rangle} \right\}
 \end{align*}
-$$
+```
+
+Where "bar" variables represent the empirical mean over samples.
 
 Where expectations are analytic given $x | t$ is gaussian.
 
@@ -177,6 +178,8 @@ Where expectations are analytic given $x | t$ is gaussian.
 ```
 
 **Also read :**
+
+To model heavy-tailed distributions :
 ```bibtex
 @article{collas2021probabilistic,
   title={Probabilistic PCA from heteroscedastic signals: geometric framework and application to clustering},
@@ -189,6 +192,7 @@ Where expectations are analytic given $x | t$ is gaussian.
 }
 ```
 
+To adapt PCA to response variable : 
 ```bibtex
 @misc{papazoglou2025covariancesupervisedprincipalcomponent,
       title={Covariance Supervised Principal Component Analysis}, 
