@@ -5,4 +5,5 @@ description = "Implement Inception block in pytorch"
 requires-python = ">=3.13"
 dependencies = [
     "torch>=2.8.0",
+    "torchvision>=0.19.0",
 ]
