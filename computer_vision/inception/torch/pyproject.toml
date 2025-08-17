@@ -1,0 +1,8 @@
+[project]
+name = "inception-torch"
+version = "0.1.0"
+description = "Implement Inception block in pytorch"
+requires-python = ">=3.13"
+dependencies = [
+    "torch>=2.8.0",
+]
