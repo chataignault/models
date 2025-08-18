@@ -3,12 +3,13 @@ use burn_cuda::{Cuda, CudaDevice};
 use burn::{
     nn::loss::CrossEntropyLossConfig,
     optim::{AdamConfig, Optimizer, GradientsParams},
-    tensor::Tensor,
 };
 
 mod model;
+mod dataset;
 
 use model::{SimpleInceptionNet, ModelConfig};
+use dataset::{get_cifar10_dataloaders, Cifar10Config, get_cifar10_classes};
 
 type Backend = Cuda<f32>;
 type AutodiffBackend = Autodiff<Backend>;
@@ -31,43 +32,52 @@ fn main() {
     let learning_rate = 0.001;
     let num_epochs = 20; // Restored for proper training
     let batch_size = 32; // Increased batch size for GPU
-    let height = 32;
-    let width = 32;
-    let channels = 3;
     
     // Initialize optimizer and loss function
     let mut optimizer = AdamConfig::new().init();
     let loss_fn = CrossEntropyLossConfig::new().init(&device);
+    
+    // Load CIFAR-10 dataset
+    let dataset_config = Cifar10Config {
+        train_batch_size: batch_size,
+        test_batch_size: batch_size,
+        num_workers: 4,
+    };
+    
+    let (_train_dataloader, test_dataloader) = match get_cifar10_dataloaders(&device, &dataset_config) {
+        Ok(dataloaders) => dataloaders,
+        Err(e) => {
+            eprintln!("Failed to load CIFAR-10 dataset: {}", e);
+            eprintln!("Make sure the CIFAR-10 data is available in data/cifar-10-batches-py/");
+            return;
+        }
+    };
+    
+    let classes = get_cifar10_classes();
+    println!("CIFAR-10 classes: {:?}", classes);
     
     println!("Starting training for {} epochs...", num_epochs);
     
     // Training loop
     for epoch in 0..num_epochs {
         let mut total_loss = 0.0;
-        let num_batches = 20; // Restored number of batches per epoch
+        let mut num_batches = 0;
         
-        for batch_idx in 0..num_batches {
-            // Generate random training data
-            let input_data: Vec<f32> = (0..(batch_size * channels * height * width))
-                .map(|_| rand::random::<f32>() * 2.0 - 1.0)
-                .collect();
-            
-            let input_tensor = Tensor::<AutodiffBackend, 1>::from_floats(
-                input_data.as_slice(), &device
-            ).reshape([batch_size, channels, height, width]);
-            
-            // Generate random labels (0-9 for CIFAR-10)
-            let label_data: Vec<i64> = (0..batch_size)
-                .map(|_| (rand::random::<u32>() % 10) as i64)
-                .collect();
-            
-            let labels = Tensor::<AutodiffBackend, 1, burn::tensor::Int>::from_ints(
-                label_data.as_slice(), &device
-            );
+        // Need to recreate dataloaders each epoch
+        let (epoch_train_dataloader, _) = match get_cifar10_dataloaders(&device, &dataset_config) {
+            Ok(dataloaders) => dataloaders,
+            Err(e) => {
+                eprintln!("Failed to recreate CIFAR-10 dataloader for epoch {}: {}", epoch + 1, e);
+                return;
+            }
+        };
+        
+        for batch in epoch_train_dataloader.iter() {
+            let images = batch.image;
+            let labels = batch.label;
             
             // Forward pass
-            let output = model.forward(input_tensor);
-            
+            let output = model.forward(images);
             let loss = loss_fn.forward(output, labels);
             
             // Store loss value before backward pass
@@ -79,31 +89,47 @@ fn main() {
             model = optimizer.step(learning_rate, model, params);
             
             total_loss += loss_value;
+            num_batches += 1;
             
-            if batch_idx % 5 == 0 { // Print every 5 batches
-                println!("Epoch {}/{}, Batch {}/{}, Loss: {:.4}", 
-                        epoch + 1, num_epochs, batch_idx + 1, num_batches, loss_value);
+            if num_batches % 100 == 0 { // Print every 100 batches
+                println!("Epoch {}/{}, Batch {}, Loss: {:.4}", 
+                        epoch + 1, num_epochs, num_batches, loss_value);
             }
         }
         
         let avg_loss = total_loss / num_batches as f32;
-        println!("Epoch {}/{} completed - Average Loss: {:.4}", epoch + 1, num_epochs, avg_loss);
+        println!("✅ Epoch {}/{} completed - Average Loss: {:.4} ({} batches)", 
+                epoch + 1, num_epochs, avg_loss, num_batches);
     }
     
     println!("Training completed!");
     
-    // Test the trained model
-    println!("Testing trained model...");
-    let test_batch_size = 8;
-    let test_input_data: Vec<f32> = (0..(test_batch_size * channels * height * width))
-        .map(|_| rand::random::<f32>() * 2.0 - 1.0)
-        .collect();
+    // Test the trained model on real test data
+    println!("Testing trained model on CIFAR-10 test data...");
+    let mut correct = 0;
+    let mut total = 0;
     
-    let test_input = Tensor::<AutodiffBackend, 1>::from_floats(
-        test_input_data.as_slice(), &device
-    ).reshape([test_batch_size, channels, height, width]);
+    for batch in test_dataloader.iter() {
+        let images = batch.image;
+        let targets = batch.label;
+        
+        let output = model.forward(images);
+        let predictions = output.argmax(1);
+        
+        // Convert to CPU for comparison
+        let targets_data = targets.to_data();
+        let predictions_data = predictions.to_data();
+        
+        // Count correct predictions
+        for (pred, target) in predictions_data.iter::<i64>().zip(targets_data.iter::<i64>()) {
+            if pred == target {
+                correct += 1;
+            }
+            total += 1;
+        }
+    }
     
-    let test_output = model.forward(test_input);
-    println!("Test output shape: {:?}", test_output.dims());
+    let accuracy = 100.0 * correct as f64 / total as f64;
+    println!("Test Accuracy: {:.2}% ({}/{} correct)", accuracy, correct, total);
     println!("Model testing completed successfully!");
 }
