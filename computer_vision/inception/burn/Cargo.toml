@@ -8,7 +8,7 @@ name = "inception_cifar10"
 path = "src/main.rs"
 
 [dependencies]
-burn = { version = "0.18", features = ["std", "train", "vision", "dataset", "ndarray"] }
-burn-ndarray = { version = "0.18" }
+burn = { version = "0.18", features = ["std", "train", "vision", "dataset", "cuda"] }
+burn-cuda = { version = "0.18" }
 serde = { version = "1.0", features = ["derive"] }
 rand = "0.8"

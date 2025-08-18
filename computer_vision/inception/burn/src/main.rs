@@ -1,5 +1,5 @@
 use burn::backend::Autodiff;
-use burn_ndarray::{NdArray, NdArrayDevice};
+use burn_cuda::{Cuda, CudaDevice};
 use burn::{
     nn::loss::CrossEntropyLossConfig,
     optim::{AdamConfig, Optimizer, GradientsParams},
@@ -10,12 +10,12 @@ mod model;
 
 use model::{SimpleInceptionNet, ModelConfig};
 
-type Backend = NdArray<f32>;
+type Backend = Cuda<f32>;
 type AutodiffBackend = Autodiff<Backend>;
 
 fn main() {
-    // Initialize the device
-    let device = NdArrayDevice::default();
+    // Initialize the CUDA device
+    let device = CudaDevice::default();
     
     // Create model configuration
     let model_config = ModelConfig::default();
@@ -27,10 +27,10 @@ fn main() {
     println!("Model config: {:?}", model_config);
     println!("Device: {:?}", device);
     
-    // Training configuration
+    // Training configuration (increased for GPU)
     let learning_rate = 0.001;
-    let num_epochs = 2; // Reduced for faster testing
-    let batch_size = 4; // Reduced batch size
+    let num_epochs = 20; // Restored for proper training
+    let batch_size = 32; // Increased batch size for GPU
     let height = 32;
     let width = 32;
     let channels = 3;
@@ -44,7 +44,7 @@ fn main() {
     // Training loop
     for epoch in 0..num_epochs {
         let mut total_loss = 0.0;
-        let num_batches = 5; // Reduced number of batches per epoch for faster testing
+        let num_batches = 20; // Restored number of batches per epoch
         
         for batch_idx in 0..num_batches {
             // Generate random training data
@@ -65,20 +65,8 @@ fn main() {
                 label_data.as_slice(), &device
             );
             
-            // Debug: Print tensor shapes and label values for first batch
-            if epoch == 0 && batch_idx == 0 {
-                println!("Debug - Input shape: {:?}", input_tensor.dims());
-                println!("Debug - Label values: {:?}", label_data);
-                println!("Debug - Label tensor shape: {:?}", labels.dims());
-            }
-            
             // Forward pass
             let output = model.forward(input_tensor);
-            
-            // Debug: Print output shape for first batch
-            if epoch == 0 && batch_idx == 0 {
-                println!("Debug - Output shape: {:?}", output.dims());
-            }
             
             let loss = loss_fn.forward(output, labels);
             
@@ -92,7 +80,7 @@ fn main() {
             
             total_loss += loss_value;
             
-            if batch_idx % 2 == 0 { // Print more frequently with fewer batches
+            if batch_idx % 5 == 0 { // Print every 5 batches
                 println!("Epoch {}/{}, Batch {}/{}, Loss: {:.4}", 
                         epoch + 1, num_epochs, batch_idx + 1, num_batches, loss_value);
             }
@@ -106,13 +94,14 @@ fn main() {
     
     // Test the trained model
     println!("Testing trained model...");
-    let test_input_data: Vec<f32> = (0..(4 * channels * height * width))
+    let test_batch_size = 8;
+    let test_input_data: Vec<f32> = (0..(test_batch_size * channels * height * width))
         .map(|_| rand::random::<f32>() * 2.0 - 1.0)
         .collect();
     
     let test_input = Tensor::<AutodiffBackend, 1>::from_floats(
         test_input_data.as_slice(), &device
-    ).reshape([4, channels, height, width]);
+    ).reshape([test_batch_size, channels, height, width]);
     
     let test_output = model.forward(test_input);
     println!("Test output shape: {:?}", test_output.dims());
