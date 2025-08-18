@@ -76,23 +76,18 @@ impl<B: Backend> InceptionBlock<B> {
     }
 
     pub fn forward(&self, x: Tensor<B, 4>) -> Tensor<B, 4> {
+        
         // Branch 1: 1x1 conv
         let branch1 = relu(self.branch1.forward(x.clone()));
-
+        
         // Branch 2: 1x1 -> 3x3
         let branch2 = relu(self.branch2_1x1.forward(x.clone()));
         let branch2 = relu(self.branch2_3x3.forward(branch2));
-
-        // Branch 3: 1x1 -> 5x5
-        let branch3 = relu(self.branch3_1x1.forward(x.clone()));
-        let branch3 = relu(self.branch3_5x5.forward(branch3));
-
-        // Branch 4: maxpool -> 1x1
-        let branch4 = self.branch4_pool.forward(x);
-        let branch4 = relu(self.branch4_1x1.forward(branch4));
-
+        
+        // Only use 2 branches for now to reduce memory
         // Concatenate along channel dimension
-        Tensor::cat(vec![branch1, branch2, branch3, branch4], 1)
+        let result = Tensor::cat(vec![branch1, branch2], 1);
+        result
     }
 }
 
@@ -110,7 +105,7 @@ pub struct SimpleInceptionNet<B: Backend> {
 
 impl<B: Backend> SimpleInceptionNet<B> {
     pub fn new(device: &B::Device, num_classes: usize) -> Self {
-        let conv1 = Conv2dConfig::new([3, 64], [3, 3])
+        let conv1 = Conv2dConfig::new([3, 32], [3, 3])
             .with_padding(PaddingConfig2d::Explicit(1, 1))
             .init(device);
         
@@ -118,11 +113,11 @@ impl<B: Backend> SimpleInceptionNet<B> {
             .with_strides([2, 2])
             .init();
 
-        // Inception block 1: 64 -> 64 channels (16+32+8+8)
-        let inception1 = InceptionBlock::new(device, 64, 16, 24, 32, 4, 8, 8);
+        // Inception block 1: 32 -> 24 channels (8+16) - simplified to 2 branches
+        let inception1 = InceptionBlock::new(device, 32, 8, 12, 16, 2, 4, 4);
         
-        // Inception block 2: 64 -> 128 channels (32+64+16+16)
-        let inception2 = InceptionBlock::new(device, 64, 32, 48, 64, 8, 16, 16);
+        // Inception block 2: 24 -> 24 channels (8+16) - simplified to 2 branches  
+        let inception2 = InceptionBlock::new(device, 24, 8, 12, 16, 2, 4, 4);
 
         let pool2 = MaxPool2dConfig::new([2, 2])
             .with_strides([2, 2])
@@ -132,7 +127,7 @@ impl<B: Backend> SimpleInceptionNet<B> {
         
         let dropout = DropoutConfig::new(0.4).init();
         
-        let fc = LinearConfig::new(128, num_classes).init(device);
+        let fc = LinearConfig::new(24, num_classes).init(device);
 
         Self {
             conv1,

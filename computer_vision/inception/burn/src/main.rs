@@ -28,10 +28,10 @@ fn main() {
     println!("Model config: {:?}", model_config);
     println!("Device: {:?}", device);
     
-    // Training configuration (increased for GPU)
+    // Training configuration (optimized for RTX 2050 4GB VRAM)
     let learning_rate = 0.001;
-    let num_epochs = 20; // Restored for proper training
-    let batch_size = 32; // Increased batch size for GPU
+    let num_epochs = 1;
+    let batch_size = 8; // Reduced further for 4GB GPU
     
     // Initialize optimizer and loss function
     let mut optimizer = AdamConfig::new().init();
@@ -98,7 +98,7 @@ fn main() {
         }
         
         let avg_loss = total_loss / num_batches as f32;
-        println!("✅ Epoch {}/{} completed - Average Loss: {:.4} ({} batches)", 
+        println!("Epoch {}/{} completed - Average Loss: {:.4} ({} batches)", 
                 epoch + 1, num_epochs, avg_loss, num_batches);
     }
     
@@ -108,17 +108,24 @@ fn main() {
     println!("Testing trained model on CIFAR-10 test data...");
     let mut correct = 0;
     let mut total = 0;
+    let mut batch_count = 0;
     
     for batch in test_dataloader.iter() {
+        batch_count += 1;
+        println!("Processing test batch {}", batch_count);
+        
         let images = batch.image;
         let targets = batch.label;
         
         let output = model.forward(images);
         let predictions = output.argmax(1);
         
-        // Convert to CPU for comparison
+        // Convert to CPU immediately and drop GPU tensors
         let targets_data = targets.to_data();
         let predictions_data = predictions.to_data();
+        
+        // No need to drop - argmax already consumed output
+        // and to_data() moves the tensors to CPU
         
         // Count correct predictions
         for (pred, target) in predictions_data.iter::<i64>().zip(targets_data.iter::<i64>()) {
@@ -126,6 +133,12 @@ fn main() {
                 correct += 1;
             }
             total += 1;
+        }
+        
+        // Limit to fewer batches for testing
+        if batch_count >= 10 {
+            println!("Stopping after 10 test batches to avoid memory issues");
+            break;
         }
     }
     
