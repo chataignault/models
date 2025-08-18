@@ -1,8 +1,13 @@
 [project]
 name = "inception-jax"
 version = "0.1.0"
-description = "Minimal Inception network with JAX"
+description = "CIFAR-10 classifier with stacked inception blocks using JAX/Flax"
 requires-python = ">=3.13"
 dependencies = [
-    "jax>=0.7.0",
+    "jax[cuda12]>=0.7.0",
+    "flax>=0.10.0",
+    "optax>=0.2.0",
+    "torch>=2.8.0",
+    "torchvision>=0.19.0",
+    "numpy>=1.24.0",
 ]
