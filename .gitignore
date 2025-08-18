@@ -22,6 +22,7 @@ mlruns
 *.whl
 *.txt
 *.pt
+*.pth
 *.gif
 *.png
 *.exe
