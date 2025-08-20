@@ -21,12 +21,11 @@ def main():
     train_loader, test_loader = get_cifar10_dataloaders(batch_size=64)
     
     print('Starting training...')
-    train_accuracies, test_accuracies = train_model(
+    train_accuracies, test_accuracies, state = train_model(
         model, train_loader, test_loader, 
         num_epochs=20, learning_rate=0.001
     )
     
-    state = create_train_state(model, rng, 0.001, (1, 32, 32, 3))
     final_test_acc = evaluate_model(state, test_loader)
     print(f'\nFinal test accuracy: {final_test_acc:.2f}%')
     

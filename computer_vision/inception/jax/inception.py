@@ -53,3 +53,4 @@ class SimpleInceptionNet(nn.Module):
         x = nn.Dense(self.num_classes)(x)
         
         return x
+    
