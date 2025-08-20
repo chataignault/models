@@ -97,7 +97,7 @@ def train_model(model: nn.Module, train_loader, test_loader, num_epochs: int = 2
         epoch_time = time.time() - start_time
         print(f'Epoch [{epoch+1}/{num_epochs}] - Train Acc: {train_acc:.2f}% - Test Acc: {test_acc:.2f}% - Time: {epoch_time:.2f}s')
     
-    return train_accuracies, test_accuracies
+    return train_accuracies, test_accuracies, state
 
 
 def evaluate_model(state: TrainState, test_loader) -> float:

@@ -1,6 +1,7 @@
 # Inception CIFAR-10 Classifier (Rust/Burn)
 
-This is a Rust implementation of an Inception-based neural network for CIFAR-10 classification using the Burn deep learning framework. This project is transcoded from the PyTorch implementation in the `../torch` folder.
+This is a Rust implementation of an Inception-based neural network for CIFAR-10 classification using the Burn deep learning framework. 
+This project is transcoded from the PyTorch implementation in the `../torch` folder.
 
 ## Architecture
 
@@ -53,7 +54,8 @@ let config = TrainingConfig {
 
 ## Dataset
 
-The implementation expects CIFAR-10 data to be available. The Burn framework will automatically download and prepare the dataset if not present.
+The implementation expects CIFAR-10 data to be available. 
+The Burn framework will automatically download and prepare the dataset if not present.
 
 ## Files
 
@@ -61,7 +63,3 @@ The implementation expects CIFAR-10 data to be available. The Burn framework wil
 - `src/dataset.rs` - CIFAR-10 data loading and preprocessing  
 - `src/training.rs` - Training loop and configuration
 - `src/main.rs` - Entry point
-
-## Performance
-
-The model achieves similar performance to the PyTorch implementation with proper hyperparameter tuning.
