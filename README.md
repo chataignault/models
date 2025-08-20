@@ -5,6 +5,9 @@
 Project structure :
 
 ```bash
+├── computer_vision
+│   ├── inception
+│   └── yolox
 ├── diffusion
 │   ├── dae
 │   ├── ddpm
@@ -12,15 +15,15 @@ Project structure :
 │   └── vae
 ├── fixed_income
 ├── mastery
+│   └── Harmonic_Analysis_on_Paths_Spaces.pdf
 ├── numerical_exercises
 │   ├── dealing_cards
 │   ├── discrete_execution_optimisation
 │   ├── positive_path_count
 │   └── proba_negative_asset
 ├── pdevnet
-│   ├── Dockerfile
-│   └── src
-└── unet
+└── utils
+    └── polars_hdf5
 ```
 
 ## Diffusion
@@ -47,6 +50,13 @@ Project structure :
 - [Guo, Yuwei, et al. "Animatediff: Animate your personalized text-to-image diffusion models without specific tuning." arXiv preprint arXiv:2307.04725 (2023).](https://arxiv.org/pdf/2307.04725) 
     - HuggingFace reference : https://huggingface.co/guoyww/animatediff-motion-adapter-v1-5-2
 
+## Computer Vision
+
+### Inception block POC
+Implement minimal inception network applied to CIFAR 10 classification.
+
+### YOLOX inference
+Test YOLOX algorithm for bounding box detection.
 
 ## Path Development
 - Leverage path development inside models
