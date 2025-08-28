@@ -30,7 +30,7 @@ class VideoProcessor:
         )
         
         # Detection parameters
-        self.min_area = 1000  # Minimum blob area
+        self.min_area = 500  # Minimum blob area
         self.max_area = 10000  # Maximum blob area
         
     def initialize_capture(self) -> bool:
@@ -43,6 +43,9 @@ class VideoProcessor:
             if not self.cap.isOpened():
                 print(f"Error: Could not open video source: {self.source}")
                 return False
+            
+            self.cap.set( cv2.CAP_PROP_FRAME_WIDTH, 1280)
+            self.cap.set( cv2.CAP_PROP_FRAME_HEIGHT, 720)
                 
             # Get video properties
             fps = self.cap.get(cv2.CAP_PROP_FPS) or 30
