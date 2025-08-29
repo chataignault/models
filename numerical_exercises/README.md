@@ -284,7 +284,7 @@ This forms one pile and the other cards - untouched - go in the other pile.
 ## Other references
 - https://laurentmazare.github.io/
 
-## Counting Diagonal Paths
+## Counting diagonal paths
 
 Starting at $(0,0)$, 
 how many paths are there to reach $(4,6)$,
