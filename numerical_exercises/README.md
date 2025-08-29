@@ -6,6 +6,7 @@ Implement numerically some algorithms to confirm intuition on problems of combin
 2. [Optimising some discrete order execution](#discrete-optimal-execution)
 3. [Random walk crossing threshold probability](#negative-price-probability)
 4. [Dealing cards evenly without observation](#dealing-indistinguishable-cards)
+5. [Counting diagonal paths](#counting-diagonal-paths)
 
 *Also includes :*
 - detours on combinatorics and proofs
@@ -283,3 +284,27 @@ This forms one pile and the other cards - untouched - go in the other pile.
 ## Other references
 - https://laurentmazare.github.io/
 
+## Counting Diagonal Paths
+
+Starting at $(0,0)$, 
+how many paths are there to reach $(4,6)$,
+going either UP or RIGHT at each turn,
+and avoiding to go three times in the same directlion successively ?
+
+<p style="color:green">
+The total number of paths, without the constraint is :
+$$
+\begin{pmatrix} 10 \\ 4 \end{pmatrix}
+$$
+The objective is then to count the number of paths that are not valid,
+that is paths containing 
+one or more sequence of three successive UP or RIGHT.
+</p>
+
+## Probability of fortune before ruin
+
+I currently own $3$ coins and want to reach $5$.
+Each turn I bet the maximum amount up to what is necessary to reach $5$.
+The probability of winning each turn is $\frac{2}{3}$ - 
+the amount won is the number of betted coins.
+What is the probability of reaching $5$ before loosing all the coins ?
