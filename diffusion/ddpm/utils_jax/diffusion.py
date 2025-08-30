@@ -15,6 +15,19 @@ def get_index_from_list(vals, t, x_shape):
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1)))
 
 
+def linear_beta_schedule(
+    timesteps: int, start: float = 1e-4, end: float = 2e-2
+) -> jnp.arary:
+    return jnp.linspace(start=start, end=end, num=timesteps)
+
+
+def cosine_beta_schedule(
+    timesteps: int, start: float = 1e-4, end: float = 2e-2
+) -> jnp.array:
+    steps = jnp.arange(start=0, end=timesteps) + start
+    return end * (1.0 - jnp.cos(jnp.pi * 0.5 * (steps / timesteps)) ** 2)
+
+
 def forward_diffusion_sample(
     x_0: jnp.ndarray,
     t: jnp.ndarray,
@@ -128,7 +141,7 @@ def sample(
     posterior_log_variance_clipped = jnp.log(jnp.clip(posterior_variance, min=1e-20))
 
     for i in tqdm(
-        reversed(range(1, T)), desc="sampling loop time step", total=T
+        reversed(range(T)), desc="sampling loop time step", total=T
     ):  # range started at 0
         t = jnp.ones((b,), dtype=jnp.float32) * i
         img = sample_timestep(

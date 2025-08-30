@@ -10,7 +10,11 @@ log
 data
 target
 debug
-MNIST/
+MNIST
+.vscode
+.todos
+FashionMNIST
+mlruns
 
 *.ipynb
 *.csv
@@ -18,6 +22,8 @@ MNIST/
 *.whl
 *.txt
 *.pt
+*.pkl
+*.pth
 *.gif
 *.png
 *.exe

@@ -80,7 +80,7 @@ class Unet(nn.Module):
         ups = downs[::-1]
         in_out = list(zip(downs[:-1], downs[1:]))
         self.time_emb_dim = time_emb_dim
-
+        self.channels = channels
         self.pos_emb = nn.Sequential(
             SinusoidalPositionEmbeddings(dim=time_emb_dim),
             nn.Linear(time_emb_dim, 4 * time_emb_dim),
@@ -93,8 +93,8 @@ class Unet(nn.Module):
         self.downsampling = ModuleList([])
         self.upsampling = ModuleList([])
 
-        for in_dim, out_dim in in_out:
-            is_last = out_dim == downs[-1]
+        for i, (in_dim, out_dim) in enumerate(in_out):
+            is_last = i == len(in_out) - 1
             self.downsampling.append(
                 ModuleList(
                     [
@@ -112,8 +112,8 @@ class Unet(nn.Module):
         self.attention_int = LinearAttention(downs[-1], heads=n_heads)
         self.resint2 = ResnetBlock(downs[-1], downs[-1], 4 * time_emb_dim)
 
-        for in_dim, out_dim in in_out[::-1]:
-            is_last = in_dim == ups[-1]
+        for i, (in_dim, out_dim) in enumerate(in_out[::-1]):
+            is_last = i == len(in_out) - 1
             self.upsampling.append(
                 ModuleList(
                     [
@@ -183,16 +183,17 @@ class SimpleUnet(nn.Module):
     def __init__(
         self,
         time_emb_dim: int = 4,
-        down_channels=[
+        downs=[
             8,
             32,
             128,
         ],
+        channels: int = 1,
     ):
         super().__init__()
-        image_channels = 1
-        up_channels = down_channels[::-1]
 
+        up_channels = downs[::-1]
+        self.channels = channels
         self.time_emb_dim = time_emb_dim
 
         self.pos_emb = nn.Sequential(
@@ -203,18 +204,18 @@ class SimpleUnet(nn.Module):
         )
 
         self.init_conv = nn.Conv2d(
-            in_channels=image_channels,
-            out_channels=down_channels[0] // 2,
+            in_channels=channels,
+            out_channels=downs[0] // 2,
             kernel_size=3,
             padding=1,
             stride=1,
         )
 
-        self.init_res = ResBlock(down_channels[0] // 2, 4 * time_emb_dim)
+        self.init_res = ResBlock(downs[0] // 2, 4 * time_emb_dim)
 
         self.init_conv2 = nn.Conv2d(
-            in_channels=down_channels[0] // 2,
-            out_channels=down_channels[0],
+            in_channels=downs[0] // 2,
+            out_channels=downs[0],
             kernel_size=3,
             padding=1,
             stride=1,
@@ -222,16 +223,16 @@ class SimpleUnet(nn.Module):
 
         self.downsampling = nn.Sequential(
             *[
-                InterBlock(down_channels[i], down_channels[i + 1], 4 * time_emb_dim)
-                for i in range(len(down_channels) - 1)
+                InterBlock(downs[i], downs[i + 1], 4 * time_emb_dim)
+                for i in range(len(downs) - 1)
             ]
         )
 
-        self.resint1 = ResBlock(down_channels[-1], 4 * time_emb_dim)
-        self.bnorm = nn.BatchNorm2d(down_channels[-1])
-        self.attention_int = AttentionBlock(down_channels[-1], 128, 8, 4 * time_emb_dim)
+        self.resint1 = ResBlock(downs[-1], 4 * time_emb_dim)
+        self.bnorm = nn.BatchNorm2d(downs[-1])
+        self.attention_int = AttentionBlock(downs[-1], 128, 8, 4 * time_emb_dim)
         self.relu = nn.ReLU()
-        self.resint2 = ResBlock(down_channels[-1], 4 * time_emb_dim)
+        self.resint2 = ResBlock(downs[-1], 4 * time_emb_dim)
 
         self.upsampling = nn.Sequential(
             *[
@@ -247,7 +248,7 @@ class SimpleUnet(nn.Module):
 
         self.bnorm_out = nn.BatchNorm2d(up_channels[-1])
         self.out_conv = nn.Conv2d(
-            in_channels=up_channels[-1], out_channels=1, kernel_size=1
+            in_channels=up_channels[-1], out_channels=channels, kernel_size=1
         )
 
     def forward(self, x: Tensor, t: Tensor):
@@ -351,12 +352,12 @@ class LitUnet(L.LightningModule):
         self.writer.add_scalar("Loss 500", self.timestep_losses[500], self.global_step)
         self.writer.add_scalar("Loss 850", self.timestep_losses[850], self.global_step)
 
-        if self.global_step % 500 == 0 and self.global_step > 0:
+        if self.global_step % 1000 == 0 and self.global_step > 0:
             self.unet.eval()
 
             samp = sample(
                 self.unet,
-                (16, 1, self.img_size, self.img_size),
+                (16, self.unet.channels, self.img_size, self.img_size),
                 self.T,
                 self.betas,
                 self.alphas_cumprod,
