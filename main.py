@@ -61,8 +61,10 @@ class VideoProcessor:
 
         self.current_horizon_coord = []
         self.horizon_decay_rate = .9
-        self.horizon_margin = 50
-        
+        self.horizon_margin = 100
+
+        self.sky_side_sign = 0
+
     def initialize_capture(self) -> bool:
         """Initialize video capture source."""
         try:
@@ -989,11 +991,13 @@ class VideoProcessor:
         
         h, w = frame.shape[:2]
         
-        # Determine which side of the line represents 'sky' vs 'ground'
-        # Sample a few points on each side and analyze texture
-        sky_side_sign = self._determine_sky_side(frame, p, q)
         dx = p[0] - q[0]
         dy = p[1] - q[1]
+        # Determine which side of the line represents 'sky' vs 'ground'
+        # Sample a few points on each side and analyze texture
+        if self.sky_side_sign == 0 or np.abs(dy / dx) > 10:
+            # check that the sky side is not changing  
+            self.sky_side_sign = self._determine_sky_side(frame, p, q)
         
         filtered_detections = []
         for x, y, w_box, h_box, area in detections:
@@ -1005,7 +1009,7 @@ class VideoProcessor:
             # distance = center_x * cos_theta + center_y * sin_theta - rho
             yp = p[1] + dy / dx * (center_x - p[0])    
             # Keep detection if it's on the sky side
-            if ((yp-center_y-self.horizon_margin) * sky_side_sign) > 0:  # Sky side
+            if ((yp - center_y + self.horizon_margin) * self.sky_side_sign) > 0:  # Sky side
                 
                 filtered_detections.append((x, y, w_box, h_box, area))
                 
