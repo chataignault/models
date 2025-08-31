@@ -30,7 +30,7 @@ class VideoProcessor:
         )
         
         # Detection parameters
-        self.min_area = 500  # Minimum blob area
+        self.min_area = 10  # Minimum blob area
         self.max_area = 10000  # Maximum blob area
         
     def initialize_capture(self) -> bool:
@@ -44,8 +44,8 @@ class VideoProcessor:
                 print(f"Error: Could not open video source: {self.source}")
                 return False
             
-            self.cap.set( cv2.CAP_PROP_FRAME_WIDTH, 1280)
-            self.cap.set( cv2.CAP_PROP_FRAME_HEIGHT, 720)
+            self.cap.set( cv2.CAP_PROP_FRAME_WIDTH, 320)
+            self.cap.set( cv2.CAP_PROP_FRAME_HEIGHT, 240)
                 
             # Get video properties
             fps = self.cap.get(cv2.CAP_PROP_FPS) or 30
@@ -57,10 +57,15 @@ class VideoProcessor:
             
             # Initialize video writer if output path specified
             if self.output_path:
-                fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                # Use XVID codec which is more widely supported
+                fourcc = cv2.VideoWriter_fourcc(*'XVID')
                 self.writer = cv2.VideoWriter(
                     self.output_path, fourcc, fps, (width, height)
                 )
+                if not self.writer.isOpened():
+                    print(f"Error: Could not initialize video writer for: {self.output_path}")
+                    return False
+                print(f"Video writer initialized: {self.output_path}")
                 
             return True
             
@@ -179,8 +184,8 @@ class VideoProcessor:
         h, w = frame.shape[:2]
         debug_resized = cv2.resize(debug_mask, (w//3, h//3))
         
-        # Place debug view in corner
-        processed_frame[10:10+debug_resized.shape[0], 
+        # Place debug view in bottom right corner
+        processed_frame[h-debug_resized.shape[0]-10:h-10, 
                       w-debug_resized.shape[1]-10:w-10] = debug_resized
         
         return processed_frame
@@ -191,6 +196,10 @@ class VideoProcessor:
             return
             
         print("Starting video processing... Press 'q' to quit")
+        
+        # Create resizable window and set size
+        cv2.namedWindow('Drone Detection Pipeline', cv2.WINDOW_NORMAL)
+        cv2.resizeWindow('Drone Detection Pipeline', 640, 480)
         
         try:
             while True:
