@@ -1075,9 +1075,19 @@ class VideoProcessor:
             # Positive side appears more "ground-like", so negative side is sky
             return -1
     
+    def add_crosshair(self, frame: np.ndarray) -> np.ndarray:
+        h, w = frame.shape[:2]
+        cx, cy = w //2, h // 2
+        s = 20
+        cv2.line(frame, (cx-s, cy+s), (cx, cy), (0, 0, 255), 2)
+        cv2.line(frame, (cx, cy), (cx+s, cy+s), (0, 0, 255), 2)
+        return frame
+
     def process_frame(self, frame: np.ndarray) -> np.ndarray:
         """Process a single frame through the detection pipeline."""
         self.frame_count += 1
+
+        frame = self.add_crosshair(frame)
         
         # Detect moving objects
         processed_frame, detections, debug_mask = self.detect_motion_objects(frame)
