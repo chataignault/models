@@ -49,9 +49,9 @@ class VideoProcessor:
         self.confidence_decay_rate = 0.98  # Slower decay to maintain stability
         
         # HoughLinesP parameters - balanced for horizon detection with noise reduction
-        self.hough_threshold_sparse = 8      # Slightly higher to reduce noise
-        self.hough_threshold_moderate = 12   # Reduced noise while keeping sensitivity
-        self.hough_threshold_normal = 18     # Balanced threshold
+        self.hough_threshold_sparse = 10 #8      # Slightly higher to reduce noise
+        self.hough_threshold_moderate = 20 #12   # Reduced noise while keeping sensitivity
+        self.hough_threshold_normal = 40 #18     # Balanced threshold
         self.hough_min_line_sparse = 0.02    # 2% of min dimension  
         self.hough_min_line_moderate = 0.03  # 3% of min dimension
         self.hough_min_line_normal = 0.06    # 6% of min dimension
@@ -161,7 +161,7 @@ class VideoProcessor:
         
         return processed_frame, detections, debug_mask
     
-    def detect_horizon_line(self, frame: np.ndarray) -> Tuple[Optional[Tuple[float, float]], float]:
+    def detect_horizon_line(self, frame: np.ndarray, probabilistic=True) -> Tuple[Optional[Tuple[float, float]], float]:
         """
         Detect horizon line using edge detection and Hough transform.
         Works with arbitrary camera orientations (inverted, rotated, etc.).
@@ -201,16 +201,36 @@ class VideoProcessor:
         
         # Get shared parameters based on edge density
         threshold, min_line_length, max_line_gap = self._get_hough_parameters(edge_density, min_dimension)
+        if probabilistic:
+            lines = cv2.HoughLinesP(
+                edges,
+                rho=1.,                    # Distance resolution in pixels
+                theta=np.pi/180,          # Angle resolution (full 180° range)
+                threshold=threshold,       # Use full threshold value
+                minLineLength=min_line_length,  # Use full minimum line length
+                maxLineGap=max_line_gap   # Adaptive max gap between line segments
+            )
+        else:
+            lines_ = cv2.HoughLines(
+               edges,
+               rho=1.,                    # Distance resolution in pixels
+               theta=np.pi/180,          # Angle resolution (full 180° range)
+               threshold=threshold,       # Use full threshold value
+            )   
+            # convert from rho theta to point coordinates    
+            lines = []
+            for i in range(len(lines_)):
+                rho, theta = lines_[i][0].tolist()
+                a, b = np.cos(theta), np.sin(theta)
+                x0, y0 = rho * a, rho * b
+                x1 = int(x0 - 1000 * b)
+                y1 = int(y0 + 1000 * a)
+                x2 = int(x0 + 1000 * b)
+                y2 = int(y0 - 1000 * a)
+                lines.append(np.array([x1, y1, x2, y2]))
+            lines = np.array([lines])
             
-        lines = cv2.HoughLinesP(
-            edges,
-            rho=1.,                    # Distance resolution in pixels
-            theta=np.pi/180,          # Angle resolution (full 180° range)
-            threshold=threshold,       # Use full threshold value
-            minLineLength=min_line_length,  # Use full minimum line length
-            maxLineGap=max_line_gap   # Adaptive max gap between line segments
-        )
-        
+        # print(len(lines))
         if lines is None:
             return None, 0.0
         
@@ -363,15 +383,15 @@ class VideoProcessor:
         """
         if edge_density < 0.01:  # Very sparse edges
             threshold = self.hough_threshold_sparse
-            min_line_length = max(10, min_dimension * self.hough_min_line_sparse)  # Minimum 10 pixels
+            min_line_length = max(20, min_dimension * self.hough_min_line_sparse)  # Minimum 10 pixels
             max_line_gap = self.hough_max_gap_sparse
         elif edge_density < 0.03:  # Moderately sparse edges  
             threshold = self.hough_threshold_moderate
-            min_line_length = max(12, min_dimension * self.hough_min_line_moderate)  # Minimum 12 pixels
+            min_line_length = max(30, min_dimension * self.hough_min_line_moderate)  # Minimum 12 pixels
             max_line_gap = self.hough_max_gap_moderate
         else:  # Normal edge density
             threshold = self.hough_threshold_normal
-            min_line_length = max(15, min_dimension * self.hough_min_line_normal)  # Minimum 15 pixels
+            min_line_length = max(40, min_dimension * self.hough_min_line_normal)  # Minimum 15 pixels
             max_line_gap = self.hough_max_gap_normal
             
         return threshold, min_line_length, max_line_gap
@@ -749,6 +769,26 @@ class VideoProcessor:
             minLineLength=min_line_length,
             maxLineGap=max_line_gap
         )
+
+        # lines_ = cv2.HoughLines(
+        #     edges,
+        #     rho=1.,                    # Distance resolution in pixels
+        #     theta=np.pi/180,          # Angle resolution (full 180° range)
+        #     threshold=threshold,       # Use full threshold value
+        # )   
+        # # convert from rho theta to point coordinates    
+        # lines = []
+        # print(lines_.shape)
+        # for i in range(len(lines_)):
+        #     rho, theta = lines_[i][0].tolist()
+        #     a, b = np.cos(theta), np.sin(theta)
+        #     x0, y0 = rho * a, rho * b
+        #     x1 = int(x0 - 1000 * b)
+        #     y1 = int(y0 + 1000 * a)
+        #     x2 = int(x0 + 1000 * b)
+        #     y2 = int(y0 - 1000 * a)
+        #     lines.append(np.array([x1, y1, x2, y2]))
+        # lines = np.array([lines])
         
         if lines is not None:
             # Scale coordinates to debug view size
@@ -787,7 +827,6 @@ class VideoProcessor:
             cv2.putText(debug_canvas, f"Filtered: {len(horizon_lines)}", (5, 45), cv2.FONT_HERSHEY_SIMPLEX, 0.3, (0, 255, 0), 1)
         
         return debug_canvas
-    
     
     def apply_horizon_filter(self, frame: np.ndarray, detections: list) -> list:
         """
@@ -979,7 +1018,6 @@ class VideoProcessor:
                 cv2.FONT_HERSHEY_SIMPLEX, 0.4, color, 1
             )
 
-    
     def _filter_detections_by_horizon(self, frame: np.ndarray, detections: list, 
                                     p, q) -> list:
         """
