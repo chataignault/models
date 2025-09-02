@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """
-Demo script for classical computer vision drone detection pipeline.
+Refactored demo script for classical computer vision drone detection pipeline.
 Creates synthetic video with moving objects to demonstrate detection capabilities.
+Uses new modular architecture for improved performance and maintainability.
 """
 
 import cv2
 import numpy as np
 import time
-from main import VideoProcessor
+import logging
+
+from video_processor import VideoProcessor
+from config import CONFIG
 
 
 class SyntheticVideoDemo:
@@ -90,24 +94,31 @@ class SyntheticVideoDemo:
 
 
 def run_synthetic_demo():
-    """Run the synthetic video demo."""
+    """Run the synthetic video demo with refactored components."""
     print("=" * 60)
-    print("CLASSICAL COMPUTER VISION DEMO")
-    print("Drone Detection using MOG2 Background Subtraction")
+    print("REFACTORED CLASSICAL COMPUTER VISION DEMO")
+    print("Drone Detection with Modular Architecture")
     print("=" * 60)
+    
+    # Setup logging for demo
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     
     demo = SyntheticVideoDemo()
     processor = VideoProcessor(source="synthetic")
     
-    # Don't try to initialize capture for synthetic demo
+    # Don't initialize capture for synthetic demo
     processor.cap = None
     processor.frame_count = 0
     
-    print("Generating synthetic video with moving objects...")
-    print("- White objects represent potential drone targets")
-    print("- Blue horizon line filters ground-based objects")
-    print("- Green boxes show detections above horizon")
-    print("- Press 'q' to quit")
+    logger.info("Generating synthetic video with moving objects...")
+    logger.info("Features:")
+    logger.info("- Modular motion detection with configurable parameters")
+    logger.info("- Advanced horizon detection with temporal stability")
+    logger.info("- Three-phase tracking system (Pre-Lock-On → Ground → Flight)")
+    logger.info("- Real-time performance monitoring")
+    logger.info("- Comprehensive debug visualizations")
+    logger.info("Press 'q' to quit")
     print()
     
     try:
@@ -115,90 +126,145 @@ def run_synthetic_demo():
             # Generate synthetic frame
             frame = demo.generate_frame()
             
-            # Process through detection pipeline
+            # Process through refactored detection pipeline
             processed_frame = processor.process_frame(frame)
             
-            # Add demo info
+            # Add demo-specific information
             cv2.putText(
                 processed_frame,
-                "SYNTHETIC DEMO - Moving Objects Detection",
-                (10, processed_frame.shape[0] - 20),
+                "REFACTORED DEMO - Modular Architecture",
+                (10, processed_frame.shape[0] - 40),
                 cv2.FONT_HERSHEY_SIMPLEX,
-                0.6,
+                0.5,
                 (0, 255, 255),
                 2
             )
             
-            # Display
-            cv2.imshow('Classical CV Demo - Drone Detection', processed_frame)
+            cv2.putText(
+                processed_frame,
+                f"Target FPS: {CONFIG.system.target_fps} | Synthetic Objects: {len(demo.objects)}",
+                (10, processed_frame.shape[0] - 20),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                0.4,
+                (200, 200, 200),
+                1
+            )
             
-            # Control frame rate
-            key = cv2.waitKey(50) & 0xFF  # ~20 FPS
+            # Display with configured window name
+            cv2.imshow(CONFIG.system.window_name + ' - Demo', processed_frame)
+            
+            # Control frame rate (faster for demo)
+            key = cv2.waitKey(30) & 0xFF  # ~33 FPS
             if key == ord('q'):
+                logger.info("Demo quit requested by user")
                 break
                 
     except KeyboardInterrupt:
-        print("\nDemo interrupted by user")
+        logger.info("Demo interrupted by user")
     finally:
         cv2.destroyAllWindows()
-        print("Demo completed")
+        logger.info("Demo completed successfully")
+        
+        # Print performance summary
+        processor._print_performance_summary()
 
 
-def run_performance_test():
-    """Run performance benchmarking."""
+def run_performance_test(num_frames: int = None):
+    """Run performance benchmarking with refactored components."""
+    if num_frames is None:
+        num_frames = CONFIG.system.benchmark_frames
+    
     print("\n" + "=" * 60)
-    print("PERFORMANCE TESTING")
+    print("REFACTORED PERFORMANCE TESTING")
     print("=" * 60)
+    
+    # Setup logging
+    logging.basicConfig(level=logging.INFO)
+    logger = logging.getLogger(__name__)
     
     demo = SyntheticVideoDemo()
     processor = VideoProcessor()
     processor.cap = None
     
-    # Warm up
-    print("Warming up...")
-    for i in range(10):
-        frame = demo.generate_frame()
-        _ = processor.process_frame(frame)
+    logger.info(f"Running benchmark with {num_frames} frames...")
+    logger.info(f"Target performance: {CONFIG.system.target_fps} FPS")
     
-    # Benchmark
-    print("Running benchmark...")
-    num_frames = 100
-    start_time = time.time()
+    # Use processor's built-in benchmark method for synthetic data
+    class SyntheticCapture:
+        def __init__(self, demo):
+            self.demo = demo
+            self.frame_count = 0
+            
+        def read(self):
+            if self.frame_count < num_frames:
+                self.frame_count += 1
+                return True, self.demo.generate_frame()
+            return False, None
     
-    for i in range(num_frames):
-        frame = demo.generate_frame()
-        _ = processor.process_frame(frame)
+    # Replace processor's cap with synthetic capture
+    processor.cap = SyntheticCapture(demo)
     
-    end_time = time.time()
-    total_time = end_time - start_time
-    fps = num_frames / total_time
+    # Run benchmark
+    results = processor.benchmark_performance(num_frames)
     
-    print(f"Processed {num_frames} frames in {total_time:.2f} seconds")
-    print(f"Average FPS: {fps:.1f}")
-    print(f"Average processing time per frame: {1000/fps:.1f} ms")
-    
-    # Performance analysis
-    if fps >= 30:
-        print("✓ Real-time performance achieved (30+ FPS)")
-    elif fps >= 15:
-        print("⚠ Moderate performance (15-30 FPS)")
+    # Enhanced performance analysis
+    if results:
+        target_fps = CONFIG.system.target_fps
+        actual_fps = results.get('fps', 0)
+        
+        print("\nPerformance Analysis:")
+        if actual_fps >= target_fps:
+            print(f"✓ Excellent performance: {actual_fps:.1f} FPS (target: {target_fps} FPS)")
+        elif actual_fps >= target_fps * 0.8:
+            print(f"⚠ Good performance: {actual_fps:.1f} FPS (target: {target_fps} FPS)")
+        elif actual_fps >= target_fps * 0.5:
+            print(f"⚠ Moderate performance: {actual_fps:.1f} FPS (target: {target_fps} FPS)")
+        else:
+            print(f"❌ Poor performance: {actual_fps:.1f} FPS (target: {target_fps} FPS)")
+        
+        print(f"\nOptimization Status:")
+        print(f"- Motion Detection: Optimized with pre-computed kernels")
+        print(f"- Horizon Detection: Adaptive parameters with temporal stability")
+        print(f"- Tracking System: Efficient multi-target association")
+        print(f"- Visualization: Configurable debug panels")
     else:
-        print("⚠ Low performance (<15 FPS) - optimization needed")
+        logger.error("Benchmark failed to produce results")
 
 
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Demo classical CV drone detection")
+    parser = argparse.ArgumentParser(description="Refactored demo for classical CV drone detection")
     parser.add_argument(
         "--benchmark", 
         action="store_true", 
         help="Run performance benchmark instead of interactive demo"
     )
+    parser.add_argument(
+        "--benchmark-frames", 
+        type=int,
+        default=CONFIG.system.benchmark_frames,
+        help=f"Number of frames for benchmark (default: {CONFIG.system.benchmark_frames})"
+    )
+    parser.add_argument(
+        "--show-config", 
+        action="store_true", 
+        help="Show current configuration parameters"
+    )
     
     args = parser.parse_args()
     
+    if args.show_config:
+        print("Current Configuration:")
+        print("=" * 40)
+        config_dict = CONFIG.get_all_params()
+        for section, params in config_dict.items():
+            print(f"\n[{section.upper()}]")
+            for key, value in params.items():
+                print(f"  {key}: {value}")
+        return
+    
     if args.benchmark:
-        run_performance_test()
+        run_performance_test(args.benchmark_frames)
     else:
         run_synthetic_demo()
