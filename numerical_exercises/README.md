@@ -242,12 +242,8 @@ containing $n$ unit elements and $k - 1$ separation elements
 
 The number of ways to decompose an integer $n$ into $k$ positive integers is :
 
-$$ 
-\begin{pmatrix}
-n - 1 \\
-k-1
-\end{pmatrix}
-$$
+$$\begin{pmatrix} n - 1 \\ k-1 \end{pmatrix}$$
+
 which [can be seen as](https://en.wikipedia.org/wiki/Composition_(combinatorics)) choosing $k-1$ seperations between $n$ units (therefore having $n-1$ intervals).
 
 One can obtain the result also from point of view of the weak composition, 
@@ -293,9 +289,9 @@ and avoiding to go three times in the same directlion successively ?
 
 <p style="color:green">
 The total number of paths, without the constraint is :
-$$
-\begin{pmatrix} 10 \\ 4 \end{pmatrix}
-$$
+
+$$\begin{pmatrix} 10 \\ 4 \end{pmatrix}$$
+
 The objective is then to count the number of paths that are not valid,
 that is paths containing 
 one or more sequence of three successive UP or RIGHT.

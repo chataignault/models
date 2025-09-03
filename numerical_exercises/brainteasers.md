@@ -50,7 +50,8 @@ Since :
 - the number of position combinations these cards can be placed at is given by binomial numbers,
 
 The total number of combinations is :
-$$ 13 ! \begin{pmatrix} 64 \\ 13 \end{pmatrix} $$
+
+$$13 ! \begin{pmatrix} 64 \\ 13 \end{pmatrix}$$
 
 Then, a combination that is valid satisfies :
 
@@ -66,9 +67,8 @@ is $9!$.
 The number of combinations for the indistinguishable cards is the same as before.
 
 Eventually, the probability is :
-$$
-\frac{6 \times 64 \times 9!}{13 !}
-$$
+
+$$\frac{6 \times 64 \times 9!}{13 !}$$
 
 ## Optimal Algorithms
 
