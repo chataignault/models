@@ -17,6 +17,8 @@ Given an integer $n$, count the number of positive paths
 that start and end at $0$
 and moving $\pm 1$ at each step.
 
+**Solution**
+
 <p style="color:green">
 The closed-form expression can be written as Catalan numbers, 
 which also represent the number of balanced parenthesis.
@@ -271,6 +273,8 @@ such that the two piles have the same number of cards facing upwards.
 The only allowed operation is to flip an arbitrary amount of cards.
 Cards are not visible before or at any time during the algorithm.
 
+**Solution**
+
 <p style="color:green">
 Take 17 of those cards, flip all of them. 
 This forms one pile and the other cards - untouched - go in the other pile.
@@ -290,12 +294,15 @@ and avoiding to go three times in the same directlion successively ?
 <p style="color:green">
 The total number of paths, without the constraint is :
 
-$$\begin{pmatrix} 10 \\ 4 \end{pmatrix}$$
+$$\begin{pmatrix} 10 \\\ 4 \end{pmatrix}$$
 
 The objective is then to count the number of paths that are not valid,
 that is paths containing 
 one or more sequence of three successive UP or RIGHT.
 </p>
+
+> [!NOTE]
+> To complete
 
 ## Probability of fortune before ruin
 
@@ -304,3 +311,6 @@ Each turn I bet the maximum amount up to what is necessary to reach $5$.
 The probability of winning each turn is $\frac{2}{3}$ - 
 the amount won is the number of betted coins.
 What is the probability of reaching $5$ before loosing all the coins ?
+
+> [!NOTE]
+> To complete
