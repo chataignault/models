@@ -7,15 +7,14 @@ Picking $5$ cards out of a deck containing $5$ pairs.
 
 > What is the expected number of pairs picked ?
 
-***
-
-No replacement and indistinguishable pairs.
-Combinatorics of parts of a fixed size of a set (binomial number).
-
+<p style="color:green">
+No replacement and indistinguishable pairs.<br>
+Combinatorics of parts of a fixed size of a set (binomial number).<br>
 For a given number of pairs picked, (how many possible pair combination), then of the remaining cards to pick, 
 select cards from distinct remaining pairs.  
+</p>
 
-With $ \lfloor \frac{n}{2} \rfloor \leq p $,
+With $\lfloor \frac{n}{2} \rfloor \leq p$,
 
 $$
 \mathbb{E} \left[ P \right] = \sum_{k=1}^{\lfloor n / 2 \rfloor }
@@ -27,9 +26,12 @@ k \frac{
 }
 $$
 
+***
+
 ### Ordering probability
 
 A deck of 64 cards is well shuffled.
+
 Cards are drawn one by one until the 2 of hearts is drawn and the game stops.
 
 > What is the probability of drawing exactly one king, one queen and one jack before the game stops ?
@@ -70,7 +72,7 @@ $$
 
 ## Optimal Algorithms
 
-$ N = 100 $, $x \in [ 1 \dots 10 ]$ 
+$N = 100$, $x \in [ 1 \dots 10 ]$ 
 
 Taking turns, first to $100$ wins.
 
@@ -104,8 +106,8 @@ The problem is then :
 </p>
 
 $$
-\left(\mathcal{P}\right):\ \max_m \left\{ \frac{100 - m}{2} \sum_{k=0}^{m-1} 2^{-k}  \right\} \\
-\left(\mathcal{P}\right):\ \max_m \left\{ (100 - m) \left( 1 - 2^{-m} \right) \right\}
+\left(\mathcal{P}\right):\ \max_m \left[ \frac{100 - m}{2} \sum_{k=0}^{m-1} 2^{-k}  \right] \\
+\left(\mathcal{P}\right):\ \max_m \left[ (100 - m) \left( 1 - 2^{-m} \right) \right]
 $$
 
 <p style="color:green">
