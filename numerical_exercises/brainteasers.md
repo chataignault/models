@@ -7,6 +7,8 @@ Picking $5$ cards out of a deck containing $5$ pairs.
 
 > What is the expected number of pairs picked ?
 
+**Solution :**
+
 <p style="color:green">
 No replacement and indistinguishable pairs.<br>
 Combinatorics of parts of a fixed size of a set (binomial number).<br>
@@ -19,10 +21,10 @@ With $\lfloor \frac{n}{2} \rfloor \leq p$,
 $$
 \mathbb{E} \left[ P \right] = \sum_{k=1}^{\lfloor n / 2 \rfloor }
 k \frac{
-    \begin{pmatrix} p \\ k \end{pmatrix}
-    \begin{pmatrix} p-k \\ n - 2k \end{pmatrix}
+    \begin{pmatrix} p \\\ k \end{pmatrix}
+    \begin{pmatrix} p-k \\\ n - 2k \end{pmatrix}
 }{
-    \begin{pmatrix} 2p \\ p \end{pmatrix}
+    \begin{pmatrix} 2p \\\ p \end{pmatrix}
 }
 $$
 
@@ -36,7 +38,7 @@ Cards are drawn one by one until the 2 of hearts is drawn and the game stops.
 
 > What is the probability of drawing exactly one king, one queen and one jack before the game stops ?
 
-***
+**Solution :**
 
 There are 4 cards for each of the three heads and and the 2 of hearts.
 The ordering of all other cards does not matter.
@@ -51,7 +53,7 @@ Since :
 
 The total number of combinations is :
 
-$$13 ! \begin{pmatrix} 64 \\ 13 \end{pmatrix}$$
+$$13 ! \begin{pmatrix} 64 \\\ 13 \end{pmatrix}$$
 
 Then, a combination that is valid satisfies :
 
@@ -78,6 +80,8 @@ Taking turns, first to $100$ wins.
 
 > Strategy and how should start first ?
 
+**Solution :**
+
 <p style="color:green">
 Start and add 1 to the total count. <br> 
 Then complete each turn to total $11$ with what the opponent has played
@@ -97,6 +101,8 @@ regardless of their content.
 The player can only know how much he obtained at the end of the game.
 
 > What is the optimal strategy ? What is the expected sum that the player will get ?
+
+**Solution :**
 
 <p style="color:green">
 If there was only one box, the optimal strategy would be to `place` until the 99th round and the `take`. 
@@ -123,7 +129,7 @@ Flower $A$ lasts $4$ days and flower $B$ blossoms during $16$ days.
 
 > What is the probability to observe both flowers blossomed in the next 40 days ?
 
-***
+**Solution :**
 
 $$
 [A, (A+4) \wedge 40 ] \cap [B, (B+16) \wedge 40 ] \neq \emptyset \\
@@ -154,3 +160,5 @@ $$
 
 Eventuallly : 
 $$p = \frac{654}{1600}$$
+
+***

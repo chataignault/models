@@ -34,14 +34,12 @@ starting at $0$ and ending at $2k$ in $2j$ steps.
 Then the solution is given by $C(n, 0)$.
 
 From a direct first-step analysis, the recurrence relation is :
-$$
-C(j+1, k) = 
+$$ C(j+1, k) = 
 \begin{cases}
 2 C(j, k) + C(j, k-1) + C(j, k+1) \ \text{if 0 < k < j} \\
 2 C(j, j) + C(j, j-1) \ \text{if k = j}\\
 C(j, 1) + C(j, 0) \ \text{if k = 0}
-\end{cases}
-$$
+\end{cases} $$
 
 > Tested the [benching crate](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) to have an idea of feasible $n$ with direct computations and dynamic programming. At the time of writing it requires to use the *nightly* channel :
 ```bash
