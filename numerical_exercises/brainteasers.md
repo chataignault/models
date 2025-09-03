@@ -27,8 +27,48 @@ k \frac{
 }
 $$
 
+### Ordering probability
 
-## Algorithms
+A deck of 64 cards is well shuffled.
+Cards are drawn one by one until the 2 of hearts is drawn and the game stops.
+
+> What is the probability of drawing exactly one king, one queen and one jack before the game stops ?
+
+***
+
+There are 4 cards for each of the three heads and and the 2 of hearts.
+The ordering of all other cards does not matter.
+
+Therefore the probability model is considered on the ordering and position
+of the 13 distinguishable cards.
+
+Since :
+
+- the number of ordering of 13 elements is $13!$,
+- the number of position combinations these cards can be placed at is given by binomial numbers,
+
+The total number of combinations is :
+$$ 13 ! \begin{pmatrix} 64 \\ 13 \end{pmatrix} $$
+
+Then, a combination that is valid satisfies :
+
+- there is exactly one king, one queen and one jack at the start,
+- then the 2 of hearts
+- then all other cards
+
+The number of combination for the three first cards is $4^3 = 64 $, their order is $3! = 6$,
+and the number of ordering for the remaining 9 distinguishable cards 
+(therefore excluding the 2 of hearts since it has a fixed position)
+is $9!$.
+
+The number of combinations for the indistinguishable cards is the same as before.
+
+Eventually, the probability is :
+$$
+\frac{6 \times 64 \times 9!}{13 !}
+$$
+
+## Optimal Algorithms
 
 $ N = 100 $, $x \in [ 1 \dots 10 ]$ 
 
@@ -36,16 +76,45 @@ Taking turns, first to $100$ wins.
 
 > Strategy and how should start first ?
 
+<p style="color:green">
+Start and add 1 to the total count. <br> 
+Then complete each turn to total $11$ with what the opponent has played
+(if opponent adds k to the total, place 11-k). <br>
+After the 8th round, the sum reaches 89, being at opponent's turn. <br>
+Whatever the other player does, 100 can be reached at the next move. <br>
+</p>
+
 ***
 
-Start and add $1$ to the total count. 
-Then complete each turn to total $11$ with what the opponent has played
-(if opponent adds $k$ to the total, place $11-k$).
-After the 8th round, the sum reaches $89$, being at opponent's turn.
-Whatever the other player does, $100$ can be reached at the next move.
+One player game with two hidden boxes.
+For 100 turns, the player chooses either to `place` or `take`.
+- `place` adds $1$ to either boxes at random.
+- `take` returns the content of either box at random, 
+regardless of their content.
 
+The player can only know how much he obtained at the end of the game.
 
-## Probabilities
+> What is the optimal strategy ? What is the expected sum that the player will get ?
+
+<p style="color:green">
+If there was only one box, the optimal strategy would be to `place` until the 99th round and the `take`. 
+The expected payoff of doing so is 99 and is an upper bound for the game. <br>
+The same strategy but with the two boxes has an expected payoff of 49,5. <br>
+The problem is then :
+</p>
+
+$$
+\left(\mathcal{P}\right):\ \max_m \left\{ \frac{100 - m}{2} \sum_{k=0}^{m-1} 2^{-k}  \right\} \\
+\left(\mathcal{P}\right):\ \max_m \left\{ (100 - m) \left( 1 - 2^{-m} \right) \right\}
+$$
+
+<p style="color:green">
+Which is maximum for m=6,
+so the optimal strategy is to `place` 94 times and then `take` until the game finishes. <br>
+The expected sum is then 2961/32 ~ 92,5.
+</p>
+
+## Other Probabilities
 
 Flower $A$ and $B$ blossom in the coming $40$ days uniformly independently.
 Flower $A$ lasts $4$ days and flower $B$ blossoms during $16$ days. 
