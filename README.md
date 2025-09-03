@@ -75,7 +75,8 @@ Implement in Rust numerical verification of math questions.
 
 - Counting discrete positive paths starting and ending at zero,
 - Probability of a random walk to reach zero under time constraint,
-- Optimal strategy to minimize a capped uniform law sequentially under constraints.
+- Optimal strategy to minimize a capped uniform law sequentially under constraints,
+- List of other formal brainteasers including probabilities and combinatorics questions of interest.
 
 *** 
 
