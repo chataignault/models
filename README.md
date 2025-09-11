@@ -6,6 +6,7 @@ Project structure :
 
 ```bash
 ├── computer_vision
+│   ├── object_detection
 │   ├── inception
 │   └── yolox
 ├── diffusion
@@ -51,6 +52,10 @@ Project structure :
     - HuggingFace reference : https://huggingface.co/guoyww/animatediff-motion-adapter-v1-5-2
 
 ## Computer Vision
+
+### Object detection streaming pipeline
+Leverage the `opencv` Python API to build an object detection pipeline 
+with horizon line detection.
 
 ### Inception block POC
 Implement minimal inception network applied to CIFAR 10 classification.
