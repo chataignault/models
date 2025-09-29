@@ -6,6 +6,7 @@ Project structure :
 
 ```bash
 ├── computer_vision
+│   ├── object_detection
 │   ├── inception
 │   └── yolox
 ├── diffusion
@@ -52,6 +53,10 @@ Project structure :
 
 ## Computer Vision
 
+### Object detection streaming pipeline
+Leverage the `opencv` Python API to build an object detection pipeline 
+with horizon line detection.
+
 ### Inception block POC
 Implement minimal inception network applied to CIFAR 10 classification.
 
@@ -75,7 +80,8 @@ Implement in Rust numerical verification of math questions.
 
 - Counting discrete positive paths starting and ending at zero,
 - Probability of a random walk to reach zero under time constraint,
-- Optimal strategy to minimize a capped uniform law sequentially under constraints.
+- Optimal strategy to minimize a capped uniform law sequentially under constraints,
+- List of other formal brainteasers including probabilities and combinatorics questions of interest.
 
 *** 
 
