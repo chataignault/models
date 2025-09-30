@@ -42,3 +42,7 @@ $$
 $$
 
 and vice-versa.
+
+## WTI pressured by dollar index
+
+
