@@ -74,6 +74,8 @@ Test YOLOX algorithm for bounding box detection.
 
 ## Fixed Income 
 - Validate intuition on the difference between **PV01 and DV01** 
+- WTI and SPX correlation
+- FX pricer with "algebra" design pattern
 
 ## Numerical implementation
 Implement in Rust numerical verification of math questions.
