@@ -6,6 +6,7 @@ Project structure :
 
 ```bash
 ├── computer_vision
+│   ├── object_detection
 │   ├── inception
 │   └── yolox
 ├── diffusion
@@ -52,6 +53,10 @@ Project structure :
 
 ## Computer Vision
 
+### Object detection streaming pipeline
+Leverage the `opencv` Python API to build an object detection pipeline 
+with horizon line detection.
+
 ### Inception block POC
 Implement minimal inception network applied to CIFAR 10 classification.
 
@@ -69,6 +74,8 @@ Test YOLOX algorithm for bounding box detection.
 
 ## Fixed Income 
 - Validate intuition on the difference between **PV01 and DV01** 
+- WTI and SPX correlation
+- FX pricer with "algebra" design pattern
 
 ## Numerical implementation
 Implement in Rust numerical verification of math questions.
