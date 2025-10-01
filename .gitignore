@@ -38,4 +38,9 @@ notebooks
 *.png
 *.lock
 *.zip
+*.cache
+*.glob
+*.vo
+*.vok
+*.vos
 
