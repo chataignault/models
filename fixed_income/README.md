@@ -46,6 +46,16 @@ Short term rate :
 
 ## FX Pricer
 
+Compositional algebra for pricing FX derivatives in Haskell using algebraic data types.
+
+**Features:**
+- **Contracts:** Spot, Forward, European Options, Zero-Coupon Bonds
+- **Combinators:** Scale, combine, conditional execution with type safety (GADTs)
+- **Pricing:** Black-Scholes implementation with discount factors
+- **Design:** Build complex derivatives from basic building blocks with compile-time correctness
+
+See `fx_pricer/` for implementation details and examples.
+
 ## PV01 and DV01 for a coupon-paying bond
 
 While : 
@@ -87,5 +97,14 @@ $$
 and vice-versa.
 
 ## WTI pressured by dollar index
+
+The notebook confirms the hypothesis that a stronger US dollar pressures crude oil prices.
+Key findings:
+
+- **Negative correlation:** -0.488 (p < 0.01) between WTI spot prices and USDX
+- **Explainable variance:** ~33% of WTI variance explained by USDX using VAR model + linear projection
+- **Idiosyncratic component:** Remaining 67% represents crude-specific price drivers
+- **No lead-lag:** Price adjustments occur intraday (no predictive lag between series)
+- **Stationarity:** Log differences are stationary, validating time-series modeling approach
 
 
