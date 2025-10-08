@@ -1,6 +1,50 @@
 # FICC
 
-Fixed-Income and Commodities related topics.
+Fixed-Income and Commodities related projects and notebooks 
+for learning purposes.
+
+**Project list :**
+- FX Pricer : pricing algebra in Haskell for simple FX derivatives
+
+**Notebook list :**
+- PV01 and DV01 sensitivity comparison : impact of convexity
+- WTI and USDX correlation : empirical confirmation
+
+**FX roadmap :**
+- [x] pair duality,
+- [x] trio of currencies,
+- [ ] quanto,
+
+**Rates roadmap :**
+- [x] price Forward Rate Agreement (FRA) from replication portfolio,
+- [ ] price swap,
+- [ ] price swaption,
+- [ ] caplet, floorlet,
+- [ ] LMM,
+- [ ] SABR,
+
+Short term rate :
+- [x] Vasicek,
+- [x] Vasicek Hull-White extended,
+- [ ] G2 ++,
+- [ ] CIR ++,
+- [ ] CIR Hull-White extended,
+
+**Keep in mind :**
+
+**FX**
+
+**Rates**
+- Simple rate : $C \mapsto C(1 + (T-t) L (t, T)$
+- Continuous rate : $C \mapsto Ce^{(T-t)R(t, T)}$
+- Compounded rate : $C \mapsto C(1 + Y(t, T))^{(T-t)}$
+
+- instantaneous forward rate : $f(t,T) = -\partial_T \log B_t(T)$
+- short term rate : $r_t = \partial_t B_t(T)$
+
+***
+
+## FX Pricer
 
 ## PV01 and DV01 for a coupon-paying bond
 
@@ -12,7 +56,6 @@ values will be considered in absolute term all along.
 
 With a bond paying some coupon on a regular schedule, 
 the cash-flows might look like this :
-
 
 <img src="img/bond_cf.png" width="500">
 
