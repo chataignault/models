@@ -31,6 +31,9 @@ Short term rate :
 - [ ] CIR Hull-White extended,
 
 **Keep in mind :**
+- the foward and backward Kolmogorov equations,
+- ergodicity, ergodic theorem,
+- the example of Langevin dynamics,
 
 **FX**
 
