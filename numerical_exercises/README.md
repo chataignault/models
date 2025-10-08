@@ -258,7 +258,11 @@ example generates an iterator which in practice is a lot more memory-efficient.
 
 Still, using the `bench` tool from rust, the efficient algorithm has a smaller variance than the simpler one :
 
-![integer_partition_bench](proba_negative_asset/integer_partition_bench.png)
+```bash
+cargo +nightly bench
+test tests::bench_exec_time_bf  ... bench:       2,195.70 ns/iter (+/- 959.86)
+test tests::bench_exec_time_dyn ... bench:       1,130.59 ns/iter (+/- 684.28)
+```
 
 ***
 
