@@ -59,6 +59,8 @@ Compositional algebra for pricing FX derivatives in Haskell using algebraic data
 
 See `fx_pricer/` for implementation details and examples.
 
+- [ ] Branch [Quantlib](https://github.com/lballabio/QuantLib/tree/master) and compile for numerical verification, 
+
 ## PV01 and DV01 for a coupon-paying bond
 
 While : 
