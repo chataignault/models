@@ -126,4 +126,6 @@ Key findings:
 
 ## References :
 - Modeles Avances de la Courbe de Taux - Lectures I ... VI, LPSM (M2MO), Zorana Grbac
+- https://www.emmi-benchmarks.eu/benchmarks/euribor/rate/
+- https://data.ecb.europa.eu/data/data-categories/financial-markets-and-interest-rates/euro-money-market/euro-short-term-rate
 
