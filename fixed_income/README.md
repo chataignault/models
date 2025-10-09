@@ -11,19 +11,24 @@ for learning purposes.
 - WTI and USDX correlation : empirical confirmation
 
 **FX roadmap :**
-- [x] pair duality,
-- [x] trio of currencies,
-- [ ] quanto,
+- [ ] price futures (amend),
+- [ ] price quanto,
 
 **Rates roadmap :**
+
+Linear :
 - [x] price Forward Rate Agreement (FRA) from replication portfolio,
-- [ ] price swap,
+- [x] price swap from replication,
+
+Non-linear : (with choice of underlying probabilistic model)
 - [ ] price swaption,
-- [ ] caplet, floorlet,
+- [ ] price cap, floor, caplet, floorlet,
+
+Rate models :
 - [ ] LMM,
 - [ ] SABR,
 
-Short term rate :
+Short term rate models for $r_t$ :
 - [x] Vasicek,
 - [x] Vasicek Hull-White extended,
 - [ ] G2 ++,
@@ -36,12 +41,19 @@ Short term rate :
 - the example of Langevin dynamics,
 
 **FX**
+- FOR / DOM change of numeraire,
+- currency pair duality - GBM assumption,
+- trio of currencies and related measures,
 
 **Rates**
-- Simple rate : $C \mapsto C(1 + (T-t) L (t, T)$
+- forward probability change of numeraire 
+
+Which rate :
+- Simple rate : $C \mapsto C(1 + (T-t) L (t, T)$, like LIBOR-like values are defined,
 - Continuous rate : $C \mapsto Ce^{(T-t)R(t, T)}$
 - Compounded rate : $C \mapsto C(1 + Y(t, T))^{(T-t)}$
 
+Which modelisation :
 - instantaneous forward rate : $f(t,T) = -\partial_T \log B_t(T)$
 - short term rate : $r_t = \partial_t B_t(T)$
 
