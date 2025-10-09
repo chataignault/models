@@ -124,4 +124,6 @@ Key findings:
 - **No lead-lag:** Price adjustments occur intraday (no predictive lag between series)
 - **Stationarity:** Log differences are stationary, validating time-series modeling approach
 
+## References :
+- Modeles Avances de la Courbe de Taux - Lectures I ... VI, LPSM (M2MO), Zorana Grbac
 
