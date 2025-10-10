@@ -115,6 +115,8 @@ and vice-versa.
 
 ## WTI pressured by dollar index
 
+<img src="img/usdx_vs_wti.png" width="500">
+
 The notebook confirms the hypothesis that a stronger US dollar pressures crude oil prices.
 Key findings:
 
@@ -123,6 +125,28 @@ Key findings:
 - **Idiosyncratic component:** Remaining 67% represents crude-specific price drivers
 - **No lead-lag:** Price adjustments occur intraday (no predictive lag between series)
 - **Stationarity:** Log differences are stationary, validating time-series modeling approach
+
+Presence of heavy tail for the USD index :
+
+<img src="img/usdx_wti_qq_plot.png" width="500">
+
+No obvious non-stationarity in the log differenes, then apply stationarity tests to the time series :
+
+<img src="img/usdx_wti_spot_log_diffs.png" width="500">
+
+No obvious autocorrelation to apply (ARMA, VAR to deduce) :
+
+<img src="img/usdx_wti_autocorrelation.png" width="500">
+
+After projecting the USDX on the WTI : 
+
+<img src="img/usdx_wti_linear_projection.png" width="500">
+
+which gives an estimator of the idiosyncratic WTI time-series.
+
+The presence of regime changes can be viewed with a scatter plot with time as a color map :
+
+<img src="img/usdx_wti_market_regime_evolution.png" width="500">
 
 ## References :
 - Modeles Avances de la Courbe de Taux - Lectures I ... VI, LPSM (M2MO), Zorana Grbac
