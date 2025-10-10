@@ -51,6 +51,12 @@ data Contract where
   -- | Conditional execution based on an observable
   When      :: Observable Bool -> Contract -> Contract
 
+  -- | Turn into a european option, taking positive part on the whole contract
+  Option    :: Contract -> Contract
+
+  -- | Divide contract payoff by another payoff
+  Divide    :: Contract -> Contract -> Contract
+
 instance Show Contract where
   show Zero = "Zero"
   show (Spot c1 c2) = "Spot " ++ show c1 ++ " " ++ show c2
@@ -60,6 +66,8 @@ instance Show Contract where
   show (Scale n c) = "Scale " ++ show n ++ " (" ++ show c ++ ")"
   show (Combine c1 c2) = "Combine (" ++ show c1 ++ ") (" ++ show c2 ++ ")"
   show (When _ c) = "When <obs> (" ++ show c ++ ")"
+  show (Option c) = "European call on (" ++ show c ++ ")"
+  show (Divide c1 c2) = "Division of (" ++ show c1 ++ ") by (" ++ show c2 ++ ")"
 
 -- | Monoid instance for portfolio combination
 -- Smart constructor that eliminates Zero (but doesn't flatten for structural preservation)

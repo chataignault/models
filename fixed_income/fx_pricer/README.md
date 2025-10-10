@@ -48,4 +48,4 @@ portfolio = Combine forward option
 - https://wiki.haskell.org/Learn_Haskell_in_10_minutes
 - https://www.adit.io/posts/2013-04-17-functors,_applicatives,_and_monads_in_pictures.html
 - https://learnyouahaskell.com/a-fistful-of-monads
-
+- https://www.haskell.org/ghcup/steps/

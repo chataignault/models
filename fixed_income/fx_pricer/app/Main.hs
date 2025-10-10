@@ -40,8 +40,8 @@ main = do
 
   -- Example 3: European Call Option
   putStrLn "=== Example 3: European Call Option ==="
-  let callContract = Scale 500000 (fxOption Call 1.15 maturity EUR USD)
-  putStrLn $ "Contract: 500K EUR call USD put, strike 1.15"
+  let callContract = Scale 500000 (fxOption Call 1.10 maturity EUR USD)
+  putStrLn $ "Contract: 500K EUR call USD put, strike 1.10"
   putStrLn $ "Value: $" ++ show (price callContract market params)
   putStrLn ""
 
