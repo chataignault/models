@@ -113,9 +113,9 @@ of the joint observation and latent variables is :
 
 ```math
 \begin{align*}
-\mathcal{L}(x, t) = &\sum \log p(x\_i, t\_i) \\
- = & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} (t\_i-\mu - Wx\_i)^T( t\_i - \mu - Wx\_i) + x\_i^Tx\_i \right\} \\
- & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left((t\_i-\mu) (t\_i-\mu)^T\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W x\_i x\_i^T\right) -  \frac{2}{\sigma^2}(t\_i-\mu)^TWx\_i + x\_i^Tx\_i \right\} \\
+\mathcal{L}(x, t) = &\sum \log p(x_i, t_i) \\
+ = & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} (t_i-\mu - Wx_i)^T( t_i - \mu - Wx_i) + x_i^Tx_i \right\} \\
+ & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left((t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  \frac{2}{\sigma^2}(t_i-\mu)^TWx_i + x_i^Tx_i \right\} \\
 \end{align*}
 ```
 
@@ -136,9 +136,11 @@ Where expectations are analytic given $x | t$ is gaussian.
 Indeed, Bayes forlula giving : 
 
 $$\begin{align*} p(x|t) & = \frac{p(t|x)p(x)}{p(t)} \\
-& \propto \exp \left( \right) \\
 & \propto \exp \left( - \frac{1}{2\sigma^2} \left(x- M^{-1} W^{T}(t-\mu)\right)^T M \left(x- M^{-1} W^{T}(t-\mu)\right) \right)
 \end{align*}$$
+
+Shows that $x | t \sim \mathcal{N}\left(M^{-1} W^{T}(t-\mu), \sigma^2 M^{-1} \right)$,
+where $M = W^TW + \sigma^2 I$.
 
 ### References :
 
