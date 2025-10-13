@@ -125,7 +125,7 @@ Taking the
 
 ```math
 \begin{align*}
-\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = & - \frac{N}{2} \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left(S\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W \overline{\langle x x^T \rangle} \right) -  \frac{2}{\sigma^2} \sum_{i=1}^N(t\_i-\mu)^TW\langle x\_i\rangle + \overline{\langle x^Tx \rangle} \right\}
+\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = & - \frac{N}{2} \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left(S\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W \overline{\langle x x^T \rangle} \right) -  \frac{2}{\sigma^2} \sum_{i=1}^N(t_i-\mu)^TW\langle x_i\rangle + \overline{\langle x^Tx \rangle} \right\}
 \end{align*}
 ```
 
@@ -133,6 +133,12 @@ Where "bar" variables represent the empirical mean over samples.
 
 Where expectations are analytic given $x | t$ is gaussian.
 
+Indeed, Bayes forlula giving : 
+
+$$\begin{align*} p(x|t) & = \frac{p(t|x)p(x)}{p(t)} \\
+& \propto \exp \left( \right) \\
+& \propto \exp \left( - \frac{1}{2\sigma^2} \left(x- M^{-1} W^{T}(t-\mu)\right)^T M \left(x- M^{-1} W^{T}(t-\mu)\right) \right)
+\end{align*}$$
 
 ### References :
 
