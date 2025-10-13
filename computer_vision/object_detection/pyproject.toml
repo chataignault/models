@@ -1,0 +1,9 @@
+[project]
+name = "opencv-object-detection"
+version = "0.1.0"
+description = "Test opencv object detection algorithms"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "opencv-python>=4.12.0.88",
+]

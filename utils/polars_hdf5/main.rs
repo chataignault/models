@@ -50,20 +50,15 @@ fn hdf5_to_lazy(file_path: &Path, dataset_name: &str) -> Result<LazyFrame, Box<d
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Specify the path to your HDF5 file
     let file_path = Path::new("path/to/your/file.h5");
 
-    // Specify the dataset name within the HDF5 file
     let dataset_name = "your_dataset_name";
 
-    // Open the HDF5 file and convert it to a LazyFrame
     let lf: LazyFrame = hdf5_to_lazy(file_path, dataset_name)?;
 
-    // Print the schema of the LazyFrame
     println!("LazyFrame schema:");
     println!("{}", lf.schema()?);
 
-    // To see the actual data, you can collect and print a few rows
     let df = lf.collect()?;
     println!("\nFirst few rows of the DataFrame:");
     println!("{}", df.head(Some(5)));

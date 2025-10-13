@@ -1,31 +1,47 @@
-__pycache__
-logs
-lightning_logs
-notebooks
-out
-runs
+
+# config
+.vscode
+.code-workspace
+.todos
+
+# data
+MNIST
+FashionMNIST
+data
+*.csv
+*.txt
+
+# logs
+mlruns
 flax_ckpt
 tb_logs
-log
-data
-target
-debug
-MNIST
-.vscode
-.todos
-FashionMNIST
-mlruns
+logs
+runs
+lightning_logs
 
-*.ipynb
-*.csv
-*/*.lock
+# builds
+target
+out
+debug
+dist-newstyle
 *.whl
-*.txt
+*.exe
+
+# other
+__pycache__
+notebooks
+*.ipynb
 *.pt
+*.pkl
+*.pth
 *.gif
 *.png
-*.exe
-*.code-workspace
 *.lock
 *.zip
+*.cache
+*.glob
+*.vo
+*.vok
+*.vos
+*.aux
 
