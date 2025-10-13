@@ -1,4 +1,4 @@
-from jax import numpy as jnp
+from jax import numpy as jnp, jit
 from jax import random
 from flax import linen as nn
 
@@ -15,13 +15,17 @@ class ScaledDotProductAttentionBlock(nn.Module):
 
         qk = jnp.einsum("NLH,NlH->NLl", q, k)
 
-        s = softmax(qk / jnp.sqrt(qk.shape[-1]))
+        s = softmax(qk / jnp.sqrt(self.h_dim))
 
         return s @ v
 
 
+@jit
 def softmax(x: jnp.array) -> jnp.array:
-    return jnp.divide(jnp.exp(x), jnp.sum(jnp.exp(x), axis=-1)[:, :, jnp.newaxis])
+    x_max = jnp.max(x, axis=-1, keepdims=True)
+    x_shift = x - x_max
+    ex_shift = jnp.exp(x_shift)
+    return jnp.divide(ex_shift, jnp.sum(ex_shift, axis=-1)[:, :, jnp.newaxis])
 
 
 def main():
