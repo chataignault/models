@@ -12,6 +12,9 @@ dependencies = [
 
 [tool.uv.workspace]
 exclude = ["ddpm/", "vae/", "ppca/"]
+members = [
+    "self_attention_block",
+]
 
 [tool.uv.sources]
 torch = [
