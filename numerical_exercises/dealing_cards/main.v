@@ -1,4 +1,5 @@
 Require Import Coq.Arith.PeanoNat.
+Require Import Lia.
 (* Require Import Stdlib.Arith.PeanoNat. *)
 
 Inductive deck : nat -> Set :=
@@ -37,8 +38,25 @@ Fixpoint split {n : nat} (d : deck n) (m : nat) (H : m <= n) :
       end H'
   end m H.
 
-Theorem equal_ups : 
-  forall (n : nat) (m : nat) (H: m <= n) (d: deck n), 
-  count_ups d = m -> 
-  let (d1, d2) := split d m H in 
+Lemma count_ups_flip : forall n (d : deck n),
+  count_ups (flip d) + count_ups d = n.
+Proof.
+  intros n d. induction d as [| n' b d' IHd]; simpl.
+  - reflexivity.
+  - destruct b; simpl; lia.
+Qed.
+
+Lemma split_preserves_size : forall n m (H : m <= n) (d : deck n),
+  let (d1, d2) := split d m H in
+  forall k, k < m -> True.
+Proof.
+Admitted.
+
+Theorem equal_ups :
+  forall (n : nat) (m : nat) (H: m <= n) (d: deck n),
+  count_ups d = m ->
+  let (d1, d2) := split d m H in
   count_ups (flip d1) = count_ups d2.
+Proof.
+
+Qed.

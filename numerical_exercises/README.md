@@ -6,6 +6,7 @@ Implement numerically some algorithms to confirm intuition on problems of combin
 2. [Optimising some discrete order execution](#discrete-optimal-execution)
 3. [Random walk crossing threshold probability](#negative-price-probability)
 4. [Dealing cards evenly without observation](#dealing-indistinguishable-cards)
+5. [Counting diagonal paths](#counting-diagonal-paths)
 
 *Also includes :*
 - detours on combinatorics and proofs
@@ -15,6 +16,8 @@ Implement numerically some algorithms to confirm intuition on problems of combin
 Given an integer $n$, count the number of positive paths
 that start and end at $0$
 and moving $\pm 1$ at each step.
+
+**Solution**
 
 <p style="color:green">
 The closed-form expression can be written as Catalan numbers, 
@@ -31,14 +34,12 @@ starting at $0$ and ending at $2k$ in $2j$ steps.
 Then the solution is given by $C(n, 0)$.
 
 From a direct first-step analysis, the recurrence relation is :
-$$
-C(j+1, k) = 
+$$ C(j+1, k) = 
 \begin{cases}
 2 C(j, k) + C(j, k-1) + C(j, k+1) \ \text{if 0 < k < j} \\
 2 C(j, j) + C(j, j-1) \ \text{if k = j}\\
 C(j, 1) + C(j, 0) \ \text{if k = 0}
-\end{cases}
-$$
+\end{cases} $$
 
 > Tested the [benching crate](https://doc.rust-lang.org/cargo/commands/cargo-bench.html) to have an idea of feasible $n$ with direct computations and dynamic programming. At the time of writing it requires to use the *nightly* channel :
 ```bash
@@ -241,12 +242,8 @@ containing $n$ unit elements and $k - 1$ separation elements
 
 The number of ways to decompose an integer $n$ into $k$ positive integers is :
 
-$$ 
-\begin{pmatrix}
-n - 1 \\
-k-1
-\end{pmatrix}
-$$
+$$\begin{pmatrix} n - 1 \\ k-1 \end{pmatrix}$$
+
 which [can be seen as](https://en.wikipedia.org/wiki/Composition_(combinatorics)) choosing $k-1$ seperations between $n$ units (therefore having $n-1$ intervals).
 
 One can obtain the result also from point of view of the weak composition, 
@@ -261,7 +258,11 @@ example generates an iterator which in practice is a lot more memory-efficient.
 
 Still, using the `bench` tool from rust, the efficient algorithm has a smaller variance than the simpler one :
 
-![integer_partition_bench](proba_negative_asset/integer_partition_bench.png)
+```bash
+cargo +nightly bench
+test tests::bench_exec_time_bf  ... bench:       2,195.70 ns/iter (+/- 959.86)
+test tests::bench_exec_time_dyn ... bench:       1,130.59 ns/iter (+/- 684.28)
+```
 
 ***
 
@@ -274,7 +275,44 @@ such that the two piles have the same number of cards facing upwards.
 The only allowed operation is to flip an arbitrary amount of cards.
 Cards are not visible before or at any time during the algorithm.
 
+**Solution**
+
 <p style="color:green">
 Take 17 of those cards, flip all of them. 
 This forms one pile and the other cards - untouched - go in the other pile.
 </p>
+
+
+## Other references
+- https://laurentmazare.github.io/
+
+## Counting diagonal paths
+
+Starting at $(0,0)$, 
+how many paths are there to reach $(4,6)$,
+going either UP or RIGHT at each turn,
+and avoiding to go three times in the same directlion successively ?
+
+<p style="color:green">
+The total number of paths, without the constraint is :
+
+$$\begin{pmatrix} 10 \\\ 4 \end{pmatrix}$$
+
+The objective is then to count the number of paths that are not valid,
+that is paths containing 
+one or more sequence of three successive UP or RIGHT.
+</p>
+
+> [!NOTE]
+> To complete
+
+## Probability of fortune before ruin
+
+I currently own $3$ coins and want to reach $5$.
+Each turn I bet the maximum amount up to what is necessary to reach $5$.
+The probability of winning each turn is $\frac{2}{3}$ - 
+the amount won is the number of betted coins.
+What is the probability of reaching $5$ before loosing all the coins ?
+
+> [!NOTE]
+> To complete
