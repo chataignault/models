@@ -27,19 +27,37 @@ Z_0 = I
 \end{cases}
 $$
 
+The discretised evolution can be visualised in matrix form, 
+although only the final state is considered :
+
+<img src="img/example_dev.png" width="510">
+
 Relation between continuous methods (CDE) versus 
 interpretation of discretisation as a special case of RNN.
 
 ## Characterising measures with path development
 
-Hilbert-Schmidt independance criterion, 
-distance on the manifold,
+One can train the weights of the path development to recognize two different measures.
+The following are samples for a two-class problem, 
+where a small number of paths form each class is simulated :
+
+<img src="img/sample_dev.png" width="510">
+
+Which shows the embeddings still offer some variability.
+
+Then, out-of-sample paths can be classified, 
+looking at the scalar products between the in-sample means :
+
+<img src="img/distribution_sep.png" width="510">
+
+Think of a link with Hilbert-Schmidt independance criterion, 
+or distance on the manifold.
 
 ***
 
 ## Test scripts
 
-- computing developments
-- separation of measures
+- computing developments : need to wheel [DevNet](https://github.com/chataignault/DevNet) before and document for reproducibility
+- separation of measures : add mastery script
 
 
