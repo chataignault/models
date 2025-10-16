@@ -2,6 +2,31 @@
 
 **Store implemented models, test scripts and ideas.**
 
+Project structure :
+
+```bash
+├── computer_vision
+│   ├── object_detection
+│   ├── inception
+│   └── yolox
+├── diffusion
+│   ├── dae
+│   ├── ddpm
+│   ├── ppca
+│   └── vae
+├── fixed_income
+├── mastery
+│   └── Harmonic_Analysis_on_Paths_Spaces.pdf
+├── numerical_exercises
+│   ├── dealing_cards
+│   ├── discrete_execution_optimisation
+│   ├── positive_path_count
+│   └── proba_negative_asset
+├── pdevnet
+└── utils
+    └── polars_hdf5
+```
+
 ## Diffusion
 
 ### Implement Denoising Diffusion Probabilitic Model (DDPM)
@@ -16,7 +41,7 @@
 
 ### Probabilistic PCA
 - Link with sample generation
-- Linear algebra numerical implementation
+- Linear algebra numerical implementation : SVD, bidiagonalisation
 - get familiar with `pytest`
 - compare with the EM training
 
@@ -26,6 +51,17 @@
 - [Guo, Yuwei, et al. "Animatediff: Animate your personalized text-to-image diffusion models without specific tuning." arXiv preprint arXiv:2307.04725 (2023).](https://arxiv.org/pdf/2307.04725) 
     - HuggingFace reference : https://huggingface.co/guoyww/animatediff-motion-adapter-v1-5-2
 
+## Computer Vision
+
+### Object detection streaming pipeline
+Leverage the `opencv` Python API to build an object detection pipeline 
+with horizon line detection.
+
+### Inception block POC
+Implement minimal inception network applied to CIFAR 10 classification.
+
+### YOLOX inference
+Test YOLOX algorithm for bounding box detection.
 
 ## Path Development
 - Leverage path development inside models
@@ -34,15 +70,20 @@
 ## Mastery
 - Litterature review on path developments 
 
+- [ ] Add example scripts
+
 ## Fixed Income 
 - Validate intuition on the difference between **PV01 and DV01** 
+- WTI and SPX correlation
+- FX pricer with "algebra" design pattern
 
 ## Numerical implementation
 Implement in Rust numerical verification of math questions.
 
 - Counting discrete positive paths starting and ending at zero,
 - Probability of a random walk to reach zero under time constraint,
-- Optimal strategy to minimize a capped uniform law sequentially under constraints.
+- Optimal strategy to minimize a capped uniform law sequentially under constraints,
+- List of other formal brainteasers including probabilities and combinatorics questions of interest.
 
 *** 
 

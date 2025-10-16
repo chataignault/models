@@ -8,6 +8,7 @@
 - Probabilitstic PCA
 - Variational Autoencoder
 - Denoising Diffusion Probabilistic model
+- Scaled Dot Product Attention (JAX/Flax implementation with numerically stable softmax)
 
 ## Scripts
 
@@ -42,3 +43,7 @@ uv run test_stable_diffusion.py --prompt "Jacques Prévert wearing a bow tie"
 
 <img src="img/jp_bowtie.png" width="510" height="510">
 
+**TODO**
+
+- [ ] Update consistency models tests
+- [ ] [Burn](https://burn.dev/) POC

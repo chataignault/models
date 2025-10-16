@@ -1,59 +1,53 @@
 # Probabilitic PCA on MNIST dataset
 
-A simple idea to generative modelling, as mentionned in 
-*Bengio, Yoshua, Ian Goodfellow, and Aaron Courville. Deep learning. Vol. 1. Cambridge, MA, USA: MIT press, 2017.* 
-is to consider the PCA on some dataset, and to add noise to the decomposed matrix
-to generate samples that were not in the training set, 
-but that share the same principal components with their respective amplitude.
+Principal Components Analysis aims to describe as much variance in a dataset 
+with orthogonal combinations of features, 
+which is adapted to handle multi-colinearities, 
+at the cost of features interpretability.
 
-![image](img/ppca_mnist.png)
+In
+`Bengio, Yoshua, Ian Goodfellow, and Aaron Courville, 2017.`[*](#references), 
+the PCA is used to describe the data distribution.
+With Gaussian assumption, it generates samples assuming an ellipsoid distribution of the data.
 
-### References :
+Indeed the covariance matrix of the data can be deduced from PCA.
+For instance it can be used as a regularization technique 
+to fit a covariance matrix in a Gaussian mixture model.
 
-```bibtex
-@article{tipping1999probabilistic,
-  title={Probabilistic principal component analysis},
-  author={Tipping, Michael E and Bishop, Christopher M},
-  journal={Journal of the Royal Statistical Society Series B: Statistical Methodology},
-  volume={61},
-  number={3},
-  pages={611--622},
-  year={1999},
-  publisher={Oxford University Press}
-}
-```
+Extending the probabilistic framework further, PCA was then bestowed with a probabilistic optimisation framework 
+and interpretation thereof (`Tipping, 1999`[*](#references)) 
+that allows for a fast approximation. 
 
-```bibtex
-@book{bengio2017deep,
-  title={Deep learning},
-  author={Bengio, Yoshua and Goodfellow, Ian and Courville, Aaron and others},
-  volume={1},
-  year={2017},
-  publisher={MIT press Cambridge, MA, USA}
-}
-```
-**For the computation of the Singular Value Decomposition :** 
+Probabilistic PCA (PPCA) has other applications like dealing with missing data
+and maximum likelihood comparison with other probabilistic models.
 
-The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`, 
-while the SVD implementation with Givens rotations is from `Golub`.
+**Project Overview :**
+- Implement Singular Value Decomposition algorithms :
+  - Using the **QR algoritm** on the covariance matrix,
+  - Using the **Golub-Kahan algorithm**,
+- Implement the **EM algorithm** in the Probabilistic PCA framework,
+- Applying the PCA to generate MNIST digits
 
-```bibtex
-@book{trefethen2022numerical,
-  title={Numerical linear algebra},
-  author={Trefethen, Lloyd N and Bau, David},
-  year={2022},
-  publisher={SIAM}
-}
-```
+**Results :**
 
-```bibtex
-@book{golub2013matrix,
-  title={Matrix computations},
-  author={Golub, Gene H and Van Loan, Charles F},
-  year={2013},
-  publisher={JHU press}
-}
-```
+With first SVD components :
+
+<img src="img/svd_mnist.png" width="510" >
+
+With Probabilistic PCA :
+
+<img src="img/ppca_mnist.png" width="510" >
+
+**TODO :**
+- [x] Implement MLE estimation of PPCA with EM algorithm
+- [ ] Benchmark execution time between naive SVD and Golub-Kahan algorithm
+
+
+## Using Singular Value Decomposition
+
+The naive SVD algorithm, pure QR with Householder reflections and bidiagonalisation algorithm are taken from `Trehefen`[*](#references), 
+while the SVD implementation with Givens rotations is from `Golub`[*](#references).
+
 The bidiagonalisation is computed with full orthogonal matrices, 
 that is to say for $A \in \mathbb{R}^{n \times m}$ : 
 
@@ -98,3 +92,196 @@ $$
 where $\tilde{B}$ is square and upper bi-diagonal.
 
 A similar system is solved if $A$ is thin instead of wide, with the same complexity.
+
+
+## Using the EM algorithm
+
+Using the same notations as in `Tipping`'s paper[*](#references), 
+the probabilistic framework being : 
+
+$$
+t = W x + \mu + \epsilon
+$$
+
+Where $t \in \mathbb{R}^d$ is the observation variable, 
+$x \in \mathbb{R}^q$ is the latent one,
+with $q \ll d$ and $\epsilon \sim \mathcal{N} (0, \sigma^2)$.
+
+In the following section, the reasoning is detailed, as in the paper, 
+with extra intermediate steps. 
+
+Then the
+<span style="color:green">log-likelihood </span>
+of the joint observation and latent variables is :
+
+```math
+\begin{align*}
+\mathcal{L}(x, t) = &\sum \log p(x_i, t_i) \\
+ = & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma^2  + \frac{1}{\sigma^2} (t_i-\mu - Wx_i)^T( t_i - \mu - Wx_i) + x_i^Tx_i \right\} \\
+ & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma^2  + \frac{1}{\sigma^2} \text{tr} \left((t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  \frac{2}{\sigma^2}(t_i-\mu)^TWx_i + x_i^Tx_i \right\} \\
+\end{align*}
+```
+
+### E step
+
+Taking the 
+<span style="color:green">expectation step </span> 
+(conditionned on $t, W$ and $\sigma^2$) gives :
+
+```math
+\begin{align*}
+\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} =  -\sum_{i=1}^N &\left\{ \frac{d}{2} \log \sigma^2 + \frac{1}{2\sigma^2} \text{tr} \left( (t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{2\sigma^2}\text{tr} \left( W^T W \langle x_i x_i^T \rangle \right) \right. \\  
+& \left.- \frac{1}{\sigma^2}\text{tr} \left( W\langle x_i \rangle (t_i-\mu)^T \right) + 
+\frac{1}{2} \text{tr} \left( \langle x_i x_i^T \rangle \right)  \right\}
+\end{align*}
+```
+
+The final form of the conditionned expectation is designated as $\text{el(t, x)}$.
+
+### M step
+
+Differenciating $el$ with respect to the model parameters gives :
+
+```math
+\frac{\partial \text{el(t, x)}}{\partial W} = - \frac{1}{\sigma^2} \sum_{n=1}^N \left\{ W \langle x_n x_n^T \rangle - (t_n - \mu)\langle x_n \rangle^T \right\}
+```
+
+and 
+
+```math
+\frac{\partial \text{el(t, x)}}{\partial \sigma^2} = - \frac{1}{\sigma^2} \sum_{n=1}^N \left\{ \frac{d}{2} - \frac{1}{2\sigma^2} \text{tr} \left( (t_n - \mu)(t_n - \mu)^T \right) - \frac{1}{2\sigma^2} \text{tr} \left( W^T W \langle x_n x_n^T \rangle \right) \right\} 
+```
+
+Hence the new parameters are given by :
+
+```math
+\begin{cases}
+\tilde{W} = \left( \sum_{n=1}^N (t_n - \mu) \langle x_n \rangle^T \right)
+\left( \sum_{n=1}^N \langle x_n x_n^T \rangle \right)^{-1} \\
+\tilde{\sigma}^2 = \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} ^T \tilde{W} \frac{1}{N} \sum_{n=1}^N \langle x_n x_n^T \rangle \right) - 2 \text{tr} \left( \tilde{W} \frac{1}{N} \sum_{n=1}^N \langle x_n \rangle (t_n - \mu)^T \right) \right\}
+\end{cases}
+```
+
+Where $S = \frac{1}{N} \sum_{n=1}^N (t_n - \mu) (t_n - \mu)^T$ 
+is the empirical covariance of the observations.
+
+Both expectations $\langle x_n \rangle$ and $\langle x_n x_n^T \rangle$ for any $n$ are analytic given $x | t$ is gaussian.
+
+Indeed, Bayes forlula giving : 
+
+$$\begin{align*} p(x|t) & = \frac{p(t|x)p(x)}{p(t)} \\
+& \propto \exp \left( - \frac{1}{2\sigma^2} \left(x- M^{-1} W^{T}(t-\mu)\right)^T M \left(x- M^{-1} W^{T}(t-\mu)\right) \right)
+\end{align*}$$
+
+Shows that $x | t \sim \mathcal{N}\left(M^{-1} W^{T}(t-\mu), \sigma^2 M^{-1} \right)$,
+where $M = W^TW + \sigma^2 I$.
+
+From there :
+
+```math
+\begin{cases}
+\langle x_n \rangle = M^{-1} W^T (t_n - \mu) \\
+\langle x_n x_n^T \rangle = Var(x_n |t_n, W, \sigma^2) + \langle x_n \rangle \langle x_n \rangle^T = \sigma^2 M^{-1} + M^{-1} W^T (t_n - \mu)(t_n - \mu)^T W M^{-1}
+\end{cases}
+```
+
+Which simplifies the formula for the optimal parameters as follows :
+
+```math
+\begin{align*}
+\tilde{W} & = \left( \sum_{n=1}^N (t_n - \mu) (t_n - \mu)^T W M^{-1} \right)
+\left( N\sigma^2 M^{-1} + M^{-1} W^T \sum_{n=1}^N (t_n - \mu)(t_n - \mu)^T W M^{-1}  \right)^{-1} \\
+& = SWM^{-1} \left( \sigma^2 M^{-1} + M^{-1} W^T S W M^{-1} \right) \\
+& = SW \left( \sigma^2 + M^{-1} W^T S W\right)
+\end{align*}
+```
+
+and :
+
+```math 
+\begin{align*}
+\tilde{\sigma}^2  =  & \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W}^T \tilde{W}  \sigma^2 M^{-1} + \tilde{W}^T \tilde{W} M^{-1} W^T \frac{1}{N} \sum_{n=1}^N (t_n - \mu)(t_n - \mu)^T W M^{-1} \right) \right. \\ 
+& \left. - 2 \text{tr} \left( \tilde{W} \frac{1}{N} \sum_{n=1}^N M^{-1} W^T (t_n - \mu) (t_n - \mu)^T \right) \right\} \\
+\tilde{\sigma}^2 = & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \sigma^2\tilde{W}^T \tilde{W} M^{-1} + \tilde{W}^T \tilde{W} M^{-1} W^T S W M^{-1} \right) - 2 \text{tr} \left( \tilde{W}  M^{-1} W^T S \right) \right\}  \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W}^T \tilde{W} M^{-1} \left( \sigma^2 I + W^T S W M^{-1} \right) \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\} \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} M^{-1} \left( \sigma^2 I + W^T S W M^{-1} \right) \tilde{W}^T \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\} \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} M^{-1} \left( \underbrace{\tilde{W} \left( \sigma^2 I + M^{-1} W^T S W  \right)}_{SW} \right)^T \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\}
+\end{align*} 
+```
+
+eventually :
+
+```math
+\tilde{\sigma}^2  = \frac{1}{d} \text{tr}(S - S W M^{-1}\tilde{W}^T) 
+```
+
+### References :
+
+```bibtex
+@article{tipping1999probabilistic,
+  title={Probabilistic principal component analysis},
+  author={Tipping, Michael E and Bishop, Christopher M},
+  journal={Journal of the Royal Statistical Society Series B: Statistical Methodology},
+  volume={61},
+  number={3},
+  pages={611--622},
+  year={1999},
+  publisher={Oxford University Press}
+}
+```
+
+```bibtex
+@book{bengio2017deep,
+  title={Deep learning},
+  author={Bengio, Yoshua and Goodfellow, Ian and Courville, Aaron and others},
+  volume={1},
+  year={2017},
+  publisher={MIT press Cambridge, MA, USA}
+}
+```
+
+```bibtex
+@book{trefethen2022numerical,
+  title={Numerical linear algebra},
+  author={Trefethen, Lloyd N and Bau, David},
+  year={2022},
+  publisher={SIAM}
+}
+```
+
+```bibtex
+@book{golub2013matrix,
+  title={Matrix computations},
+  author={Golub, Gene H and Van Loan, Charles F},
+  year={2013},
+  publisher={JHU press}
+}
+```
+
+**Also read :**
+
+To model heavy-tailed distributions :
+```bibtex
+@article{collas2021probabilistic,
+  title={Probabilistic PCA from heteroscedastic signals: geometric framework and application to clustering},
+  author={Collas, Antoine and Bouchard, Florent and Breloy, Arnaud and Ginolhac, Guillaume and Ren, Chengfang and Ovarlez, Jean-Philippe},
+  journal={IEEE Transactions on Signal Processing},
+  volume={69},
+  pages={6546--6560},
+  year={2021},
+  publisher={IEEE}
+}
+```
+
+To adapt PCA to response variable : 
+```bibtex
+@misc{papazoglou2025covariancesupervisedprincipalcomponent,
+      title={Covariance Supervised Principal Component Analysis}, 
+      author={Theodosios Papazoglou and Guosheng Yin},
+      year={2025},
+      eprint={2506.19247},
+      archivePrefix={arXiv},
+      primaryClass={stat.AP},
+      url={https://arxiv.org/abs/2506.19247}, 
+}
+```
