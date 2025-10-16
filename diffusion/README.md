@@ -9,6 +9,7 @@ End-to-end implementation :
 - Probabilitstic PCA
 - Variational Autoencoder
 - Denoising Diffusion Probabilistic model
+- Scaled Dot Product Attention (JAX/Flax implementation with numerically stable softmax)
 
 Snippets :
 - scaled dot product attention block

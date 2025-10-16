@@ -32,11 +32,11 @@ and maximum likelihood comparison with other probabilistic models.
 
 With first SVD components :
 
-![image](img/svd_mnist.png)
+<img src="img/svd_mnist.png" width="510" >
 
 With Probabilistic PCA :
 
-![image](img/ppca_mnist.png)
+<img src="img/ppca_mnist.png" width="510" >
 
 **TODO :**
 - [x] Implement MLE estimation of PPCA with EM algorithm
@@ -103,35 +103,117 @@ $$
 t = W x + \mu + \epsilon
 $$
 
-Where $ t \in \mathbb{R}^d $ is the observation variable, 
-$x \in \mathbb{R}^q $ is the latent one,
-with $ q \ll d $ and $\epsilon \sim \mathcal{N} (0, \sigma^2) $.
+Where $t \in \mathbb{R}^d$ is the observation variable, 
+$x \in \mathbb{R}^q$ is the latent one,
+with $q \ll d$ and $\epsilon \sim \mathcal{N} (0, \sigma^2)$.
 
-Then log-likelihood is :
+In the following section, the reasoning is detailed, as in the paper, 
+with extra intermediate steps. 
 
-$$
+Then the
+<span style="color:green">log-likelihood </span>
+of the joint observation and latent variables is :
+
+```math
 \begin{align*}
-\mathcal{L} = &\sum \log p(x_i, t_i) \\
- = & -Nd \log \sigma \\
- & - \frac{1}{2\sigma^2} \sum 
-\left( \text{tr} \left( W^T W x_i x_i^T \right) - 2 \text{tr} \left( W x ( t_i - \mu )^T \right)  + (t_i - \mu)^T (t_i - \mu) \right)  \\ 
-& - \frac{1}{2} \sum x_i^T x_i 
+\mathcal{L}(x, t) = &\sum \log p(x_i, t_i) \\
+ = & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma^2  + \frac{1}{\sigma^2} (t_i-\mu - Wx_i)^T( t_i - \mu - Wx_i) + x_i^Tx_i \right\} \\
+ & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma^2  + \frac{1}{\sigma^2} \text{tr} \left((t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  \frac{2}{\sigma^2}(t_i-\mu)^TWx_i + x_i^Tx_i \right\} \\
 \end{align*}
-$$
+```
 
-Taking this expectation step (conditionned on $t, W $ and $\sigma^2 $) gives :
+### E step
 
-$$
+Taking the 
+<span style="color:green">expectation step </span> 
+(conditionned on $t, W$ and $\sigma^2$) gives :
+
+```math
 \begin{align*}
-\mathbb{E} \left[ \mathcal{L} | t, W, \sigma^2 \right] = & - N d \log \sigma - \frac{N}{2\sigma^2} \text{tr} (S) \\
-& - \frac{N}{2\sigma^2} \left( 
-  \text{tr} ( \left( W^T W + \sigma^2 I \right) \langle x^T x \rangle ) - 2 \text{tr} \left( W \langle x \rangle ( t_i - \mu )^T \right)
-  \right)
+\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} =  -\sum_{i=1}^N &\left\{ \frac{d}{2} \log \sigma^2 + \frac{1}{2\sigma^2} \text{tr} \left( (t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{2\sigma^2}\text{tr} \left( W^T W \langle x_i x_i^T \rangle \right) \right. \\  
+& \left.- \frac{1}{\sigma^2}\text{tr} \left( W\langle x_i \rangle (t_i-\mu)^T \right) + 
+\frac{1}{2} \text{tr} \left( \langle x_i x_i^T \rangle \right)  \right\}
 \end{align*}
-$$
+```
 
-Where expectations are analytic given $x | t$ is gaussian.
+The final form of the conditionned expectation is designated as $\text{el(t, x)}$.
 
+### M step
+
+Differenciating $el$ with respect to the model parameters gives :
+
+```math
+\frac{\partial \text{el(t, x)}}{\partial W} = - \frac{1}{\sigma^2} \sum_{n=1}^N \left\{ W \langle x_n x_n^T \rangle - (t_n - \mu)\langle x_n \rangle^T \right\}
+```
+
+and 
+
+```math
+\frac{\partial \text{el(t, x)}}{\partial \sigma^2} = - \frac{1}{\sigma^2} \sum_{n=1}^N \left\{ \frac{d}{2} - \frac{1}{2\sigma^2} \text{tr} \left( (t_n - \mu)(t_n - \mu)^T \right) - \frac{1}{2\sigma^2} \text{tr} \left( W^T W \langle x_n x_n^T \rangle \right) \right\} 
+```
+
+Hence the new parameters are given by :
+
+```math
+\begin{cases}
+\tilde{W} = \left( \sum_{n=1}^N (t_n - \mu) \langle x_n \rangle^T \right)
+\left( \sum_{n=1}^N \langle x_n x_n^T \rangle \right)^{-1} \\
+\tilde{\sigma}^2 = \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} ^T \tilde{W} \frac{1}{N} \sum_{n=1}^N \langle x_n x_n^T \rangle \right) - 2 \text{tr} \left( \tilde{W} \frac{1}{N} \sum_{n=1}^N \langle x_n \rangle (t_n - \mu)^T \right) \right\}
+\end{cases}
+```
+
+Where $S = \frac{1}{N} \sum_{n=1}^N (t_n - \mu) (t_n - \mu)^T$ 
+is the empirical covariance of the observations.
+
+Both expectations $\langle x_n \rangle$ and $\langle x_n x_n^T \rangle$ for any $n$ are analytic given $x | t$ is gaussian.
+
+Indeed, Bayes forlula giving : 
+
+$$\begin{align*} p(x|t) & = \frac{p(t|x)p(x)}{p(t)} \\
+& \propto \exp \left( - \frac{1}{2\sigma^2} \left(x- M^{-1} W^{T}(t-\mu)\right)^T M \left(x- M^{-1} W^{T}(t-\mu)\right) \right)
+\end{align*}$$
+
+Shows that $x | t \sim \mathcal{N}\left(M^{-1} W^{T}(t-\mu), \sigma^2 M^{-1} \right)$,
+where $M = W^TW + \sigma^2 I$.
+
+From there :
+
+```math
+\begin{cases}
+\langle x_n \rangle = M^{-1} W^T (t_n - \mu) \\
+\langle x_n x_n^T \rangle = Var(x_n |t_n, W, \sigma^2) + \langle x_n \rangle \langle x_n \rangle^T = \sigma^2 M^{-1} + M^{-1} W^T (t_n - \mu)(t_n - \mu)^T W M^{-1}
+\end{cases}
+```
+
+Which simplifies the formula for the optimal parameters as follows :
+
+```math
+\begin{align*}
+\tilde{W} & = \left( \sum_{n=1}^N (t_n - \mu) (t_n - \mu)^T W M^{-1} \right)
+\left( N\sigma^2 M^{-1} + M^{-1} W^T \sum_{n=1}^N (t_n - \mu)(t_n - \mu)^T W M^{-1}  \right)^{-1} \\
+& = SWM^{-1} \left( \sigma^2 M^{-1} + M^{-1} W^T S W M^{-1} \right) \\
+& = SW \left( \sigma^2 + M^{-1} W^T S W\right)
+\end{align*}
+```
+
+and :
+
+```math 
+\begin{align*}
+\tilde{\sigma}^2  =  & \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W}^T \tilde{W}  \sigma^2 M^{-1} + \tilde{W}^T \tilde{W} M^{-1} W^T \frac{1}{N} \sum_{n=1}^N (t_n - \mu)(t_n - \mu)^T W M^{-1} \right) \right. \\ 
+& \left. - 2 \text{tr} \left( \tilde{W} \frac{1}{N} \sum_{n=1}^N M^{-1} W^T (t_n - \mu) (t_n - \mu)^T \right) \right\} \\
+\tilde{\sigma}^2 = & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \sigma^2\tilde{W}^T \tilde{W} M^{-1} + \tilde{W}^T \tilde{W} M^{-1} W^T S W M^{-1} \right) - 2 \text{tr} \left( \tilde{W}  M^{-1} W^T S \right) \right\}  \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W}^T \tilde{W} M^{-1} \left( \sigma^2 I + W^T S W M^{-1} \right) \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\} \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} M^{-1} \left( \sigma^2 I + W^T S W M^{-1} \right) \tilde{W}^T \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\} \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} M^{-1} \left( \underbrace{\tilde{W} \left( \sigma^2 I + M^{-1} W^T S W  \right)}_{SW} \right)^T \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\}
+\end{align*} 
+```
+
+eventually :
+
+```math
+\tilde{\sigma}^2  = \frac{1}{d} \text{tr}(S - S W M^{-1}\tilde{W}^T) 
+```
 
 ### References :
 
@@ -177,6 +259,8 @@ Where expectations are analytic given $x | t$ is gaussian.
 ```
 
 **Also read :**
+
+To model heavy-tailed distributions :
 ```bibtex
 @article{collas2021probabilistic,
   title={Probabilistic PCA from heteroscedastic signals: geometric framework and application to clustering},
@@ -189,6 +273,7 @@ Where expectations are analytic given $x | t$ is gaussian.
 }
 ```
 
+To adapt PCA to response variable : 
 ```bibtex
 @misc{papazoglou2025covariancesupervisedprincipalcomponent,
       title={Covariance Supervised Principal Component Analysis}, 
