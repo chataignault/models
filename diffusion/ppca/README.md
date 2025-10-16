@@ -114,8 +114,8 @@ of the joint observation and latent variables is :
 ```math
 \begin{align*}
 \mathcal{L}(x, t) = &\sum \log p(x_i, t_i) \\
- = & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} (t_i-\mu - Wx_i)^T( t_i - \mu - Wx_i) + x_i^Tx_i \right\} \\
- & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left((t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  \frac{2}{\sigma^2}(t_i-\mu)^TWx_i + x_i^Tx_i \right\} \\
+ = & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma^2  + \frac{1}{\sigma^2} (t_i-\mu - Wx_i)^T( t_i - \mu - Wx_i) + x_i^Tx_i \right\} \\
+ & -\frac{1}{2} \sum_{i=1}^N \left\{ d \log \sigma^2  + \frac{1}{\sigma^2} \text{tr} \left((t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  \frac{2}{\sigma^2}(t_i-\mu)^TWx_i + x_i^Tx_i \right\} \\
 \end{align*}
 ```
 
@@ -123,11 +123,14 @@ Taking the
 <span style="color:green">expectation step </span> 
 (conditionned on $t, W$ and $\sigma^2$) gives :
 
-```math
-\begin{align*}
-\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = & - \frac{N}{2} \left\{ d \log \sigma  + \frac{1}{\sigma^2} \text{tr} \left(S\right) + \frac{1}{\sigma^2}\text{tr} \left( W^T W \overline{\langle x x^T \rangle} \right) -  \frac{2}{\sigma^2} \sum_{i=1}^N(t_i-\mu)^TW\langle x_i\rangle + \overline{\langle x^Tx \rangle} \right\}
-\end{align*}
-```
+$$
+\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = -
+\sum_{i=1}^N \left\{ \frac{d}{2} \log \sigma^2 + 
+\frac{1}{2\sigma^2} \text{tr} \left((t_i-\mu) (t_i-\mu)^T\right) + 
+\frac{1}{2\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  
+\frac{1}{\sigma^2}\text{tr} \left( Wx_i(t_i-\mu)^T \right) + 
+\frac{1}{2} \text{tr} \left( x_i x_i^T \right)  \right\}
+$$
 
 Where "bar" variables represent the empirical mean over samples.
 
