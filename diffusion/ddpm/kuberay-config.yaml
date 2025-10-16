@@ -1,0 +1,87 @@
+apiVersion: ray.io/v1alpha1
+kind: RayCluster
+metadata:
+  name: ddpm-inference-cluster
+  namespace: default
+spec:
+  rayVersion: '2.9.0'
+  enableInTreeAutoscaling: false
+  headGroupSpec:
+    rayStartParams:
+      dashboard-host: '0.0.0.0'
+      num-cpus: '0'  # Don't schedule workloads on head
+    template:
+      spec:
+        containers:
+          - name: ray-head
+            image: rayproject/ray:2.9.0-py310-gpu
+            resources:
+              limits:
+                cpu: "2"
+                memory: "4Gi"
+              requests:
+                cpu: "1"
+                memory: "2Gi"
+            ports:
+              - containerPort: 6379
+                name: gcs-server
+              - containerPort: 8265
+                name: dashboard
+              - containerPort: 10001
+                name: client
+            volumeMounts:
+              - mountPath: /workspace
+                name: workspace
+        volumes:
+          - name: workspace
+            emptyDir: {}
+  workerGroupSpecs:
+    - replicas: 1
+      minReplicas: 1
+      maxReplicas: 3
+      groupName: gpu-workers
+      rayStartParams:
+        num-cpus: '4'
+        num-gpus: '1'
+      template:
+        spec:
+          containers:
+            - name: ray-worker
+              image: rayproject/ray:2.9.0-py310-gpu
+              lifecycle:
+                preStop:
+                  exec:
+                    command: ["/bin/sh", "-c", "ray stop"]
+              resources:
+                limits:
+                  cpu: "4"
+                  memory: "8Gi"
+                  nvidia.com/gpu: "1"  # Request 1 GPU per worker
+                requests:
+                  cpu: "2"
+                  memory: "4Gi"
+                  nvidia.com/gpu: "1"
+              volumeMounts:
+                - mountPath: /workspace
+                  name: workspace
+          volumes:
+            - name: workspace
+              emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ddpm-inference-service
+  namespace: default
+spec:
+  type: ClusterIP
+  selector:
+    ray.io/cluster: ddpm-inference-cluster
+    ray.io/node-type: head
+  ports:
+    - name: dashboard
+      port: 8265
+      targetPort: 8265
+    - name: client
+      port: 10001
+      targetPort: 10001
