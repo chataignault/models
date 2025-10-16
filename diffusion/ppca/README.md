@@ -121,7 +121,7 @@ of the joint observation and latent variables is :
 
 Taking the 
 <span style="color:green">expectation step </span> 
-(conditionned on $t, W $ and $\sigma^2 $) gives :
+(conditionned on $t, W$ and $\sigma^2$) gives :
 
 ```math
 \begin{align*}
