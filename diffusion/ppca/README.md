@@ -158,9 +158,12 @@ Hence the new parameters are given by :
 \begin{cases}
 \tilde{W} = \left( \sum_{n=1}^N (t_n - \mu) \langle x_n \rangle^T \right)
 \left( \sum_{n=1}^N \langle x_n x_n^T \rangle \right)^{-1} \\
-\tilde{\sigma}^2 = \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( W^T W \frac{1}{N} \sum_{n=1}^N \langle x_n x_n^T \rangle \right) - 2 \text{tr} \left( W \frac{1}{N} \sum_{n=1}^N \langle x_n \rangle (t_n - \mu)^T \right) \right\}
+\tilde{\sigma}^2 = \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} ^T \tilde{W} \frac{1}{N} \sum_{n=1}^N \langle x_n x_n^T \rangle \right) - 2 \text{tr} \left( \tilde{W} \frac{1}{N} \sum_{n=1}^N \langle x_n \rangle (t_n - \mu)^T \right) \right\}
 \end{cases}
 ```
+
+Where $S = \frac{1}{N} \sum_{n=1}^N (t_n - \mu) (t_n - \mu)^T$ 
+is the empirical covariance of the observations.
 
 Both expectations $\langle x_n \rangle$ and $\langle x_n x_n^T \rangle$ for any $n$ are analytic given $x | t$ is gaussian.
 
@@ -180,6 +183,36 @@ From there :
 \langle x_n \rangle = M^{-1} W^T (t_n - \mu) \\
 \langle x_n x_n^T \rangle = Var(x_n |t_n, W, \sigma^2) + \langle x_n \rangle \langle x_n \rangle^T = \sigma^2 M^{-1} + M^{-1} W^T (t_n - \mu)(t_n - \mu)^T W M^{-1}
 \end{cases}
+```
+
+Which simplifies the formula for the optimal parameters as follows :
+
+```math
+\begin{align*}
+\tilde{W} & = \left( \sum_{n=1}^N (t_n - \mu) (t_n - \mu)^T W M^{-1} \right)
+\left( N\sigma^2 M^{-1} + M^{-1} W^T \sum_{n=1}^N (t_n - \mu)(t_n - \mu)^T W M^{-1}  \right)^{-1} \\
+& = SWM^{-1} \left( \sigma^2 M^{-1} + M^{-1} W^T S W M^{-1} \right) \\
+& = SW \left( \sigma^2 + M^{-1} W^T S W\right)
+\end{align*}
+```
+
+and :
+
+```math 
+\begin{align*}
+\tilde{\sigma}^2  =  & \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W}^T \tilde{W}  \sigma^2 M^{-1} + \tilde{W}^T \tilde{W} M^{-1} W^T \frac{1}{N} \sum_{n=1}^N (t_n - \mu)(t_n - \mu)^T W M^{-1} \right) \right. \\ 
+& \left. - 2 \text{tr} \left( \tilde{W} \frac{1}{N} \sum_{n=1}^N M^{-1} W^T (t_n - \mu) (t_n - \mu)^T \right) \right\} \\
+\tilde{\sigma}^2 = & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \sigma^2\tilde{W}^T \tilde{W} M^{-1} + \tilde{W}^T \tilde{W} M^{-1} W^T S W M^{-1} \right) - 2 \text{tr} \left( \tilde{W}  M^{-1} W^T S \right) \right\}  \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W}^T \tilde{W} M^{-1} \left( \sigma^2 I + W^T S W M^{-1} \right) \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\} \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} M^{-1} \left( \sigma^2 I + W^T S W M^{-1} \right) \tilde{W}^T \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\} \\
+= & \frac{1}{d}  \left\{ \text{tr}(S) + \text{tr} \left( \tilde{W} M^{-1} \left( \underbrace{\tilde{W} \left( \sigma^2 I + M^{-1} W^T S W  \right)}_{SW} \right)^T \right) -  2 \text{tr} \left( S W M^{-1}  \tilde{W}^T \right) \right\}
+\end{align*} 
+```
+
+eventually :
+
+```math
+\tilde{\sigma}^2  = \frac{1}{d} \text{tr}(S - S W M^{-1}\tilde{W}^T) 
 ```
 
 ### References :
