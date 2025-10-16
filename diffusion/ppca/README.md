@@ -124,12 +124,14 @@ Taking the
 (conditionned on $t, W$ and $\sigma^2$) gives :
 
 ```math
-\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = -
+\begin{align*}
+\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = & -
 \sum_{i=1}^N \left\{ \frac{d}{2} \log \sigma^2 + 
 \frac{1}{2\sigma^2} \text{tr} \left( (t_i-\mu) (t_i-\mu)^T\right) + 
-\frac{1}{2\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  
+\frac{1}{2\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) -  \\ &
 \frac{1}{\sigma^2}\text{tr} \left( Wx_i(t_i-\mu)^T \right) + 
 \frac{1}{2} \text{tr} \left( x_i x_i^T \right)  \right\}
+\end{align*}
 ```
 
 Where "bar" variables represent the empirical mean over samples.
