@@ -107,6 +107,9 @@ Where $t \in \mathbb{R}^d$ is the observation variable,
 $x \in \mathbb{R}^q$ is the latent one,
 with $q \ll d$ and $\epsilon \sim \mathcal{N} (0, \sigma^2)$.
 
+In the following section, the reasoning is detailed, as in the paper, 
+with extra intermediate steps. 
+
 Then the
 <span style="color:green">log-likelihood </span>
 of the joint observation and latent variables is :
@@ -119,21 +122,47 @@ of the joint observation and latent variables is :
 \end{align*}
 ```
 
+### E step
+
 Taking the 
 <span style="color:green">expectation step </span> 
 (conditionned on $t, W$ and $\sigma^2$) gives :
 
 ```math
 \begin{align*}
-\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} = & -\sum_{i=1}^N \left\{ \frac{d}{2} \log \sigma^2 + \frac{1}{2\sigma^2} \text{tr} \left( (t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{2\sigma^2}\text{tr} \left( W^T W x_i x_i^T\right) \right. \\  
-& \left.- \frac{1}{\sigma^2}\text{tr} \left( Wx_i(t_i-\mu)^T \right) + 
-\frac{1}{2} \text{tr} \left( x_i x_i^T \right)  \right\}
+\mathbb{E} \left\{ \mathcal{L(x, t)} | t, W, \sigma^2 \right\} =  -\sum_{i=1}^N &\left\{ \frac{d}{2} \log \sigma^2 + \frac{1}{2\sigma^2} \text{tr} \left( (t_i-\mu) (t_i-\mu)^T\right) + \frac{1}{2\sigma^2}\text{tr} \left( W^T W \langle x_i x_i^T \rangle \right) \right. \\  
+& \left.- \frac{1}{\sigma^2}\text{tr} \left( W\langle x_i \rangle (t_i-\mu)^T \right) + 
+\frac{1}{2} \text{tr} \left( \langle x_i x_i^T \rangle \right)  \right\}
 \end{align*}
 ```
 
-Where "bar" variables represent the empirical mean over samples.
+The final form of the conditionned expectation is designated as $\text{el(t, x)}$.
 
-Where expectations are analytic given $x | t$ is gaussian.
+### M step
+
+Differenciating $el$ with respect to the model parameters gives :
+
+```math
+\frac{\partial \text{el(t, x)}}{\partial W} = - \frac{1}{\sigma^2} \sum_{n=1}^N \left\{ W \langle x_n x_n^T \rangle - (t_n - \mu)\langle x_n \rangle^T \right\}
+```
+
+and 
+
+```math
+\frac{\partial \text{el(t, x)}}{\partial \sigma^2} = - \frac{1}{\sigma^2} \sum_{n=1}^N \left\{ \frac{d}{2} - \frac{1}{2\sigma^2} \text{tr} \left( (t_n - \mu)(t_n - \mu)^T \right) - \frac{1}{2\sigma^2} \text{tr} \left( W^T W \langle x_n x_n^T \rangle \right) \right\} 
+```
+
+Hence the new parameters are given by :
+
+```math
+\begin{cases}
+\tilde{W} = \left( \sum_{n=1}^N (t_n - \mu) \langle x_n \rangle^T \right)
+\left( \sum_{n=1}^N \langle x_n x_n^T \rangle \right)^{-1} \\
+\tilde{\sigma}^2 = \frac{1}{d} \left\{ \text{tr}(S) + \text{tr} \left( W^T W \frac{1}{N} \sum_{n=1}^N \langle x_n x_n^T \rangle \right) - 2 \text{tr} \left( W \frac{1}{N} \sum_{n=1}^N \langle x_n \rangle (t_n - \mu)^T \right) \right\}
+\end{cases}
+```
+
+Both expectations $\langle x_n \rangle$ and $\langle x_n x_n^T \rangle$ for any $n$ are analytic given $x | t$ is gaussian.
 
 Indeed, Bayes forlula giving : 
 
@@ -143,6 +172,15 @@ $$\begin{align*} p(x|t) & = \frac{p(t|x)p(x)}{p(t)} \\
 
 Shows that $x | t \sim \mathcal{N}\left(M^{-1} W^{T}(t-\mu), \sigma^2 M^{-1} \right)$,
 where $M = W^TW + \sigma^2 I$.
+
+From there :
+
+```math
+\begin{cases}
+\langle x_n \rangle = M^{-1} W^T (t_n - \mu) \\
+\langle x_n x_n^T \rangle = Var(x_n |t_n, W, \sigma^2) + \langle x_n \rangle \langle x_n \rangle^T = \sigma^2 M^{-1} + M^{-1} W^T (t_n - \mu)(t_n - \mu)^T W M^{-1}
+\end{cases}
+```
 
 ### References :
 
