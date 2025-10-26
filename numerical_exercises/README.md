@@ -9,9 +9,12 @@ Implement numerically some algorithms to confirm intuition on problems of combin
 5. [Counting diagonal paths](#counting-diagonal-paths)
 
 *Also includes :*
-- detours on combinatorics and proofs
-- detours revolving around the Rust environment
+- detours on combinatorics and proofs,
+- detours revolving around the Rust environment,
+- [IEEE Xtreme 19](https://csacademy.com/ieeextreme19/tasks/) snippets.
+
 ***
+
 ## Positive paths count
 Given an integer $n$, count the number of positive paths
 that start and end at $0$
