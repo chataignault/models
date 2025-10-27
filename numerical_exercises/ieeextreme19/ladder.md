@@ -103,6 +103,13 @@ For instance, for $n=3$, valid sequences are :
 1 1 1
 ```
 
+Given $n$, 
+the sequence length $l \in [ \lfloor \frac{n}{2} \rfloor , n]$,
+and the number of `2`s is uniquely determined by the length
+to guarantee it sums up to $n$ : 
+$k = n - l$ 
+is the exact number of `2`s in sequences of length $l$.
+
 The number of valid sequences of length $l$ is :
 ```math
 m(n, k) = \begin{pmatrix} l \\ n - l \end{pmatrix}
@@ -131,4 +138,19 @@ p^k(n) = 2^k p^0 (n)
 
 Where $p^0 (n)$ is the probability that the sampled sequence 
 is `111...1` ($n$ times).
+
+It depends on the number of possible returns to the initial state,
+as well as their length.
+Given the recurrence relation of the graphs,
+it is possible to use dynamic programming to compute it
+from $n=1$ and $n=2$.
+
+The equation is initially :
+```math
+p^0 (n) = \frac{1}{2^n} + p^0 (n) \sum_{\text{return path} x} 2^{-|x|}
+```
+Let $s(n, k)$ the number of return paths
+of length $k$ at step $n$.
+It belongs to $[ \lceil \frac{n}{2} \rceil , n ]$.
+
 
