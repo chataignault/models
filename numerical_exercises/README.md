@@ -7,11 +7,11 @@ Implement numerically some algorithms to confirm intuition on problems of combin
 3. [Random walk crossing threshold probability](#negative-price-probability)
 4. [Dealing cards evenly without observation](#dealing-indistinguishable-cards)
 5. [Counting diagonal paths](#counting-diagonal-paths)
+6. [IEEEXtreme 19 Challenge](#ieee19)
 
 *Also includes :*
 - detours on combinatorics and proofs,
 - detours revolving around the Rust environment,
-- [IEEE Xtreme 19](https://csacademy.com/ieeextreme19/tasks/) snippets.
 
 ***
 
@@ -319,3 +319,11 @@ What is the probability of reaching $5$ before loosing all the coins ?
 
 > [!NOTE]
 > To complete
+
+
+## IEEE Xtreme 19
+
+The folder `ieeextreme19` contains exercices from 
+[the coding competition](https://csacademy.com/ieeextreme19/tasks/)
+.
+
