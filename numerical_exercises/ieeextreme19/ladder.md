@@ -92,3 +92,43 @@ the equality condition :
 means both sequences are equal element-by-element.
 
 
+**Finding valid sequence occurences :**
+For a given $n$, *valid sequence* is a sequence of `1`s and `2`s
+whose sum is exactly $n$.
+
+For instance, for $n=3$, valid sequences are :
+```
+1 2
+2 1
+1 1 1
+```
+
+The number of valid sequences of length $l$ is :
+```math
+m(n, k) = \begin{pmatrix} l \\ n - l \end{pmatrix}
+```
+
+While each digit have probability one-half of occurring 
+from the random generator (empirically verified),
+the probability of sampling a valid sequence is not uniform.
+
+One can compute it from the state-graph 
+of generating a valid sequence.
+For $n = 2$ :
+
+<img src="img/ladder2.png" width="400px" />
+
+And similarly for $n=1$.
+Then for $n \geq 3$,
+the following recurrence relation describes the graph :
+
+<img src="img/laddern.png" width="400px" />
+
+Ersatz :
+```math
+p^k(n) = 2^k p^0 (n)
+```
+
+Where $p^0 (n)$ is the probability that the sampled sequence 
+is `111...1` ($n$ times).
+
