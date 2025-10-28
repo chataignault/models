@@ -1,12 +1,19 @@
 # Ladder
 
+LFSR, algorithm optimization.
+
 ## Problem setting 
 
 The objective is to rewrite the algorithm in `ladder.py`
 efficiently.
 
+The algorithm involves a PRNG
+Linear Feedback Shift Register (LFSR),
+to estimate a probability function,
+which is then scaled and rounded.
+
 A sample input is provided in `ladder.txt` 
-and the optimized algorithm is `ladder_optimized.py`
+and the optimized algorithm is `ladder_solution.py`
 which works on all test cases
 and is re-written to avoid floating-point overflow.
 
@@ -49,6 +56,7 @@ for _ in range(num):
 ```
 
 ***
+***
 
 ## Solution
 
@@ -69,9 +77,59 @@ p(n) = \left(2^n - \sum_{j=1}^{\lfloor \frac{n}{2} \rfloor} 2^{j-1} s(n, j) \rig
 ```
 
 
-***
 
 ## Derivation
+
+### General form
+
+The output of the algorithm can be written as :
+```math
+\text{round}\left(19 \times s \times p(n) \right)
+```
+for some probability $p$, 
+only depending on $s$, and which is related 
+to matching random *valid sequences*.
+
+For a given $n$, *valid sequence* is a sequence of `1`s and `2`s
+whose sum is exactly $n$.
+
+For instance, for $n=3$, valid sequences are :
+```
+1 2
+2 1
+1 1 1
+```
+
+At each step, `na` receives $\frac{1}{19}$,
+therefore :
+```math
+\text{na}(n) = \frac{n}{19}
+```
+Then, at the end of each step,
+`ng` receives $s$ if two randomly sampled valid sequences match,
+that has probability $p(n)$,
+therefore, we can write it as :
+```math
+\text{ng}(n) = s \times \sum_{i=1}^n \textbf{1}_n(x_i = x_i')
+```
+where the $x_i$ are generated valid sequences, 
+pseudo-randomly, so the indicator functions are *ergodic* 
+(to justify from the number generator).
+
+The result being the integer part of $\frac{na}{ng}$,
+the law of large number guarantees (ergodic theorem)
+that the average sum of indicator functions converges to
+the probability that two independant valid sequences match bit-wise $p(n)$.
+
+
+### Derivation of the probability function $p$
+
+The point is to model the probability that,
+for an integer $n$ and two associated valid sequences,
+both sequences match (bit-wise, up to the shortest length).
+
+In fact, matching two valid sequences for an integer $n$ 
+can be simplified in the algorithm from the start. 
 
 **It is necessary that matching valid sequences have the same length.**
 If it was not the case, 
@@ -82,7 +140,7 @@ plus some non-empty word.
 In this case the longest sequence sums up to strictly greater than n,
 which contradicts the assumption that is it valid.
 
-**Two random valid sequences match if and only if they are equal.**
+**Therefore, two random valid sequences match if and only if they are equal.**
 Given two valid series of the same length,
 the equality condition :
 ```python
@@ -91,17 +149,21 @@ the equality condition :
 ```
 means both sequences are equal element-by-element.
 
+From there, it is sufficient to find the probability of occurence
+for all valid sequences of an integer.
+
+The probability of having both samples being equal is then 
+(assuming independance can be justified):
+```math
+\sum_{x \ \ \text{valid}}p(\text{random sequence} = x)^2
+```
+
+> The probability distribution of the sequences is not uniform (see graphs below).
+
+In the next step, valid sequences are describes,
+and the probability distribution of each element is derived.
 
 **Finding valid sequence occurences :**
-For a given $n$, *valid sequence* is a sequence of `1`s and `2`s
-whose sum is exactly $n$.
-
-For instance, for $n=3$, valid sequences are :
-```
-1 2
-2 1
-1 1 1
-```
 
 Given $n$, 
 the sequence length $l \in [ \lfloor \frac{n}{2} \rfloor , n]$,
@@ -114,10 +176,12 @@ The number of valid sequences of length $l$ is :
 ```math
 m(n, k) = \begin{pmatrix} l \\ n - l \end{pmatrix}
 ```
+(picking the location for the `1`'s).
 
 While each digit have probability one-half of occurring 
 from the random generator (empirically verified),
-the probability of sampling a valid sequence is not uniform.
+the probability of sampling a valid sequence is not uniform among the possible sequences
+(intuitively, it is easier to produce a sequence that is shorter).
 
 One can compute it from the state-graph 
 of generating a valid sequence.
@@ -131,10 +195,6 @@ the following recurrence relation describes the graph :
 
 <img src="img/laddern.png" width="400px" />
 
-Ersatz :
-```math
-p^k(n) = 2^k p^0 (n)
-```
 
 Where $p^0 (n)$ is the probability that the sampled sequence 
 is `111...1` ($n$ times).
@@ -153,4 +213,15 @@ Let $s(n, k)$ the number of return paths
 of length $k$ at step $n$.
 It belongs to $[ \lceil \frac{n}{2} \rceil , n ]$.
 
+Given the recurrence relation of the graph :
+```math
+s(n, k) = s(n-1, k) + s(n-2, k-1)
+```
+
+Ersatz :
+```math
+p^k(n) = 2^k p^0 (n)
+```
+which can be shown by a simple recurrence, 
+introducing `2`s progressively to the sequence of `1`s.
 

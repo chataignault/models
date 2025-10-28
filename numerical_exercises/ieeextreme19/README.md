@@ -1,5 +1,8 @@
 # IEEEXtreme 19 Programming Competition Solutions
 
+
+<img src="img/xtreme_logo.gif" width="250px" />
+
 Solutions to problems from the IEEEXtreme 19.0 programming competition. These represent completed submissions and post-competition work.
 
 ## Exercises
