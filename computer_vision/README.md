@@ -73,3 +73,8 @@ to build a video-streaming pipeline to detect objects in real time, with :
 }
 ```
 
+The final goal is to embed the model with :
+<a href="https://github.com/anuraghazra/convoychat">
+<img height=50 align="center" src="https://go-skill-icons.vercel.app/api/icons?i=raspberrypi,arduino" />
+</a>
+
