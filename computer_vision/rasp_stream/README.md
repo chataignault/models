@@ -224,6 +224,9 @@ sudo systemctl start camera-stream
 - Only accessible through SSH authentication
 - Server listens on all interfaces (0.0.0.0) but requires SSH tunnel to access from laptop
 
-## License
 
-MIT License
+## On RPi :
+```bash
+rpicam
+```
+command for taking photos.
