@@ -1,3 +1,6 @@
 [submodule "numerical_exercises"]
 	path = numerical_exercises
 	url = https://github.com/chataignault/numerics
+[submodule "fixed_income/fx_pricer"]
+	path = fixed_income/fx_pricer
+	url = https://github.com/chataignault/ficc-pricer
