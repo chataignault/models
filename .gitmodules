@@ -1,0 +1,3 @@
+[submodule "numerical_exercises"]
+	path = numerical_exercises
+	url = https://github.com/chataignault/numerics
