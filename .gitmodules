@@ -4,3 +4,6 @@
 [submodule "fixed_income/fx_pricer"]
 	path = fixed_income/fx_pricer
 	url = https://github.com/chataignault/ficc-pricer
+[submodule "diffusion/ppca"]
+	path = diffusion/ppca
+	url = https://github.com/chataignault/probabilistic_pca
