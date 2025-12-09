@@ -134,9 +134,9 @@ class Unet(nn.Module):
             in_channels=ups[-1], out_channels=channels, kernel_size=1
         )
 
-        assert (
-            len(self.upsampling) == len(self.downsampling)
-        ), f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
+        assert len(self.upsampling) == len(self.downsampling), (
+            f"up and down channels should have the same length, got {len(self.downsampling)} and {len(self.upsampling)}"
+        )
 
     def forward(self, x: Tensor, t: Tensor):
         t = self.pos_emb(t)

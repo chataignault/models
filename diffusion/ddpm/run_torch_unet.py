@@ -13,9 +13,9 @@ from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 import numpy as np
 
-from utils.fashion_mnist_dataloader import get_dataloader
+from utils.dataloader import get_dataloader
 from utils.logger import get_logger
-from utils_torch.classes import SimpleUnet, Unet
+from utils_torch.unet import SimpleUnet, Unet
 from utils_torch.diffusion import sample, linear_beta_schedule
 from utils_torch.training import get_loss
 
