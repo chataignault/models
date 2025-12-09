@@ -1,0 +1,6 @@
+# Install via apt on Raspberry Pi:
+# sudo apt install -y python3-picamera2 python3-opencv
+
+# These are system packages, not pip packages
+# picamera2
+# opencv (cv2)

@@ -5,10 +5,14 @@
 > [!NOTE]
 > Each subfolder contains environment configuration
 
+End-to-end implementation :
 - Probabilitstic PCA
 - Variational Autoencoder
 - Denoising Diffusion Probabilistic model
 - Scaled Dot Product Attention (JAX/Flax implementation with numerically stable softmax)
+
+Snippets :
+- scaled dot product attention block
 
 ## Scripts
 
@@ -18,14 +22,14 @@
 **Animate Diff**
 
 ```bash
-uv run test_animate_diff.py --prompt "sea-side, beach, high resolution, pine trees, waves"
+uv run scripts/test_animate_diff.py --prompt "sea-side, beach, high resolution, pine trees, waves"
 ```
 
 
 **Stable Diffusion**
 
 ```bash
-uv run test_stable_diffusion.py --prompt "Jacques Prévert wearing a bow tie"
+uv run scripts/test_stable_diffusion.py --prompt "Jacques Prévert wearing a bow tie"
 ```
 
 > [!WARNING]
@@ -47,3 +51,5 @@ uv run test_stable_diffusion.py --prompt "Jacques Prévert wearing a bow tie"
 
 - [ ] Update consistency models tests
 - [ ] [Burn](https://burn.dev/) POC
+
+

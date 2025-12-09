@@ -2,6 +2,18 @@
 
 Model and script taken from [here](https://github.com/tracel-ai/models).
 
+Powered by :
+<a href="https://github.com/anuraghazra/convoychat">
+<img height=50 align="center" src="https://go-skill-icons.vercel.app/api/icons?i=burn" />
+</a>
+
+
+**Bounding boxes result :**
+
+<img src="samples/dog_bike_man.output.png" alt="drawing" style="width:500px;"/>
+
+
+## Former issue (now fixed)
 Used corrected source : 
 ```code
 diff --git a/yolox-burn/src/model/bottleneck.rs b/yolox-burn/src/model/bottleneck.rs
@@ -19,7 +31,4 @@ index 1b738cd..b6f8d18 100644
 
 ```
 
-**Bounding boxes result :**
-
-<img src="samples/dog_bike_man.output.png" alt="drawing" style="width:500px;"/>
 
