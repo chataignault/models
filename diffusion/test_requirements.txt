@@ -1,5 +1,0 @@
-torch
-diffusers
-accelerate
-transformeres
-
