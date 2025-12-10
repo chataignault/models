@@ -38,18 +38,21 @@ class TrainState(train_state.TrainState):
     batch_stats: Any
 
 
-def create_train_state(rng, model, learning_rate_fn, train: bool):
+def create_train_state(rng, model, learning_rate_fn, train: bool, num_devices: int = 1):
+    """
+    Create training state, optionally replicated across devices.
+
+    Args:
+        rng: Random number generator key
+        model: Flax model to initialize
+        learning_rate_fn: Learning rate schedule function
+        train: Whether in training mode (affects BatchNorm)
+        num_devices: Number of devices to replicate across (1 = single device)
+
+    Returns:
+        TrainState (replicated if num_devices > 1)
+    """
     rng, rng_tab = random.split(rng)
-    # print( # TODO
-    #     model.tabulate(
-    #         rng_tab,
-    #         jnp.ones((1, 28, 28, 1)),
-    #         jnp.ones([1]),
-    #         train,
-    #         compute_flops=True,
-    #         compute_vjp_flops=True,
-    #     )
-    # )
     rng, rng_init = random.split(rng)
     variables = model.init(
         rng_init, jnp.ones([1, 28, 28, model.channels]), jnp.ones([1]), train=train
@@ -57,9 +60,16 @@ def create_train_state(rng, model, learning_rate_fn, train: bool):
     params = variables["params"]
     batch_stats = variables["batch_stats"]
     tx = optax.adam(learning_rate_fn)
-    return TrainState.create(
+    state = TrainState.create(
         apply_fn=model.apply, params=params, tx=tx, batch_stats=batch_stats
     )
+
+    # Replicate across devices if using distributed training
+    if num_devices > 1:
+        from utils_jax.tpu_utils import replicate_tree
+        state = replicate_tree(state, num_devices)
+
+    return state
 
 
 def linear_beta_schedule(
@@ -86,11 +96,6 @@ def train_step(state, batch, diff_params, rng, learning_rate_function):
         x_t, eps = forward_diffusion_sample(
             batch, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
         )
-        # eps = (
-        #     x_t
-        #     - get_index_from_list(sqrt_alphas_cumprod, t, batch.shape)
-        #     * jnp.array(batch)
-        # ) / get_index_from_list(sqrt_one_minus_alphas_cumprod, t, batch.shape)
         predicted_eps, updates = state.apply_fn(
             {"params": params, "batch_stats": state.batch_stats},
             x_t,
@@ -105,4 +110,123 @@ def train_step(state, batch, diff_params, rng, learning_rate_function):
     state = state.apply_gradients(grads=grads)
     lr = learning_rate_function(state.step)
     state = state.replace(batch_stats=updates["batch_stats"])
+    return state, loss, lr
+
+
+@functools.partial(jax.pmap, axis_name='batch', static_broadcasted_argnums=(4,))
+def train_step_pmap(state, batch, diff_params, rng, learning_rate_function):
+    """
+    Distributed training step across TPU cores using pmap.
+
+    Args:
+        state: Replicated TrainState (per-device copy)
+        batch: Per-device batch (batch_size//num_devices, H, W, C)
+        diff_params: Diffusion parameters (replicated across devices)
+        rng: Per-device RNG key
+        learning_rate_function: Learning rate schedule (static, not replicated)
+
+    Returns:
+        state: Updated per-device state
+        loss: Per-device loss (aggregated across devices)
+        lr: Learning rate (same on all devices)
+    """
+    t = diff_params["t"]
+    sqrt_alphas_cumprod = diff_params["sqrt_alphas_cumprod"]
+    sqrt_one_minus_alphas_cumprod = diff_params["sqrt_one_minus_alphas_cumprod"]
+
+    def loss_fn(params):
+        """Compute loss and batch norm updates."""
+        x_t, eps = forward_diffusion_sample(
+            batch, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
+        )
+
+        predicted_eps, updates = state.apply_fn(
+            {"params": params, "batch_stats": state.batch_stats},
+            x_t,
+            t,
+            train=True,
+            mutable=["batch_stats"],
+        )
+
+        return jnp.mean((eps - predicted_eps) ** 2), updates
+
+    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+    (loss, updates), grads = grad_fn(state.params)
+
+    # CRITICAL: Aggregate gradients across devices using pmean
+    grads = jax.lax.pmean(grads, axis_name='batch')
+    loss = jax.lax.pmean(loss, axis_name='batch')
+
+    state = state.apply_gradients(grads=grads)
+    lr = learning_rate_function(state.step)
+    state = state.replace(batch_stats=updates["batch_stats"])
+
+    return state, loss, lr
+
+
+@functools.partial(jax.pmap, axis_name='batch', static_broadcasted_argnums=(4,))
+def train_step_pmap_bf16(state, batch, diff_params, rng, learning_rate_function):
+    """
+    Distributed training step with bfloat16 mixed precision.
+
+    Uses bfloat16 for forward pass computations and float32 for gradients/parameters.
+    This provides ~1.5-2x speedup on TPU with minimal accuracy impact.
+
+    Args:
+        state: Replicated TrainState (params in float32)
+        batch: Per-device batch (batch_size//num_devices, H, W, C) in float32
+        diff_params: Diffusion parameters (will be cast to bfloat16)
+        rng: Per-device RNG key
+        learning_rate_function: Learning rate schedule (static)
+
+    Returns:
+        state: Updated per-device state
+        loss: Per-device loss in float32 (aggregated)
+        lr: Learning rate
+    """
+    t = diff_params["t"]
+
+    # Cast diffusion parameters to bfloat16 for computation
+    sqrt_alphas_cumprod = diff_params["sqrt_alphas_cumprod"].astype(jnp.bfloat16)
+    sqrt_one_minus_alphas_cumprod = diff_params["sqrt_one_minus_alphas_cumprod"].astype(jnp.bfloat16)
+
+    # Cast batch to bfloat16
+    batch_bf16 = batch.astype(jnp.bfloat16)
+
+    def loss_fn(params):
+        """Compute loss with bfloat16 forward pass."""
+        # Forward diffusion in bfloat16
+        x_t, eps = forward_diffusion_sample(
+            batch_bf16, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
+        )
+
+        # Model forward pass (computations in bfloat16)
+        predicted_eps, updates = state.apply_fn(
+            {"params": params, "batch_stats": state.batch_stats},
+            x_t,
+            t,
+            train=True,
+            mutable=["batch_stats"],
+        )
+
+        # Cast to float32 for loss calculation (numerical stability)
+        eps_f32 = eps.astype(jnp.float32)
+        predicted_eps_f32 = predicted_eps.astype(jnp.float32)
+        loss = jnp.mean((eps_f32 - predicted_eps_f32) ** 2)
+
+        return loss, updates
+
+    # Gradients computed in float32 (params are float32)
+    grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
+    (loss, updates), grads = grad_fn(state.params)
+
+    # Aggregate across devices
+    grads = jax.lax.pmean(grads, axis_name='batch')
+    loss = jax.lax.pmean(loss, axis_name='batch')
+
+    # Update (gradients and params in float32)
+    state = state.apply_gradients(grads=grads)
+    lr = learning_rate_function(state.step)
+    state = state.replace(batch_stats=updates["batch_stats"])
+
     return state, loss, lr
