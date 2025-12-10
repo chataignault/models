@@ -19,9 +19,18 @@ dev = [
     "ruff>=0.11.6",
 ]
 jax = [
-    "jax[cuda12]>=0.5.3",
+    "jax[cuda]>=0.5.3",
     "flax>=0.10.5",
     "orbax>=0.1.9",
+]
+jax-tpu = [
+    "jax[tpu]>=0.5.3",
+    "flax>=0.10.5",
+    "orbax>=0.1.9",
+    "grain>=0.2.0",
+    "tensorboard>=2.19.0",
+    "tensorflow>=2.19.0",
+    "tensorflow-datasets>=4.9.0",
 ]
 torch = [
     "gdown>=5.2.0",
