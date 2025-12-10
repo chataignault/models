@@ -12,16 +12,54 @@ from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 
 from utils_jax.classes import UNetConv, UNet
-from utils.dataloader import get_dataloader, Data
+from utils.dataloader import get_dataloader, get_grain_dataloader, Data
 from utils_jax.training import (
     linear_beta_schedule,
     create_train_state,
     train_step,
+    train_step_pmap,
+    train_step_pmap_bf16,
     create_learning_rate_fn,
     SchedulerConfig,
 )
 from utils_jax.diffusion import sample
 from utils.logger import get_logger
+from utils_jax.tpu_utils import (
+    detect_tpu_environment,
+    split_rng_for_devices,
+    unreplicate_first,
+)
+from utils_jax.checkpoint_utils import DDPMCheckpointManager
+from utils_jax.tensorboard_logger import DDPMTensorBoardLogger
+
+
+def generate_samples_on_first_device(
+    state, rng, num_devices, T, betas, alphas_cumprod, alphas_cumprod_prev, posterior_variance
+):
+    """Generate samples on first device only (for logging)."""
+    # Unreplicate to first device if distributed
+    if num_devices > 1:
+        single_device_state = jax.tree.map(lambda x: x[0], state)
+    else:
+        single_device_state = state
+
+    rng, subrng = random.split(rng)
+    num_samples = 16
+    sample_shape = (num_samples, 28, 28, 1)
+
+    samples = sample(
+        single_device_state,
+        sample_shape,
+        subrng,
+        T,
+        betas,
+        alphas_cumprod,
+        alphas_cumprod_prev,
+        posterior_variance,
+        pseudo_video=False
+    )[-1]
+
+    return samples
 
 
 if __name__ == "__main__":
@@ -49,6 +87,11 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--load_checkpoint", type=bool, default=False)
+    # TPU-specific arguments
+    parser.add_argument("--use_tpu", type=bool, default=True, help="Use TPU if available")
+    parser.add_argument("--use_mixed_precision", type=bool, default=True, help="Use bfloat16 mixed precision")
+    parser.add_argument("--checkpoint_interval", type=int, default=1, help="Save checkpoint every N epochs")
+    parser.add_argument("--sample_interval", type=int, default=500, help="Generate samples every N steps")
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -63,6 +106,28 @@ if __name__ == "__main__":
     T = args.timesteps
     load_checkpoint = args.load_checkpoint
 
+    # TPU detection and setup
+    if args.use_tpu:
+        tpu_config = detect_tpu_environment()
+        num_devices = tpu_config['device_count'] if tpu_config['is_tpu'] else 1
+        logger.info(f"Detected {num_devices} devices: {tpu_config['device_type']}")
+
+        if not tpu_config['is_tpu']:
+            logger.warning("TPU requested but not detected. Falling back to CPU/GPU.")
+            args.use_tpu = False
+            num_devices = 1
+    else:
+        num_devices = 1
+        logger.info("Running in single-device mode")
+
+    # Validate batch size for distributed training
+    if num_devices > 1:
+        assert BATCH_SIZE % num_devices == 0, (
+            f"Batch size {BATCH_SIZE} must be divisible by num_devices {num_devices}"
+        )
+        per_device_batch_size = BATCH_SIZE // num_devices
+        logger.info(f"Per-device batch size: {per_device_batch_size}")
+
     torch.set_default_device(device)
 
     betas = linear_beta_schedule(timesteps=T)
@@ -76,7 +141,21 @@ if __name__ == "__main__":
     posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
     sqrt_recip_alphas = 1.0 / jnp.sqrt(alphas)
 
-    dataloader = get_dataloader(BATCH_SIZE, device, Data.fashion_mnist)
+    # Initialize data pipeline
+    if args.use_tpu and num_devices > 1:
+        logger.info("Using Grain dataloader for TPU")
+        dataloader = get_grain_dataloader(
+            batch_size=BATCH_SIZE,
+            dataset_name=Data.fashion_mnist,
+            num_devices=num_devices,
+            num_epochs=nepochs,
+        )
+        # Estimate steps per epoch for grain (approximate)
+        steps_per_epoch = 60000 // BATCH_SIZE  # FashionMNIST has ~60k training samples
+    else:
+        logger.info("Using PyTorch dataloader")
+        dataloader = get_dataloader(BATCH_SIZE, device, Data.fashion_mnist)
+        steps_per_epoch = len(dataloader)
 
     if model_name == "UNet":
         unet = UNet(channels=channels)
@@ -84,109 +163,247 @@ if __name__ == "__main__":
         unet = UNetConv(channels=channels)
     else:
         NotImplemented
+
     rng = random.PRNGKey(0)
     rng_init, rng_train, rng_timestep = random.split(rng, 3)
-    ckpt_dir = os.path.join(os.getcwd(), "flax_ckpt")
-    save_path = os.path.join(ckpt_dir, "orbax", "single_save")
-    logger.info(f"Checkpoint directory : {save_path}")
-    orbax_checkpointer = orbax.checkpoint.PyTreeCheckpointer()
+
+    # Setup checkpoint manager
+    ckpt_dir = os.path.join(os.getcwd(), "checkpoints")
+    checkpoint_manager = DDPMCheckpointManager(
+        checkpoint_dir=ckpt_dir,
+        max_to_keep=5,
+    )
+    logger.info(f"Checkpoint directory: {ckpt_dir}")
+
+    # Setup TensorBoard logger
+    tb_log_dir = os.path.join(os.getcwd(), "tb_logs", dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    tb_logger = DDPMTensorBoardLogger(log_dir=tb_log_dir)
+    logger.info(f"TensorBoard logs: {tb_log_dir}")
 
     config = SchedulerConfig(1, nepochs)
 
-    learning_rate_fn = create_learning_rate_fn(config, lr, 937)
+    learning_rate_fn = create_learning_rate_fn(config, lr, steps_per_epoch)
+
     if load_checkpoint:
-        raw_restored = orbax_checkpointer.restore(save_path)
-        state = raw_restored["model"]
+        restored_state, restored_step = checkpoint_manager.restore_checkpoint()
+        if restored_state is not None:
+            state = restored_state
+            # Replicate if using distributed training
+            if num_devices > 1:
+                from utils_jax.tpu_utils import replicate_tree
+                state = replicate_tree(state, num_devices)
+            logger.info(f"Resumed from step {restored_step}")
+        else:
+            # No checkpoint found, create new state
+            state = create_train_state(rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices)
     else:
-        state = create_train_state(rng_init, unet, learning_rate_fn, train=False)
+        state = create_train_state(rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices)
 
-    logger.info(
-        f"Number of parameters : {sum([p.size for p in jax.tree.leaves(state.params)])}"
-    )
+    # Log parameter count (handle replicated state)
+    if num_devices > 1:
+        # Get first replica for counting
+        params_for_count = jax.tree.map(lambda x: x[0], state.params)
+        param_count = sum([p.size for p in jax.tree.leaves(params_for_count)])
+    else:
+        param_count = sum([p.size for p in jax.tree.leaves(state.params)])
 
+    logger.info(f"Number of parameters: {param_count}")
+
+    # Select training function based on settings
+    if num_devices > 1:
+        if args.use_mixed_precision:
+            train_fn = train_step_pmap_bf16
+            logger.info("Using distributed training with bfloat16 mixed precision")
+        else:
+            train_fn = train_step_pmap
+            logger.info("Using distributed training with float32")
+
+        # Split RNGs for devices
+        rng_train_devices = split_rng_for_devices(rng_train, num_devices)
+        rng_timestep_devices = split_rng_for_devices(rng_timestep, num_devices)
+    else:
+        train_fn = train_step
+        logger.info("Using single-device training")
+
+    global_step = 0
     loss_history = []
     lr_history = []
 
     for epoch in range(nepochs):
-        pbar_batch = tqdm(enumerate(dataloader), total=len(dataloader), leave=True)
-        diff_params = {
-            "sqrt_alphas_cumprod": sqrt_alphas_cumprod,
-            "sqrt_one_minus_alphas_cumprod": sqrt_one_minus_alphas_cumprod,
-        }
+        if args.use_tpu and num_devices > 1:
+            # Grain dataloader is an iterator
+            pbar_batch = tqdm(enumerate(dataloader), total=steps_per_epoch, leave=True)
+        else:
+            pbar_batch = tqdm(enumerate(dataloader), total=len(dataloader), leave=True)
+
         for k, batch in pbar_batch:
-            rng_train, rng_train_batch = random.split(rng_train)
-            rng_timestep, rng_timestep_batch = random.split(rng_timestep)
+            if num_devices > 1:
+                # Distributed training with pmap
+                # batch shape: (num_devices, per_device_batch_size, H, W, C)
 
-            timestep = random.randint(rng_timestep_batch, (BATCH_SIZE,), 1, T)
-            diff_params["t"] = timestep
+                # Split RNGs for this step
+                rng_train_devices_split = jax.random.split(rng_train_devices[0], num_devices + 1)
+                rng_train_batch = rng_train_devices_split[1:]
+                rng_train_devices = rng_train_devices_split[0:1]
 
-            # channel last
-            x = jnp.permute_dims(batch.numpy().astype(jnp.float32), (0, 2, 3, 1))
+                rng_timestep_devices_split = jax.random.split(rng_timestep_devices[0], num_devices + 1)
+                rng_timestep_batch = rng_timestep_devices_split[1:]
+                rng_timestep_devices = rng_timestep_devices_split[0:1]
 
-            state, train_loss, lr = train_step(
-                state, x, diff_params, rng_train_batch, learning_rate_fn
-            )
+                # Generate per-device timesteps
+                per_device_bs = BATCH_SIZE // num_devices
+                timesteps = jax.random.randint(
+                    rng_timestep_batch,
+                    (num_devices, per_device_bs),
+                    1, T
+                )
+
+                diff_params = {
+                    "t": timesteps,
+                    "sqrt_alphas_cumprod": sqrt_alphas_cumprod,
+                    "sqrt_one_minus_alphas_cumprod": sqrt_one_minus_alphas_cumprod,
+                }
+
+                # Run distributed training step
+                state, train_loss, current_lr = train_fn(
+                    state, batch, diff_params, rng_train_batch, learning_rate_fn
+                )
+
+                # Extract first replica for logging
+                train_loss = float(train_loss[0])
+                current_lr = float(current_lr[0])
+            else:
+                # Single-device training
+                rng_train, rng_train_batch = random.split(rng_train)
+                rng_timestep, rng_timestep_batch = random.split(rng_timestep)
+
+                timestep = random.randint(rng_timestep_batch, (BATCH_SIZE,), 1, T)
+
+                # Convert PyTorch batch to JAX (channel last)
+                if args.use_tpu:
+                    x = batch  # Grain already provides NHWC
+                else:
+                    x = jnp.permute_dims(batch.numpy().astype(jnp.float32), (0, 2, 3, 1))
+
+                diff_params = {
+                    "t": timestep,
+                    "sqrt_alphas_cumprod": sqrt_alphas_cumprod,
+                    "sqrt_one_minus_alphas_cumprod": sqrt_one_minus_alphas_cumprod,
+                }
+
+                state, train_loss, current_lr = train_fn(
+                    state, x, diff_params, rng_train_batch, learning_rate_fn
+                )
+
+                train_loss = float(train_loss)
+                current_lr = float(current_lr)
+
+            # Record history
             loss_history.append(train_loss)
-            lr_history.append(lr)
+            lr_history.append(current_lr)
+
+            # Log to TensorBoard
+            tb_logger.log_scalars({
+                'train/loss': train_loss,
+                'train/learning_rate': current_lr,
+            }, global_step)
+
+            # Update progress bar
             description = (
                 f"Epoch {epoch} | "
-                f"Step {k} | "
-                f"Loss {train_loss:.7f} | Learning rate {lr:.5f}"
+                f"Step {global_step} | "
+                f"Loss {train_loss:.7f} | LR {current_lr:.5f}"
             )
             pbar_batch.set_description(description)
 
-        logger.info(description)
+            # Periodic sample generation
+            if global_step % args.sample_interval == 0 and global_step > 0:
+                logger.info(f"Generating samples at step {global_step}")
+                sample_images = generate_samples_on_first_device(
+                    state, rng, num_devices, T,
+                    betas, alphas_cumprod, alphas_cumprod_prev, posterior_variance
+                )
+                tb_logger.log_images_grid(
+                    'samples/generated', sample_images, global_step, nrow=4
+                )
 
+            global_step += 1
+
+        # End of epoch: save checkpoint
+        if epoch % args.checkpoint_interval == 0:
+            checkpoint_manager.save_checkpoint(
+                step=global_step,
+                state=state,
+                is_replicated=(num_devices > 1)
+            )
+
+        logger.info(f"Epoch {epoch} complete | Loss {train_loss:.7f}")
+
+    # Save final checkpoint
+    logger.info("Saving final checkpoint")
+    checkpoint_manager.save_checkpoint(
+        step=global_step,
+        state=state,
+        is_replicated=(num_devices > 1),
+        force=True
+    )
+    checkpoint_manager.wait_until_finished()
+
+    # Save loss/LR plots to TensorBoard
     datetime_str = dt.datetime.now().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
+
+    # Optionally save matplotlib plots (for backward compatibility)
     _, ax = plt.subplots()
     ax.plot(range(len(loss_history)), loss_history)
     ax.grid()
     ax.set_title("Batch loss evolution")
     plt.savefig(os.path.join(out_dir, img_base_name + "_loss.png"), bbox_inches="tight")
+    plt.close()
+
     _, ax = plt.subplots()
     ax.plot(range(len(lr_history)), lr_history)
     ax.grid()
     ax.set_title("Learning Rate evolution")
     plt.savefig(os.path.join(out_dir, img_base_name + "_lr.png"), bbox_inches="tight")
+    plt.close()
 
-    logger.info("Generate sample")
+    # Generate final samples
+    logger.info("Generating final samples")
     sample_base_name = f"sample_jax_{datetime_str}_"
-    rng, subrng = random.split(rng)
     N_SAMPLE = 16
     N_COLS = 4
-    SAMP_SHAPE = (N_SAMPLE, 28, 28, 1)
-    samp = sample(
-        state,
-        SAMP_SHAPE,
-        subrng,
-        T,
-        betas,
-        alphas_cumprod,
-        alphas_cumprod_prev,
-        posterior_variance,
-    )[-1]
 
+    samp = generate_samples_on_first_device(
+        state, rng, num_devices, T,
+        betas, alphas_cumprod, alphas_cumprod_prev, posterior_variance
+    )
+
+    # Log final samples to TensorBoard
+    tb_logger.log_images_grid('samples/final', samp, global_step, nrow=N_COLS)
+
+    # Save final samples as matplotlib plot
     _, axs = plt.subplots(
         nrows=N_SAMPLE // N_COLS + ((N_SAMPLE % N_COLS) > 0),
         ncols=N_COLS,
         figsize=(16, 16),
     )
 
-    # samp = samp .numpy()
     for i in range(N_SAMPLE):
         r, c = i // N_COLS, i % N_COLS
-        axs[r, c].imshow(samp[i, :, :, 0], cmap="gray")
+        # Denormalize for display
+        img_display = (samp[i, :, :, 0] + 1.0) / 2.0
+        axs[r, c].imshow(img_display, cmap="gray")
         axs[r, c].axis("off")
 
     plt.tight_layout()
+    plt.savefig(os.path.join(out_dir, sample_base_name + ".png"))
+    plt.close()
 
-    plt.savefig(
-        os.path.join(out_dir, sample_base_name + ".png"),
-    )
+    # Close TensorBoard logger
+    tb_logger.close()
 
-    if os.path.exists(ckpt_dir):
-        shutil.rmtree(ckpt_dir)
-    ckpt = {"model": state, "sample": samp}
-    save_args = orbax_utils.save_args_from_target(ckpt)
-    # orbax_checkpointer.save(save_path, ckpt, save_args=save_args) # TODO
+    logger.info("Training completed successfully!")
+    logger.info(f"Checkpoints saved to: {ckpt_dir}")
+    logger.info(f"TensorBoard logs saved to: {tb_log_dir}")
+    logger.info(f"Samples saved to: {out_dir}")
