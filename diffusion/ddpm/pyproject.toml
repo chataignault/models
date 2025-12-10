@@ -22,6 +22,7 @@ jax = [
     "jax[cuda]>=0.5.3",
     "flax>=0.10.5",
     "orbax>=0.1.9",
+    "tensorboard>=2.20.0",
 ]
 jax-tpu = [
     "jax[tpu]>=0.5.3",
