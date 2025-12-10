@@ -34,7 +34,14 @@ from utils_jax.tensorboard_logger import DDPMTensorBoardLogger
 
 
 def generate_samples_on_first_device(
-    state, rng, num_devices, T, betas, alphas_cumprod, alphas_cumprod_prev, posterior_variance
+    state,
+    rng,
+    num_devices,
+    T,
+    betas,
+    alphas_cumprod,
+    alphas_cumprod_prev,
+    posterior_variance,
 ):
     """Generate samples on first device only (for logging)."""
     # Unreplicate to first device if distributed
@@ -56,7 +63,7 @@ def generate_samples_on_first_device(
         alphas_cumprod,
         alphas_cumprod_prev,
         posterior_variance,
-        pseudo_video=False
+        pseudo_video=False,
     )[-1]
 
     return samples
@@ -88,10 +95,27 @@ if __name__ == "__main__":
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--load_checkpoint", type=bool, default=False)
     # TPU-specific arguments
-    parser.add_argument("--use_tpu", type=bool, default=True, help="Use TPU if available")
-    parser.add_argument("--use_mixed_precision", type=bool, default=True, help="Use bfloat16 mixed precision")
-    parser.add_argument("--checkpoint_interval", type=int, default=1, help="Save checkpoint every N epochs")
-    parser.add_argument("--sample_interval", type=int, default=500, help="Generate samples every N steps")
+    parser.add_argument(
+        "--use_tpu", type=bool, default=True, help="Use TPU if available"
+    )
+    parser.add_argument(
+        "--use_mixed_precision",
+        type=bool,
+        default=True,
+        help="Use bfloat16 mixed precision",
+    )
+    parser.add_argument(
+        "--checkpoint_interval",
+        type=int,
+        default=1,
+        help="Save checkpoint every N epochs",
+    )
+    parser.add_argument(
+        "--sample_interval",
+        type=int,
+        default=500,
+        help="Generate samples every N steps",
+    )
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -109,10 +133,10 @@ if __name__ == "__main__":
     # TPU detection and setup
     if args.use_tpu:
         tpu_config = detect_tpu_environment()
-        num_devices = tpu_config['device_count'] if tpu_config['is_tpu'] else 1
+        num_devices = tpu_config["device_count"] if tpu_config["is_tpu"] else 1
         logger.info(f"Detected {num_devices} devices: {tpu_config['device_type']}")
 
-        if not tpu_config['is_tpu']:
+        if not tpu_config["is_tpu"]:
             logger.warning("TPU requested but not detected. Falling back to CPU/GPU.")
             args.use_tpu = False
             num_devices = 1
@@ -169,14 +193,16 @@ if __name__ == "__main__":
 
     # Setup checkpoint manager
     ckpt_dir = os.path.join(os.getcwd(), "checkpoints")
-    checkpoint_manager = DDPMCheckpointManager(
-        checkpoint_dir=ckpt_dir,
-        max_to_keep=5,
-    )
+    # checkpoint_manager = DDPMCheckpointManager(
+    #     checkpoint_dir=ckpt_dir,
+    #     max_to_keep=5,
+    # )
     logger.info(f"Checkpoint directory: {ckpt_dir}")
 
     # Setup TensorBoard logger
-    tb_log_dir = os.path.join(os.getcwd(), "tb_logs", dt.datetime.now().strftime("%Y%m%d-%H%M%S"))
+    tb_log_dir = os.path.join(
+        os.getcwd(), "tb_logs", dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+    )
     tb_logger = DDPMTensorBoardLogger(log_dir=tb_log_dir)
     logger.info(f"TensorBoard logs: {tb_log_dir}")
 
@@ -191,13 +217,18 @@ if __name__ == "__main__":
             # Replicate if using distributed training
             if num_devices > 1:
                 from utils_jax.tpu_utils import replicate_tree
+
                 state = replicate_tree(state, num_devices)
             logger.info(f"Resumed from step {restored_step}")
         else:
             # No checkpoint found, create new state
-            state = create_train_state(rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices)
+            state = create_train_state(
+                rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices
+            )
     else:
-        state = create_train_state(rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices)
+        state = create_train_state(
+            rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices
+        )
 
     # Log parameter count (handle replicated state)
     if num_devices > 1:
@@ -242,20 +273,22 @@ if __name__ == "__main__":
                 # batch shape: (num_devices, per_device_batch_size, H, W, C)
 
                 # Split RNGs for this step
-                rng_train_devices_split = jax.random.split(rng_train_devices[0], num_devices + 1)
+                rng_train_devices_split = jax.random.split(
+                    rng_train_devices[0], num_devices + 1
+                )
                 rng_train_batch = rng_train_devices_split[1:]
                 rng_train_devices = rng_train_devices_split[0:1]
 
-                rng_timestep_devices_split = jax.random.split(rng_timestep_devices[0], num_devices + 1)
+                rng_timestep_devices_split = jax.random.split(
+                    rng_timestep_devices[0], num_devices + 1
+                )
                 rng_timestep_batch = rng_timestep_devices_split[1:]
                 rng_timestep_devices = rng_timestep_devices_split[0:1]
 
                 # Generate per-device timesteps
                 per_device_bs = BATCH_SIZE // num_devices
                 timesteps = jax.random.randint(
-                    rng_timestep_batch,
-                    (num_devices, per_device_bs),
-                    1, T
+                    rng_timestep_batch, (num_devices, per_device_bs), 1, T
                 )
 
                 diff_params = {
@@ -283,7 +316,9 @@ if __name__ == "__main__":
                 if args.use_tpu:
                     x = batch  # Grain already provides NHWC
                 else:
-                    x = jnp.permute_dims(batch.numpy().astype(jnp.float32), (0, 2, 3, 1))
+                    x = jnp.permute_dims(
+                        batch.numpy().astype(jnp.float32), (0, 2, 3, 1)
+                    )
 
                 diff_params = {
                     "t": timestep,
@@ -303,10 +338,13 @@ if __name__ == "__main__":
             lr_history.append(current_lr)
 
             # Log to TensorBoard
-            tb_logger.log_scalars({
-                'train/loss': train_loss,
-                'train/learning_rate': current_lr,
-            }, global_step)
+            tb_logger.log_scalars(
+                {
+                    "train/loss": train_loss,
+                    "train/learning_rate": current_lr,
+                },
+                global_step,
+            )
 
             # Update progress bar
             description = (
@@ -320,34 +358,41 @@ if __name__ == "__main__":
             if global_step % args.sample_interval == 0 and global_step > 0:
                 logger.info(f"Generating samples at step {global_step}")
                 sample_images = generate_samples_on_first_device(
-                    state, rng, num_devices, T,
-                    betas, alphas_cumprod, alphas_cumprod_prev, posterior_variance
+                    state,
+                    rng,
+                    num_devices,
+                    T,
+                    betas,
+                    alphas_cumprod,
+                    alphas_cumprod_prev,
+                    posterior_variance,
                 )
                 tb_logger.log_images_grid(
-                    'samples/generated', sample_images, global_step, nrow=4
+                    "samples/generated", sample_images, global_step, nrow=4
                 )
 
             global_step += 1
 
         # End of epoch: save checkpoint
         if epoch % args.checkpoint_interval == 0:
-            checkpoint_manager.save_checkpoint(
-                step=global_step,
-                state=state,
-                is_replicated=(num_devices > 1)
-            )
+            # checkpoint_manager.save_checkpoint(
+            #     step=global_step,
+            #     state=state,
+            #     is_replicated=(num_devices > 1)
+            # )
+            pass
 
         logger.info(f"Epoch {epoch} complete | Loss {train_loss:.7f}")
 
     # Save final checkpoint
-    logger.info("Saving final checkpoint")
-    checkpoint_manager.save_checkpoint(
-        step=global_step,
-        state=state,
-        is_replicated=(num_devices > 1),
-        force=True
-    )
-    checkpoint_manager.wait_until_finished()
+    # logger.info("Saving final checkpoint")
+    # checkpoint_manager.save_checkpoint(
+    #     step=global_step,
+    #     state=state,
+    #     is_replicated=(num_devices > 1),
+    #     force=True
+    # )
+    # checkpoint_manager.wait_until_finished()
 
     # Save loss/LR plots to TensorBoard
     datetime_str = dt.datetime.now().strftime("%Y%m%d-%H%M")
@@ -375,12 +420,18 @@ if __name__ == "__main__":
     N_COLS = 4
 
     samp = generate_samples_on_first_device(
-        state, rng, num_devices, T,
-        betas, alphas_cumprod, alphas_cumprod_prev, posterior_variance
+        state,
+        rng,
+        num_devices,
+        T,
+        betas,
+        alphas_cumprod,
+        alphas_cumprod_prev,
+        posterior_variance,
     )
 
     # Log final samples to TensorBoard
-    tb_logger.log_images_grid('samples/final', samp, global_step, nrow=N_COLS)
+    tb_logger.log_images_grid("samples/final", samp, global_step, nrow=N_COLS)
 
     # Save final samples as matplotlib plot
     _, axs = plt.subplots(
