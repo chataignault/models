@@ -113,7 +113,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--sample_interval",
         type=int,
-        default=500,
+        default=1200,
         help="Generate samples every N steps",
     )
 
