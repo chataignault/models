@@ -88,6 +88,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--model_name", type=str, default="UNet")
     parser.add_argument("--img_size", type=int, default=28)
+    parser.add_argument("--base_dim", type=int, default=1)
     parser.add_argument("--channels", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--nepochs", type=int, default=20)
@@ -123,6 +124,7 @@ if __name__ == "__main__":
     device = args.device
     model_name = args.model_name
     channels = args.channels
+    base_dim = args.base_dim
     IMG_SIZE = args.img_size
     BATCH_SIZE = args.batch_size
     nepochs = args.nepochs
@@ -182,7 +184,7 @@ if __name__ == "__main__":
         steps_per_epoch = len(dataloader)
 
     if model_name == "UNet":
-        unet = UNet(channels=channels)
+        unet = UNet(channels=channels, base_dim=base_dim)
     elif model_name == "UNetConv":
         unet = UNetConv(channels=channels)
     else:

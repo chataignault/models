@@ -67,49 +67,51 @@ class BlockAttention(nn.Module):
 
 class UNet(nn.Module):
     channels: int
+    base_dim: int
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
         t = SinusoidalPositionEmbeddings(16)(t)
         t = nn.Dense(32)(t)
         t = nn.Dense(self.channels)(nn.relu(t))
+        t = jnp.permute_dims(t[:, :, None, None], (0, 2, 3, 1))
 
-        x = x + jnp.permute_dims(t[:, :, None, None], (0, 2, 3, 1))
+        x = x + t
 
         # initial convolution
-        x = nn.Conv(8, (5, 5), padding="SAME")(x)
+        x = nn.Conv(self.base_dim, (5, 5), padding="SAME")(x)
 
         # Downsampling path
-        x1 = UNetBlock(8, 16)(x, train)
+        x1 = UNetBlock(self.base_dim, 2 * self.base_dim)(x, train)
         p1 = nn.max_pool(x1, (2, 2), strides=(2, 2))
 
-        x2 = UNetBlock(16, 32)(p1, train)
+        x2 = UNetBlock(2 * self.base_dim,  * self.base_dim32)(p1, train)
         p2 = nn.max_pool(x2, (2, 2), strides=(2, 2), padding=((1, 1), (1, 1)))
 
-        x3 = UNetBlock(32, 64)(p2, train)
+        x3 = UNetBlock(4 * self.base_dim, 8 * self.base_dim)(p2, train)
         p3 = nn.max_pool(x3, (2, 2), strides=(2, 2))
 
         # Bottleneck
-        b = UNetBlock(64, 64)(p3, train) + p3
-        b = UNetBlock(64, 64)(b, train) + b
+        b = UNetBlock(8 * self.base_dim, 8 * self.base_dim)(p3, train) + p3
+        b = UNetBlock(8 * self.base_dim, 8 * self.base_dim)(b, train) + b
 
         # Upsampling path
-        u3 = nn.ConvTranspose(64, (2, 2), strides=(2, 2))(b)
+        u3 = nn.ConvTranspose(8 * self.base_dim, (2, 2), strides=(2, 2))(b)
         c3 = jnp.concatenate([u3, x3], axis=-1)
-        x3 = UNetBlock(128, 64)(c3, train)
+        x3 = UNetBlock(16 * self.base_dim, 8 * self.base_dim)(c3, train)
 
-        u2 = nn.ConvTranspose(32, (2, 2), strides=(2, 2))(x3)
+        u2 = nn.ConvTranspose(4 * self.base_dim, (2, 2), strides=(2, 2))(x3)
         c2 = jnp.concatenate(
             [jax.image.resize(u2, x2.shape, jax.image.ResizeMethod.NEAREST), x2],
             axis=-1,
         )
-        x2 = UNetBlock(64, 32)(c2, train)
+        x2 = UNetBlock(8 * self.base_dim, 4 * self.base_dim)(c2, train)
 
-        u1 = nn.ConvTranspose(16, (2, 2), strides=(2, 2))(x2)
+        u1 = nn.ConvTranspose(2 * self.base_dim, (2, 2), strides=(2, 2))(x2)
         c1 = jnp.concatenate([u1, x1], axis=-1)
-        x1 = UNetBlock(32, 16)(c1, train)
+        x1 = UNetBlock(4 * self.base_dim, 2 * self.base_dim)(c1, train)
 
-        out = UNetBlock(16, 8)(x1, train)
+        out = UNetBlock(2 * self.base_dim, self.base_dim)(x1, train)
 
         # out convolution
         out = nn.Conv(self.channels, (1, 1))(x)
