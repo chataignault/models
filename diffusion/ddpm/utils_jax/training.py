@@ -67,6 +67,7 @@ def create_train_state(rng, model, learning_rate_fn, train: bool, num_devices: i
     # Replicate across devices if using distributed training
     if num_devices > 1:
         from utils_jax.tpu_utils import replicate_tree
+
         state = replicate_tree(state, num_devices)
 
     return state
@@ -113,7 +114,7 @@ def train_step(state, batch, diff_params, rng, learning_rate_function):
     return state, loss, lr
 
 
-@functools.partial(jax.pmap, axis_name='batch', static_broadcasted_argnums=(4,))
+@functools.partial(jax.pmap, axis_name="batch", static_broadcasted_argnums=(4,))
 def train_step_pmap(state, batch, diff_params, rng, learning_rate_function):
     """
     Distributed training step across TPU cores using pmap.
@@ -154,8 +155,8 @@ def train_step_pmap(state, batch, diff_params, rng, learning_rate_function):
     (loss, updates), grads = grad_fn(state.params)
 
     # CRITICAL: Aggregate gradients across devices using pmean
-    grads = jax.lax.pmean(grads, axis_name='batch')
-    loss = jax.lax.pmean(loss, axis_name='batch')
+    grads = jax.lax.pmean(grads, axis_name="batch")
+    loss = jax.lax.pmean(loss, axis_name="batch")
 
     state = state.apply_gradients(grads=grads)
     lr = learning_rate_function(state.step)
@@ -164,7 +165,7 @@ def train_step_pmap(state, batch, diff_params, rng, learning_rate_function):
     return state, loss, lr
 
 
-@functools.partial(jax.pmap, axis_name='batch', static_broadcasted_argnums=(4,))
+@functools.partial(jax.pmap, axis_name="batch", static_broadcasted_argnums=(4,))
 def train_step_pmap_bf16(state, batch, diff_params, rng, learning_rate_function):
     """
     Distributed training step with bfloat16 mixed precision.
@@ -188,7 +189,9 @@ def train_step_pmap_bf16(state, batch, diff_params, rng, learning_rate_function)
 
     # Cast diffusion parameters to bfloat16 for computation
     sqrt_alphas_cumprod = diff_params["sqrt_alphas_cumprod"].astype(jnp.bfloat16)
-    sqrt_one_minus_alphas_cumprod = diff_params["sqrt_one_minus_alphas_cumprod"].astype(jnp.bfloat16)
+    sqrt_one_minus_alphas_cumprod = diff_params["sqrt_one_minus_alphas_cumprod"].astype(
+        jnp.bfloat16
+    )
 
     # Cast batch to bfloat16
     batch_bf16 = batch.astype(jnp.bfloat16)
@@ -221,8 +224,8 @@ def train_step_pmap_bf16(state, batch, diff_params, rng, learning_rate_function)
     (loss, updates), grads = grad_fn(state.params)
 
     # Aggregate across devices
-    grads = jax.lax.pmean(grads, axis_name='batch')
-    loss = jax.lax.pmean(loss, axis_name='batch')
+    grads = jax.lax.pmean(grads, axis_name="batch")
+    loss = jax.lax.pmean(loss, axis_name="batch")
 
     # Update (gradients and params in float32)
     state = state.apply_gradients(grads=grads)

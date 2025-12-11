@@ -88,7 +88,7 @@ if __name__ == "__main__":
     parser.add_argument("--device", type=str, default="cpu")
     parser.add_argument("--model_name", type=str, default="UNet")
     parser.add_argument("--img_size", type=int, default=28)
-    parser.add_argument("--base_dim", type=int, default=1)
+    parser.add_argument("--base_dim", type=int, default=16)
     parser.add_argument("--channels", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--nepochs", type=int, default=20)
@@ -97,7 +97,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_checkpoint", type=bool, default=False)
     # TPU-specific arguments
     parser.add_argument(
-        "--use_tpu", type=bool, default=True, help="Use TPU if available"
+        "--use_tpu", type=bool, default=False, help="Use TPU if available"
     )
     parser.add_argument(
         "--use_mixed_precision",

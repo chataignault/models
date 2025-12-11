@@ -80,15 +80,16 @@ class DDPMCheckpointManager:
         # Unreplicate to save only one copy
         if is_replicated:
             from utils_jax.tpu_utils import unreplicate_first
+
             state = unreplicate_first(state)
 
         # Prepare checkpoint data with metadata
         checkpoint_data = {
-            'state': state,
-            'metadata': {
-                'step': step,
-                'timestamp': time.time(),
-            }
+            "state": state,
+            "metadata": {
+                "step": step,
+                "timestamp": time.time(),
+            },
         }
 
         # Save asynchronously
@@ -121,7 +122,7 @@ class DDPMCheckpointManager:
         restored = self.manager.restore(step)
         print(f"Checkpoint restored from step {step}")
 
-        return restored['state'], step
+        return restored["state"], step
 
     def wait_until_finished(self):
         """Block until all async checkpoint saves complete."""

@@ -51,11 +51,7 @@ class DDPMTensorBoardLogger:
             self.log_scalar(tag, value, step)
 
     def log_image(
-        self,
-        tag: str,
-        image: Any,
-        step: Optional[int] = None,
-        dataformats: str = 'HWC'
+        self, tag: str, image: Any, step: Optional[int] = None, dataformats: str = "HWC"
     ):
         """
         Log single image.

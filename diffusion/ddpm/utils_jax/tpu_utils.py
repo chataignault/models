@@ -21,30 +21,30 @@ def detect_tpu_environment() -> Dict[str, Any]:
     device_count = len(devices)
 
     # Determine device type
-    if devices[0].platform == 'tpu':
+    if devices[0].platform == "tpu":
         # Try to infer TPU version from device description
         device_desc = str(devices[0])
-        if 'v4' in device_desc.lower():
-            device_type = 'tpu-v4'
-        elif 'v3' in device_desc.lower():
-            device_type = 'tpu-v3'
-        elif 'v2' in device_desc.lower():
-            device_type = 'tpu-v2'
+        if "v4" in device_desc.lower():
+            device_type = "tpu-v4"
+        elif "v3" in device_desc.lower():
+            device_type = "tpu-v3"
+        elif "v2" in device_desc.lower():
+            device_type = "tpu-v2"
         else:
-            device_type = 'tpu'
+            device_type = "tpu"
         is_tpu = True
-    elif devices[0].platform == 'gpu':
-        device_type = 'gpu'
+    elif devices[0].platform == "gpu":
+        device_type = "gpu"
         is_tpu = False
     else:
-        device_type = 'cpu'
+        device_type = "cpu"
         is_tpu = False
 
     return {
-        'device_count': device_count,
-        'device_type': device_type,
-        'devices': devices,
-        'is_tpu': is_tpu,
+        "device_count": device_count,
+        "device_type": device_type,
+        "devices": devices,
+        "is_tpu": is_tpu,
     }
 
 
@@ -78,7 +78,9 @@ def unreplicate_first(tree: Any) -> Any:
     return jax.tree.map(lambda x: x[0], tree)
 
 
-def split_rng_for_devices(rng: jax.random.PRNGKey, num_devices: int) -> jax.random.PRNGKey:
+def split_rng_for_devices(
+    rng: jax.random.PRNGKey, num_devices: int
+) -> jax.random.PRNGKey:
     """
     Split RNG key into per-device keys for deterministic multi-device training.
 
@@ -130,8 +132,9 @@ def assert_replicated_shape(tree: Any, num_devices: int):
     Raises:
         AssertionError if shape doesn't match
     """
+
     def check_shape(x):
-        if hasattr(x, 'shape'):
+        if hasattr(x, "shape"):
             assert x.shape[0] == num_devices, (
                 f"Expected first axis to be {num_devices}, got {x.shape[0]}"
             )

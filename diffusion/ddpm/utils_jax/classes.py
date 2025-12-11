@@ -85,7 +85,7 @@ class UNet(nn.Module):
         x1 = UNetBlock(self.base_dim, 2 * self.base_dim)(x, train)
         p1 = nn.max_pool(x1, (2, 2), strides=(2, 2))
 
-        x2 = UNetBlock(2 * self.base_dim,  * self.base_dim32)(p1, train)
+        x2 = UNetBlock(2 * self.base_dim, 4 * self.base_dim)(p1, train)
         p2 = nn.max_pool(x2, (2, 2), strides=(2, 2), padding=((1, 1), (1, 1)))
 
         x3 = UNetBlock(4 * self.base_dim, 8 * self.base_dim)(p2, train)
@@ -100,12 +100,13 @@ class UNet(nn.Module):
         c3 = jnp.concatenate([u3, x3], axis=-1)
         x3 = UNetBlock(16 * self.base_dim, 8 * self.base_dim)(c3, train)
 
-        u2 = nn.ConvTranspose(4 * self.base_dim, (2, 2), strides=(2, 2))(x3)
+        u2 = nn.ConvTranspose(8 * self.base_dim, (2, 2), strides=(2, 2))(x3)
         c2 = jnp.concatenate(
             [jax.image.resize(u2, x2.shape, jax.image.ResizeMethod.NEAREST), x2],
             axis=-1,
         )
-        x2 = UNetBlock(8 * self.base_dim, 4 * self.base_dim)(c2, train)
+        cc2 = nn.Conv(8 * self.base_dim, (1, 1))(c2)
+        x2 = UNetBlock(8 * self.base_dim, 4 * self.base_dim)(cc2, train)
 
         u1 = nn.ConvTranspose(2 * self.base_dim, (2, 2), strides=(2, 2))(x2)
         c1 = jnp.concatenate([u1, x1], axis=-1)
