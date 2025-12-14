@@ -218,27 +218,28 @@ class ResBlock(nn.Module):
 
     in_ch: int
     time_emb_dim: int
+    num_groups: int = 8
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
         h = x
 
         # Time embedding
-        t_emb = nn.relu(nn.Dense(self.in_ch)(t))
+        t_emb = nn.silu(nn.Dense(self.in_ch)(t))
         t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
 
         # First conv block
         x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
-        x = nn.BatchNorm(use_running_average=not train)(x)
-        x = nn.relu(x)
+        x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
+        x = nn.silu(x)
 
         # Add time embedding
         x = x + t_emb
 
         # Second conv block
         x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
-        x = nn.BatchNorm(use_running_average=not train)(x)
-        x = nn.relu(x)
+        x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
+        x = nn.silu(x)
 
         return x + h
 
@@ -250,15 +251,19 @@ class AttentionBlockSimple(nn.Module):
     hidden_dim: int
     n_heads: int
     time_emb_dim: int
+    num_groups: int = 8
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
+        # Store residual
+        residual = x
+
         # Time embedding
-        t_emb = nn.relu(nn.Dense(self.in_ch)(t))
+        t_emb = nn.silu(nn.Dense(self.in_ch)(t))
         t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
 
-        # Batch norm
-        x = nn.BatchNorm(use_running_average=not train)(x)
+        # Group norm
+        x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
         x = x + t_emb
 
         # Reshape for attention: (N, H, W, C) -> (N, H*W, C)
@@ -281,7 +286,8 @@ class AttentionBlockSimple(nn.Module):
         # Reshape back to spatial dimensions
         x_attn = jnp.reshape(x_attn, (N, H, W, C))
 
-        return x_attn
+        # Add residual connection
+        return x_attn + residual
 
 
 class InterBlock(nn.Module):
@@ -291,24 +297,32 @@ class InterBlock(nn.Module):
     out_ch: int
     time_emb_dim: int
     up: bool = False
+    num_groups: int = 8
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
         h = x
 
+        # Project time embedding
+        t_emb = nn.silu(nn.Dense(self.in_ch)(t))
+        t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
+
         # Handle upsampling path differently
         if self.up:
             # For upsampling, input has 2*in_ch from concatenation
-            x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
-            x = nn.BatchNorm(use_running_average=not train)(x)
-            x = nn.relu(x)
+            x = nn.Conv(2 * self.in_ch, (3, 3), padding="SAME")(x)
+            x = nn.GroupNorm(num_groups=min(self.num_groups, 2 * self.in_ch))(x)
+            x = nn.silu(x)
+
+            # Add time embedding
+            x = x + t_emb
 
             # Second conv
             x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
-            x = nn.BatchNorm(use_running_average=not train)(x)
-            x = nn.relu(x)
+            x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
+            x = nn.silu(x)
 
-            # Residual connection with squish conv
+            # Residual connection with squish conv (2*in_ch -> in_ch)
             h = nn.Conv(self.in_ch, (3, 3), padding="SAME")(h)
             x = x + h
 
@@ -319,13 +333,16 @@ class InterBlock(nn.Module):
         else:
             # First conv
             x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
-            x = nn.BatchNorm(use_running_average=not train)(x)
-            x = nn.relu(x)
+            x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
+            x = nn.silu(x)
+
+            # Add time embedding
+            x = x + t_emb
 
             # Second conv
             x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
-            x = nn.BatchNorm(use_running_average=not train)(x)
-            x = nn.relu(x)
+            x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
+            x = nn.silu(x)
 
             # Residual connection
             x = x + h
@@ -342,6 +359,7 @@ class SimpleUNet(nn.Module):
     time_emb_dim: int = 4
     downs: tuple = (8, 32, 128)
     channels: int = 1
+    num_groups: int = 8
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
@@ -350,7 +368,7 @@ class SimpleUNet(nn.Module):
         # Time embedding
         t_emb = SinusoidalPositionEmbeddings(self.time_emb_dim)(t)
         t_emb = nn.Dense(4 * self.time_emb_dim)(t_emb)
-        t_emb = nn.relu(t_emb)
+        t_emb = nn.silu(t_emb)
         t_emb = nn.Dense(4 * self.time_emb_dim)(t_emb)
 
         # Initial convolutions
@@ -376,8 +394,8 @@ class SimpleUNet(nn.Module):
         x = AttentionBlockSimple(self.downs[-1], 128, 8, 4 * self.time_emb_dim)(
             x, t_emb, train
         )
-        x = nn.BatchNorm(use_running_average=not train)(x)
-        x = nn.relu(x)
+        x = nn.GroupNorm(num_groups=min(self.num_groups, self.downs[-1]))(x)
+        x = nn.silu(x)
         x = ResBlock(self.downs[-1], 4 * self.time_emb_dim)(x, t_emb, train)
         x = x + h
 
@@ -391,8 +409,7 @@ class SimpleUNet(nn.Module):
 
         # Add the ultimate residual from the initial convolution
         x = x + x_down[0]
-        x = nn.BatchNorm(use_running_average=not train)(x)
-        x = nn.relu(x)
+        # Removed final GroupNorm and ReLU for better output
         x = nn.Conv(self.channels, (1, 1))(x)
 
         return x
