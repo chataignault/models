@@ -211,3 +211,188 @@ class UNetAttention(nn.Module):
         out = nn.Conv(self.channels, kernel_size=1)(x1)
 
         return out
+
+
+class ResBlock(nn.Module):
+    """Residual block with time embedding."""
+
+    in_ch: int
+    time_emb_dim: int
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
+        h = x
+
+        # Time embedding
+        t_emb = nn.relu(nn.Dense(self.in_ch)(t))
+        t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
+
+        # First conv block
+        x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
+        x = nn.BatchNorm(use_running_average=not train)(x)
+        x = nn.relu(x)
+
+        # Add time embedding
+        x = x + t_emb
+
+        # Second conv block
+        x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
+        x = nn.BatchNorm(use_running_average=not train)(x)
+        x = nn.relu(x)
+
+        return x + h
+
+
+class AttentionBlockSimple(nn.Module):
+    """Multi-head attention block with time embedding."""
+
+    in_ch: int
+    hidden_dim: int
+    n_heads: int
+    time_emb_dim: int
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
+        # Time embedding
+        t_emb = nn.relu(nn.Dense(self.in_ch)(t))
+        t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
+
+        # Batch norm
+        x = nn.BatchNorm(use_running_average=not train)(x)
+        x = x + t_emb
+
+        # Reshape for attention: (N, H, W, C) -> (N, H*W, C)
+        N, H, W, C = x.shape
+        x_reshaped = jnp.reshape(x, (N, H * W, C))
+
+        # Q, K, V projections
+        query = nn.Dense(self.hidden_dim)(x_reshaped)
+        key = nn.Dense(self.hidden_dim)(x_reshaped)
+        value = nn.Dense(self.hidden_dim)(x_reshaped)
+
+        # Multi-head attention
+        attn_output = nn.MultiHeadDotProductAttention(
+            num_heads=self.n_heads, qkv_features=self.hidden_dim
+        )(query, key, value)
+
+        # Project back to input channels
+        x_attn = nn.Dense(self.in_ch)(attn_output)
+
+        # Reshape back to spatial dimensions
+        x_attn = jnp.reshape(x_attn, (N, H, W, C))
+
+        return x_attn
+
+
+class InterBlock(nn.Module):
+    """Intermediate block for downsampling or upsampling."""
+
+    in_ch: int
+    out_ch: int
+    time_emb_dim: int
+    up: bool = False
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
+        h = x
+
+        # Handle upsampling path differently
+        if self.up:
+            # For upsampling, input has 2*in_ch from concatenation
+            x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
+            x = nn.BatchNorm(use_running_average=not train)(x)
+            x = nn.relu(x)
+
+            # Second conv
+            x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
+            x = nn.BatchNorm(use_running_average=not train)(x)
+            x = nn.relu(x)
+
+            # Residual connection with squish conv
+            h = nn.Conv(self.in_ch, (3, 3), padding="SAME")(h)
+            x = x + h
+
+            # Upsample transform
+            x_out = nn.ConvTranspose(self.out_ch, (4, 4), strides=(2, 2), padding="SAME")(
+                x
+            )
+        else:
+            # First conv
+            x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
+            x = nn.BatchNorm(use_running_average=not train)(x)
+            x = nn.relu(x)
+
+            # Second conv
+            x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
+            x = nn.BatchNorm(use_running_average=not train)(x)
+            x = nn.relu(x)
+
+            # Residual connection
+            x = x + h
+
+            # Downsample transform
+            x_out = nn.Conv(self.out_ch, (4, 4), strides=(2, 2), padding="SAME")(x)
+
+        return x_out, x
+
+
+class SimpleUNet(nn.Module):
+    """A simplified variant of the UNet architecture in JAX/Flax."""
+
+    time_emb_dim: int = 4
+    downs: tuple = (8, 32, 128)
+    channels: int = 1
+
+    @nn.compact
+    def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
+        ups = self.downs[::-1]
+
+        # Time embedding
+        t_emb = SinusoidalPositionEmbeddings(self.time_emb_dim)(t)
+        t_emb = nn.Dense(4 * self.time_emb_dim)(t_emb)
+        t_emb = nn.relu(t_emb)
+        t_emb = nn.Dense(4 * self.time_emb_dim)(t_emb)
+
+        # Initial convolutions
+        x = nn.Conv(self.downs[0] // 2, (3, 3), padding="SAME")(x)
+        x = ResBlock(self.downs[0] // 2, 4 * self.time_emb_dim)(x, t_emb, train)
+        x = nn.Conv(self.downs[0], (3, 3), padding="SAME")(x)
+
+        # Store residuals for skip connections
+        x_down = [x]
+
+        # Downsampling path
+        for i in range(len(self.downs) - 1):
+            x, h = InterBlock(
+                self.downs[i], self.downs[i + 1], 4 * self.time_emb_dim, up=False
+            )(x, t_emb, train)
+            x_down.append(h)
+
+        x_down.append(x)
+
+        # Bottleneck
+        h = x
+        x = ResBlock(self.downs[-1], 4 * self.time_emb_dim)(x, t_emb, train)
+        x = AttentionBlockSimple(self.downs[-1], 128, 8, 4 * self.time_emb_dim)(
+            x, t_emb, train
+        )
+        x = nn.BatchNorm(use_running_average=not train)(x)
+        x = nn.relu(x)
+        x = ResBlock(self.downs[-1], 4 * self.time_emb_dim)(x, t_emb, train)
+        x = x + h
+
+        # Upsampling path
+        for k in range(len(ups) - 1):
+            residual = x_down[-(k + 1)]
+            x_extended = jnp.concatenate([x, residual], axis=-1)
+            x, _ = InterBlock(ups[k], ups[k + 1], 4 * self.time_emb_dim, up=True)(
+                x_extended, t_emb, train
+            )
+
+        # Add the ultimate residual from the initial convolution
+        x = x + x_down[0]
+        x = nn.BatchNorm(use_running_average=not train)(x)
+        x = nn.relu(x)
+        x = nn.Conv(self.channels, (1, 1))(x)
+
+        return x
