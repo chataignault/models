@@ -1,6 +1,7 @@
 # Raspberry Pi Camera Streaming over SSH
 
-Stream live video from a Raspberry Pi Zero 2 W camera module to your laptop through an SSH tunnel.
+Stream live video from a Raspberry Pi Zero 2 W camera module 
+to a laptop through an SSH tunnel.
 
 ## Architecture
 

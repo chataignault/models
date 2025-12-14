@@ -5,7 +5,6 @@ Receives video stream from Raspberry Pi and displays it.
 """
 
 import socket
-import pickle
 import struct
 import cv2
 import numpy as np
@@ -43,13 +42,19 @@ def receive_frame(client_socket, payload_size, data=b""):
     frame_data = data[:msg_size]
     data = data[msg_size:]
 
-    # Deserialize frame
+    # Decode JPEG frame
     try:
-        frame = pickle.loads(frame_data)
+        frame_array = np.frombuffer(frame_data, dtype=np.uint8)
+        frame = cv2.imdecode(frame_array, cv2.IMREAD_COLOR)
+
+        if frame is None:
+            logger.error("Failed to decode JPEG frame")
+            return None
+
         logger.debug(f"Frame received: shape={frame.shape}, dtype={frame.dtype}")
         return frame, data
     except Exception as e:
-        logger.error(f"Failed to deserialize frame: {e}")
+        logger.error(f"Failed to decode frame: {e}")
         return None
 
 
@@ -95,15 +100,8 @@ def main():
             if frame_count % 30 == 0:
                 logger.info(f"Frames received: {frame_count}")
 
-            # Convert RGB to BGR for OpenCV display
-            if len(frame.shape) == 3 and frame.shape[2] == 3:  # RGB image
-                frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
-            else:
-                logger.warning(f"Unexpected frame shape: {frame.shape}")
-                frame_bgr = frame
-
-            # Display frame
-            cv2.imshow('Raspberry Pi Camera Stream', frame_bgr)
+            # Display frame (already in BGR format from JPEG decode)
+            cv2.imshow('Raspberry Pi Camera Stream', frame)
 
             # Check for quit key
             if cv2.waitKey(1) & 0xFF == ord('q'):

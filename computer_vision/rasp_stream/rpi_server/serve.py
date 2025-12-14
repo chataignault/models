@@ -5,29 +5,14 @@ Captures video from the Raspberry Pi camera and streams it over a socket connect
 """
 
 import socket
-import pickle
 import struct
 import time
 from picamera2 import Picamera2
-from picamera2.encoders import JpegEncoder
-from picamera2.outputs import FileOutput
-import io
+import cv2
 import logging
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-
-class StreamingOutput(io.BufferedIOBase):
-    """Custom output class for streaming JPEG frames."""
-
-    def __init__(self):
-        self.frame = None
-        self.condition = None
-
-    def write(self, buf):
-        self.frame = buf
-        return len(buf)
 
 
 def main():
@@ -41,7 +26,8 @@ def main():
     # Configure camera for video streaming
     # Using smaller resolution for Raspberry Pi Zero 2 W performance
     video_config = picam2.create_video_configuration(
-        main={"size": (640, 480), "format": "RGB888"},
+        main={"size": (320, 240), "format": "RGB888"},
+        # main={"size": (640, 480), "format": "RGB888"},
         buffer_count=2
     )
     picam2.configure(video_config)
@@ -77,8 +63,18 @@ def main():
                     if frame_count % 30 == 0:
                         logger.info(f"Sent {frame_count} frames - Frame shape: {frame.shape}, dtype: {frame.dtype}")
 
-                    # Serialize frame data
-                    data = pickle.dumps(frame)
+                    # Convert RGB to BGR for OpenCV
+                    frame_bgr = cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+                    # Encode frame as JPEG (quality: 80 is a good balance)
+                    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 80]
+                    result, encoded_frame = cv2.imencode('.jpg', frame_bgr, encode_param)
+
+                    if not result:
+                        logger.error("Failed to encode frame")
+                        continue
+
+                    data = encoded_frame.tobytes()
 
                     # Send frame size first, then frame data
                     message_size = struct.pack("L", len(data))
