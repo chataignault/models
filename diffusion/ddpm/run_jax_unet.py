@@ -11,7 +11,7 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 
-from utils_jax.classes import UNetConv, UNet
+from utils_jax.classes import UNetConv, UNet, SimpleUNet
 from utils.dataloader import get_dataloader, get_grain_dataloader, Data
 from utils_jax.training import (
     linear_beta_schedule,
@@ -187,6 +187,8 @@ if __name__ == "__main__":
         unet = UNet(channels=channels, base_dim=base_dim)
     elif model_name == "UNetConv":
         unet = UNetConv(channels=channels)
+    elif model_name == "SimpleUNet":
+        unet = SimpleUNet(channels=channels)
     else:
         NotImplemented
 
