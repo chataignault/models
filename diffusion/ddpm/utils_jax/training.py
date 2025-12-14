@@ -58,7 +58,8 @@ def create_train_state(rng, model, learning_rate_fn, train: bool, num_devices: i
         rng_init, jnp.ones([1, 28, 28, model.channels]), jnp.ones([1]), train=train
     )
     params = variables["params"]
-    batch_stats = variables["batch_stats"]
+    # Handle models without batch_stats (e.g., models using GroupNorm instead of BatchNorm)
+    batch_stats = variables.get("batch_stats", {})
     tx = optax.adam(learning_rate_fn)
     state = TrainState.create(
         apply_fn=model.apply, params=params, tx=tx, batch_stats=batch_stats
@@ -97,20 +98,32 @@ def train_step(state, batch, diff_params, rng, learning_rate_function):
         x_t, eps = forward_diffusion_sample(
             batch, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
         )
-        predicted_eps, updates = state.apply_fn(
-            {"params": params, "batch_stats": state.batch_stats},
-            x_t,
-            t,
-            train=True,
-            mutable=["batch_stats"],
-        )
+        # Handle models with or without batch_stats (GroupNorm vs BatchNorm)
+        if state.batch_stats:
+            predicted_eps, updates = state.apply_fn(
+                {"params": params, "batch_stats": state.batch_stats},
+                x_t,
+                t,
+                train=True,
+                mutable=["batch_stats"],
+            )
+        else:
+            predicted_eps = state.apply_fn(
+                {"params": params},
+                x_t,
+                t,
+                train=True,
+            )
+            updates = {}
         return jnp.mean((eps - predicted_eps) ** 2), updates
 
     grad_fn = jax.value_and_grad(loss_fn, has_aux=True)
     (loss, updates), grads = grad_fn(state.params)
     state = state.apply_gradients(grads=grads)
     lr = learning_rate_function(state.step)
-    state = state.replace(batch_stats=updates["batch_stats"])
+    # Only update batch_stats if they exist
+    if updates and "batch_stats" in updates:
+        state = state.replace(batch_stats=updates["batch_stats"])
     return state, loss, lr
 
 
@@ -141,13 +154,23 @@ def train_step_pmap(state, batch, diff_params, rng, learning_rate_function):
             batch, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
         )
 
-        predicted_eps, updates = state.apply_fn(
-            {"params": params, "batch_stats": state.batch_stats},
-            x_t,
-            t,
-            train=True,
-            mutable=["batch_stats"],
-        )
+        # Handle models with or without batch_stats (GroupNorm vs BatchNorm)
+        if state.batch_stats:
+            predicted_eps, updates = state.apply_fn(
+                {"params": params, "batch_stats": state.batch_stats},
+                x_t,
+                t,
+                train=True,
+                mutable=["batch_stats"],
+            )
+        else:
+            predicted_eps = state.apply_fn(
+                {"params": params},
+                x_t,
+                t,
+                train=True,
+            )
+            updates = {}
 
         return jnp.mean((eps - predicted_eps) ** 2), updates
 
@@ -160,7 +183,9 @@ def train_step_pmap(state, batch, diff_params, rng, learning_rate_function):
 
     state = state.apply_gradients(grads=grads)
     lr = learning_rate_function(state.step)
-    state = state.replace(batch_stats=updates["batch_stats"])
+    # Only update batch_stats if they exist
+    if updates and "batch_stats" in updates:
+        state = state.replace(batch_stats=updates["batch_stats"])
 
     return state, loss, lr
 
@@ -203,14 +228,24 @@ def train_step_pmap_bf16(state, batch, diff_params, rng, learning_rate_function)
             batch_bf16, t, sqrt_alphas_cumprod, sqrt_one_minus_alphas_cumprod, rng
         )
 
-        # Model forward pass (computations in bfloat16)
-        predicted_eps, updates = state.apply_fn(
-            {"params": params, "batch_stats": state.batch_stats},
-            x_t,
-            t,
-            train=True,
-            mutable=["batch_stats"],
-        )
+        # Handle models with or without batch_stats (GroupNorm vs BatchNorm)
+        if state.batch_stats:
+            # Model forward pass (computations in bfloat16)
+            predicted_eps, updates = state.apply_fn(
+                {"params": params, "batch_stats": state.batch_stats},
+                x_t,
+                t,
+                train=True,
+                mutable=["batch_stats"],
+            )
+        else:
+            predicted_eps = state.apply_fn(
+                {"params": params},
+                x_t,
+                t,
+                train=True,
+            )
+            updates = {}
 
         # Cast to float32 for loss calculation (numerical stability)
         eps_f32 = eps.astype(jnp.float32)
@@ -230,6 +265,8 @@ def train_step_pmap_bf16(state, batch, diff_params, rng, learning_rate_function)
     # Update (gradients and params in float32)
     state = state.apply_gradients(grads=grads)
     lr = learning_rate_function(state.step)
-    state = state.replace(batch_stats=updates["batch_stats"])
+    # Only update batch_stats if they exist
+    if updates and "batch_stats" in updates:
+        state = state.replace(batch_stats=updates["batch_stats"])
 
     return state, loss, lr

@@ -85,9 +85,16 @@ def sample_timestep(
     Applies noise to this image, if we are not in the last step yet.
     """
     # Compute the predicted noise
-    eps = state.apply_fn(
-        {"params": state.params, "batch_stats": state.batch_stats}, x, t, train=False
-    )
+    # Handle models with or without batch_stats (GroupNorm vs BatchNorm)
+    if state.batch_stats:
+        eps = state.apply_fn(
+            {"params": state.params, "batch_stats": state.batch_stats},
+            x,
+            t,
+            train=False,
+        )
+    else:
+        eps = state.apply_fn({"params": state.params}, x, t, train=False)
     t_int = t.astype(dtype=jnp.int32)
     x_start = (
         get_index_from_list(sqrt_recip_alphas_cumprod, t_int, x.shape) * x
@@ -145,6 +152,8 @@ def sample(
         reversed(range(T)), desc="sampling loop time step", total=T
     ):  # range started at 0
         t = jnp.ones((b,), dtype=jnp.float32) * i
+        # CRITICAL: Split RNG at each timestep for proper random sampling in JAX
+        rng, step_rng = random.split(rng)
         img = sample_timestep(
             state,
             img,
@@ -156,7 +165,7 @@ def sample(
             posterior_log_variance_clipped=posterior_log_variance_clipped,
             sqrt_recip_alphas_cumprod=sqrt_recip_alphas_cumprod,
             sqrt_recipm1_alphas_cumprod=sqrt_recipm1_alphas_cumprod,
-            rng=rng,
+            rng=step_rng,
         )
         if pseudo_video:
             imgs.append(unnormalize_to_zero_to_one(img))

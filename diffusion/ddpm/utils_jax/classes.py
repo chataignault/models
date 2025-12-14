@@ -303,16 +303,16 @@ class InterBlock(nn.Module):
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
         h = x
 
-        # Project time embedding
-        t_emb = nn.silu(nn.Dense(self.in_ch)(t))
-        t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
-
         # Handle upsampling path differently
         if self.up:
             # For upsampling, input has 2*in_ch from concatenation
             x = nn.Conv(2 * self.in_ch, (3, 3), padding="SAME")(x)
             x = nn.GroupNorm(num_groups=min(self.num_groups, 2 * self.in_ch))(x)
             x = nn.silu(x)
+
+            # Project time embedding to match conv output (2*in_ch)
+            t_emb = nn.silu(nn.Dense(2 * self.in_ch)(t))
+            t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, 2 * self.in_ch))
 
             # Add time embedding
             x = x + t_emb
@@ -327,14 +327,18 @@ class InterBlock(nn.Module):
             x = x + h
 
             # Upsample transform
-            x_out = nn.ConvTranspose(self.out_ch, (4, 4), strides=(2, 2), padding="SAME")(
-                x
-            )
+            x_out = nn.ConvTranspose(
+                self.out_ch, (4, 4), strides=(2, 2), padding="SAME"
+            )(x)
         else:
             # First conv
             x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
             x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
             x = nn.silu(x)
+
+            # Project time embedding to match conv output (in_ch)
+            t_emb = nn.silu(nn.Dense(self.in_ch)(t))
+            t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
 
             # Add time embedding
             x = x + t_emb
