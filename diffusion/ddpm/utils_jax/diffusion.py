@@ -1,8 +1,7 @@
-from jax import numpy as jnp
-from jax import random
-import jax
 from tqdm import tqdm
-import functools
+import jax
+from jax import random
+from jax import numpy as jnp
 
 
 @jax.jit
@@ -29,6 +28,7 @@ def cosine_beta_schedule(
     return end * (1.0 - jnp.cos(jnp.pi * 0.5 * (steps / timesteps)) ** 2)
 
 
+@jax.jit
 def forward_diffusion_sample(
     x_0: jnp.ndarray,
     t: jnp.ndarray,
@@ -46,6 +46,7 @@ def forward_diffusion_sample(
     return mean + std * eps, eps
 
 
+@jax.jit
 def q_posterior(
     x_start,
     x_t,
@@ -117,11 +118,12 @@ def sample_timestep(
 
     # Apply noise if we are not in the last step
     z = jax.random.normal(rng, shape=x.shape)
-    mu_prev += jax.lax.cond(
+    mu_prev = jax.lax.cond(
         i > 0,
-        lambda: mu_prev + jnp.exp(0.5 * posterior_log_variance) * z,
-        lambda: mu_prev
-        )
+        lambda _: mu_prev + jnp.exp(0.5 * posterior_log_variance) * z,
+        lambda _: mu_prev,
+        operand=None
+    )
 
     return mu_prev
 
