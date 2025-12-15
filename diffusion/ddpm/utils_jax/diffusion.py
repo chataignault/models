@@ -150,9 +150,8 @@ def sample(
 
     for i in tqdm(
         reversed(range(T)), desc="sampling loop time step", total=T
-    ):  # range started at 0
+    ): 
         t = jnp.ones((b,), dtype=jnp.float32) * i
-        # CRITICAL: Split RNG at each timestep for proper random sampling in JAX
         rng, step_rng = random.split(rng)
         img = sample_timestep(
             state,
@@ -168,8 +167,10 @@ def sample(
             rng=step_rng,
         )
         if pseudo_video:
-            imgs.append(unnormalize_to_zero_to_one(img))
-    imgs.append(unnormalize_to_zero_to_one(img))
+            # imgs.append(unnormalize_to_zero_to_one(img))
+            imgs.append(img)
+    # imgs.append(unnormalize_to_zero_to_one(img))
+    imgs.append(img)
     return imgs
 
 

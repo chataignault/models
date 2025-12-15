@@ -360,8 +360,8 @@ class InterBlock(nn.Module):
 class SimpleUNet(nn.Module):
     """A simplified variant of the UNet architecture in JAX/Flax."""
 
-    time_emb_dim: int = 4
-    downs: tuple = (8, 32, 128)
+    time_emb_dim: int = 8
+    downs: tuple = (16, 64, 128)
     channels: int = 1
     num_groups: int = 8
 
