@@ -1,7 +1,7 @@
-from jax import numpy as jnp
-from jax import random
-import jax
 from tqdm import tqdm
+import jax
+from jax import random
+from jax import numpy as jnp
 
 
 @jax.jit
@@ -17,7 +17,7 @@ def get_index_from_list(vals, t, x_shape):
 
 def linear_beta_schedule(
     timesteps: int, start: float = 1e-4, end: float = 2e-2
-) -> jnp.arary:
+) -> jnp.array:
     return jnp.linspace(start=start, end=end, num=timesteps)
 
 
@@ -28,6 +28,7 @@ def cosine_beta_schedule(
     return end * (1.0 - jnp.cos(jnp.pi * 0.5 * (steps / timesteps)) ** 2)
 
 
+@jax.jit
 def forward_diffusion_sample(
     x_0: jnp.ndarray,
     t: jnp.ndarray,
@@ -39,11 +40,13 @@ def forward_diffusion_sample(
     Takes an image and a timestep as input and
     returns the noisy version of it.
     """
+    eps = random.normal(rng, x_0.shape)
     mean = get_index_from_list(sqrt_alphas_cumprod, t, x_0.shape) * jnp.array(x_0)
     std = get_index_from_list(sqrt_one_minus_alphas_cumprod, t, x_0.shape)
-    return mean + std * random.normal(rng, x_0.shape)
+    return mean + std * eps, eps
 
 
+@jax.jit
 def q_posterior(
     x_start,
     x_t,
@@ -65,6 +68,7 @@ def q_posterior(
     return posterior_mean, posterior_variance, posterior_log_variance_clipped
 
 
+@jax.jit
 def sample_timestep(
     state,
     x: jnp.ndarray,
@@ -84,16 +88,23 @@ def sample_timestep(
     Applies noise to this image, if we are not in the last step yet.
     """
     # Compute the predicted noise
-    eps = state.apply_fn(
-        {"params": state.params, "batch_stats": state.batch_stats}, x, t, train=False
-    )
+    # Handle models with or without batch_stats (GroupNorm vs BatchNorm)
+    if state.batch_stats:
+        eps = state.apply_fn(
+            {"params": state.params, "batch_stats": state.batch_stats},
+            x,
+            t,
+            train=False,
+        )
+    else:
+        eps = state.apply_fn({"params": state.params}, x, t, train=False)
     t_int = t.astype(dtype=jnp.int32)
     x_start = (
         get_index_from_list(sqrt_recip_alphas_cumprod, t_int, x.shape) * x
         - get_index_from_list(sqrt_recipm1_alphas_cumprod, t_int, x.shape) * eps
     )
 
-    jnp.clip(x_start, -1.0, 1.0)
+    x_start = jnp.clip(x_start, -1.0, 1.0)
 
     mu_prev, posterior_variance, posterior_log_variance = q_posterior(
         x_start=x_start,
@@ -106,10 +117,13 @@ def sample_timestep(
     )
 
     # Apply noise if we are not in the last step
-    if i > 0:
-        rng, step_rng = jax.random.split(rng)
-        z = jax.random.normal(step_rng, shape=x.shape)
-        mu_prev += jnp.exp(0.5 * posterior_log_variance) * z
+    z = jax.random.normal(rng, shape=x.shape)
+    mu_prev = jax.lax.cond(
+        i > 0,
+        lambda _: mu_prev + jnp.exp(0.5 * posterior_log_variance) * z,
+        lambda _: mu_prev,
+        operand=None
+    )
 
     return mu_prev
 
@@ -142,8 +156,9 @@ def sample(
 
     for i in tqdm(
         reversed(range(T)), desc="sampling loop time step", total=T
-    ):  # range started at 0
+    ): 
         t = jnp.ones((b,), dtype=jnp.float32) * i
+        rng, step_rng = random.split(rng)
         img = sample_timestep(
             state,
             img,
@@ -155,11 +170,13 @@ def sample(
             posterior_log_variance_clipped=posterior_log_variance_clipped,
             sqrt_recip_alphas_cumprod=sqrt_recip_alphas_cumprod,
             sqrt_recipm1_alphas_cumprod=sqrt_recipm1_alphas_cumprod,
-            rng=rng,
+            rng=step_rng,
         )
         if pseudo_video:
-            imgs.append(unnormalize_to_zero_to_one(img))
-    imgs.append(unnormalize_to_zero_to_one(img))
+            # imgs.append(unnormalize_to_zero_to_one(img))
+            imgs.append(img)
+    # imgs.append(unnormalize_to_zero_to_one(img))
+    imgs.append(img)
     return imgs
 
 
