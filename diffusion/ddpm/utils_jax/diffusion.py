@@ -15,17 +15,23 @@ def get_index_from_list(vals, t, x_shape):
     return out.reshape(batch_size, *((1,) * (len(x_shape) - 1)))
 
 
+# @jax.jit
 def linear_beta_schedule(
     timesteps: int, start: float = 1e-4, end: float = 2e-2
 ) -> jnp.array:
-    return jnp.linspace(start=start, end=end, num=timesteps)
+    return jnp.linspace(start=start, stop=end, num=timesteps)
 
 
-def cosine_beta_schedule(
-    timesteps: int, start: float = 1e-4, end: float = 2e-2
-) -> jnp.array:
-    steps = jnp.arange(start=0, end=timesteps) + start
-    return end * (1.0 - jnp.cos(jnp.pi * 0.5 * (steps / timesteps)) ** 2)
+# @jax.jit
+def cosine_beta_schedule(timesteps: int, s: float = 0.008) -> jnp.array:
+    """
+    Cosine schedule as proposed in https://arxiv.org/abs/2102.09672
+    """
+    steps = jnp.arange(timesteps + 1).astype(jnp.float32) / timesteps
+    alphas_cumprod = jnp.cos(((steps + s) / (1 + s)) * jnp.pi * 0.5) ** 2
+    alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
+    betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
+    return jnp.clip(betas, 0, 0.999)
 
 
 @jax.jit
@@ -122,7 +128,7 @@ def sample_timestep(
         i > 0,
         lambda _: mu_prev + jnp.exp(0.5 * posterior_log_variance) * z,
         lambda _: mu_prev,
-        operand=None
+        operand=None,
     )
 
     return mu_prev
@@ -154,9 +160,7 @@ def sample(
     sqrt_recipm1_alphas_cumprod = jnp.sqrt(1.0 / alphas_cumprod - 1)
     posterior_log_variance_clipped = jnp.log(jnp.clip(posterior_variance, min=1e-20))
 
-    for i in tqdm(
-        reversed(range(T)), desc="sampling loop time step", total=T
-    ): 
+    for i in tqdm(reversed(range(T)), desc="sampling loop time step", total=T):
         t = jnp.ones((b,), dtype=jnp.float32) * i
         rng, step_rng = random.split(rng)
         img = sample_timestep(

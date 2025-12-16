@@ -25,7 +25,9 @@ def create_learning_rate_fn(config, base_learning_rate, steps_per_epoch):
     )
     cosine_epochs = max(config.num_epochs - config.warmup_epochs, 1)
     cosine_fn = optax.cosine_decay_schedule(
-        init_value=base_learning_rate, decay_steps=cosine_epochs * steps_per_epoch
+        init_value=base_learning_rate,
+        decay_steps=cosine_epochs * steps_per_epoch,
+        exponent=1,
     )
     schedule_fn = optax.join_schedules(
         schedules=[warmup_fn, cosine_fn],
@@ -72,15 +74,6 @@ def create_train_state(rng, model, learning_rate_fn, train: bool, num_devices: i
         state = replicate_tree(state, num_devices)
 
     return state
-
-
-def linear_beta_schedule(
-    timesteps: int, start: float = 0.0001, end: float = 0.02
-) -> jnp.ndarray:
-    """
-    output a vector of size timesteps that is equally spaced between start and end; this will be the noise that is added in each time step.
-    """
-    return jnp.linspace(start=start, stop=end, num=timesteps)
 
 
 @functools.partial(jax.jit, static_argnums=4)

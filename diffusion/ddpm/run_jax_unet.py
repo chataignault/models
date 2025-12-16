@@ -11,10 +11,9 @@ from tqdm import tqdm
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
 
-from utils_jax.classes import UNetConv, UNet, SimpleUNet
+from utils_jax.classes import UNetConv, UNet, SimpleUnet
 from utils.dataloader import get_dataloader, get_grain_dataloader, Data
 from utils_jax.training import (
-    linear_beta_schedule,
     create_train_state,
     train_step,
     train_step_pmap,
@@ -22,7 +21,7 @@ from utils_jax.training import (
     create_learning_rate_fn,
     SchedulerConfig,
 )
-from utils_jax.diffusion import sample
+from utils_jax.diffusion import sample, linear_beta_schedule, cosine_beta_schedule
 from utils.logger import get_logger
 from utils_jax.tpu_utils import (
     detect_tpu_environment,
@@ -156,7 +155,8 @@ if __name__ == "__main__":
 
     torch.set_default_device(device)
 
-    betas = linear_beta_schedule(timesteps=T)
+    # betas = linear_beta_schedule(timesteps=T)
+    betas = cosine_beta_schedule(timesteps=T)
     alphas = 1.0 - betas
     alphas_cumprod = jnp.cumprod(alphas, -1)
     alphas_cumprod_prev = jnp.pad(
@@ -187,8 +187,8 @@ if __name__ == "__main__":
         unet = UNet(channels=channels, base_dim=base_dim)
     elif model_name == "UNetConv":
         unet = UNetConv(channels=channels)
-    elif model_name == "SimpleUNet":
-        unet = SimpleUNet(channels=channels)
+    elif model_name == "SimpleUnet":
+        unet = SimpleUnet(channels=channels)
     else:
         NotImplemented
 
@@ -455,7 +455,6 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(out_dir, sample_base_name + ".png"))
     plt.close()
 
-    # Close TensorBoard logger
     tb_logger.close()
 
     logger.info("Training completed successfully!")

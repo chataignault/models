@@ -357,16 +357,18 @@ class InterBlock(nn.Module):
         return x_out, x
 
 
-class SimpleUNet(nn.Module):
+class SimpleUnet(nn.Module):
     """A simplified variant of the UNet architecture in JAX/Flax."""
 
     time_emb_dim: int = 8
-    downs: tuple = (16, 64, 128)
+    downs: tuple = (16, 32, 64, 128)
     channels: int = 1
     num_groups: int = 8
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
+        # Store input shape for final output
+        input_shape = x.shape
         ups = self.downs[::-1]
 
         # Time embedding
@@ -406,14 +408,28 @@ class SimpleUNet(nn.Module):
         # Upsampling path
         for k in range(len(ups) - 1):
             residual = x_down[-(k + 1)]
+            # Resize residual to match x shape if needed (for odd dimensions)
+            if residual.shape[1:3] != x.shape[1:3]:
+                residual = jax.image.resize(
+                    residual, x.shape, method=jax.image.ResizeMethod.NEAREST
+                )
             x_extended = jnp.concatenate([x, residual], axis=-1)
             x, _ = InterBlock(ups[k], ups[k + 1], 4 * self.time_emb_dim, up=True)(
                 x_extended, t_emb, train
             )
 
         # Add the ultimate residual from the initial convolution
-        x = x + x_down[0]
+        residual_initial = x_down[0]
+        if residual_initial.shape[1:3] != x.shape[1:3]:
+            residual_initial = jax.image.resize(
+                residual_initial, x.shape, method=jax.image.ResizeMethod.NEAREST
+            )
+        x = x + residual_initial
         # Removed final GroupNorm and ReLU for better output
         x = nn.Conv(self.channels, (1, 1))(x)
+
+        # Ensure output matches input spatial dimensions
+        if x.shape[1:3] != input_shape[1:3]:
+            x = jax.image.resize(x, input_shape, method=jax.image.ResizeMethod.NEAREST)
 
         return x
