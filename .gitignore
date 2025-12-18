@@ -18,6 +18,7 @@
 MNIST
 FashionMNIST
 data
+checkpoints
 *.csv
 *.txt
 *.gif
