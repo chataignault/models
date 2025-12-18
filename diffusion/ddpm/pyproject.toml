@@ -2,7 +2,7 @@
 name = "ddpm"
 version = "0.1.0"
 description = "Add your description here"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "datasets>=3.5.0",
     "matplotlib>=3.10.1",
@@ -19,19 +19,12 @@ dev = [
     "ruff>=0.11.6",
 ]
 jax = [
-    "jax[cuda]>=0.5.3",
-    "flax>=0.10.5",
-    "orbax>=0.1.9",
+    "flax>=0.10.6",
+    "jax-metrics>=0.2.5",
+    "jax[cuda12]>=0.8.0",
+    "jaxlib>=0.8.0",
+    "orbax-checkpoint>=0.11.24",
     "tensorboard>=2.20.0",
-]
-jax-tpu = [
-    "jax[tpu]>=0.5.3",
-    "flax>=0.10.5",
-    "orbax>=0.1.9",
-    "grain>=0.2.0",
-    "tensorboard>=2.19.0",
-    "tensorflow>=2.19.0",
-    "tensorflow-datasets>=4.9.0",
 ]
 torch = [
     "gdown>=5.2.0",
@@ -42,13 +35,18 @@ torch = [
 
 [tool.uv.sources]
 torch = [
-    { index = "pytorch-cu124" },
+    { index = "pytorch-cu129" },
 ]
 torchvision = [
-    { index = "pytorch-cu124" },
+    { index = "pytorch-cu129" },
 ]
 
 [[tool.uv.index]]
 name = "pytorch-cu124"
 url = "https://download.pytorch.org/whl/cu124"
+explicit = true
+
+[[tool.uv.index]]
+name = "pytorch-cu129"
+url = "https://download.pytorch.org/whl/cu129"
 explicit = true
