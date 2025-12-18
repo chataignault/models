@@ -1,15 +1,14 @@
 import os
 import jax
-import shutil
 import torch
 import datetime as dt
-import orbax.checkpoint
 from jax import random
 import jax.numpy as jnp
-from flax.training import orbax_utils
 from tqdm import tqdm
 from argparse import ArgumentParser
 from matplotlib import pyplot as plt
+import orbax.checkpoint as ocp
+from pathlib import Path
 
 from utils_jax.classes import UNetConv, UNet, SimpleUnet
 from utils.dataloader import get_dataloader, get_grain_dataloader, Data
@@ -28,7 +27,6 @@ from utils_jax.tpu_utils import (
     split_rng_for_devices,
     unreplicate_first,
 )
-from utils_jax.checkpoint_utils import DDPMCheckpointManager
 from utils_jax.tensorboard_logger import DDPMTensorBoardLogger
 
 
@@ -93,7 +91,9 @@ if __name__ == "__main__":
     parser.add_argument("--nepochs", type=int, default=20)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
-    parser.add_argument("--load_checkpoint", type=bool, default=False)
+    parser.add_argument("--load-checkpoint", action="store_true")
+    parser.add_argument("--checkpoint_name", type=str, default="")
+
     # TPU-specific arguments
     parser.add_argument(
         "--use_tpu", type=bool, default=False, help="Use TPU if available"
@@ -107,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--checkpoint_interval",
         type=int,
-        default=1,
+        default=30,
         help="Save checkpoint every N epochs",
     )
     parser.add_argument(
@@ -130,6 +130,7 @@ if __name__ == "__main__":
     lr = args.lr
     T = args.timesteps
     load_checkpoint = args.load_checkpoint
+    checkpoint_name = args.checkpoint_name
 
     # TPU detection and setup
     if args.use_tpu:
@@ -192,15 +193,12 @@ if __name__ == "__main__":
     else:
         NotImplemented
 
-    rng = random.PRNGKey(0)
-    rng_init, rng_train, rng_timestep = random.split(rng, 3)
+    rng = random.PRNGKey(56)
+    rng_init, rng_train, rng_timestep, rng_final_sample = random.split(rng, 4)
+    del rng
 
-    # Setup checkpoint manager
-    ckpt_dir = os.path.join(os.getcwd(), "checkpoints")
-    # checkpoint_manager = DDPMCheckpointManager(
-    #     checkpoint_dir=ckpt_dir,
-    #     max_to_keep=5,
-    # )
+    ckpt_dir = Path("checkpoints").absolute()
+    ckptr = ocp.AsyncCheckpointer(ocp.StandardCheckpointHandler())
     logger.info(f"Checkpoint directory: {ckpt_dir}")
 
     # Setup TensorBoard logger
@@ -214,25 +212,14 @@ if __name__ == "__main__":
 
     learning_rate_fn = create_learning_rate_fn(config, lr, steps_per_epoch)
 
-    if load_checkpoint:
-        restored_state, restored_step = checkpoint_manager.restore_checkpoint()
-        if restored_state is not None:
-            state = restored_state
-            # Replicate if using distributed training
-            if num_devices > 1:
-                from utils_jax.tpu_utils import replicate_tree
-
-                state = replicate_tree(state, num_devices)
-            logger.info(f"Resumed from step {restored_step}")
-        else:
-            # No checkpoint found, create new state
-            state = create_train_state(
-                rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices
-            )
-    else:
-        state = create_train_state(
-            rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices
-        )
+    state = create_train_state(
+        rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices
+    )
+    del rng_init
+    if load_checkpoint and len(checkpoint_name):
+        logger.info(f"Loading checkpoint : {checkpoint_name}")
+        tree = jax.tree_util.tree_map(ocp.utils.to_shape_dtype_struct, state)
+        state = ckptr.restore(ckpt_dir / checkpoint_name, tree)
 
     # Log parameter count (handle replicated state)
     if num_devices > 1:
@@ -337,11 +324,9 @@ if __name__ == "__main__":
                 train_loss = float(train_loss)
                 current_lr = float(current_lr)
 
-            # Record history
             loss_history.append(train_loss)
             lr_history.append(current_lr)
 
-            # Log to TensorBoard
             tb_logger.log_scalars(
                 {
                     "train/loss": train_loss,
@@ -350,7 +335,6 @@ if __name__ == "__main__":
                 global_step,
             )
 
-            # Update progress bar
             description = (
                 f"Epoch {epoch} | "
                 f"Step {global_step} | "
@@ -358,7 +342,6 @@ if __name__ == "__main__":
             )
             pbar_batch.set_description(description)
 
-            # Periodic sample generation
             if global_step % args.sample_interval == 0 and global_step > 0:
                 logger.info(f"Generating samples at step {global_step}")
                 sample_images = generate_samples_on_first_device(
@@ -377,32 +360,22 @@ if __name__ == "__main__":
 
             global_step += 1
 
-        # End of epoch: save checkpoint
-        if epoch % args.checkpoint_interval == 0:
-            # checkpoint_manager.save_checkpoint(
-            #     step=global_step,
-            #     state=state,
-            #     is_replicated=(num_devices > 1)
-            # )
-            pass
+        # if epoch % args.checkpoint_interval == 0 and epoch > 1:
+        #   pass
 
         logger.info(f"Epoch {epoch} complete | Loss {train_loss:.7f}")
 
-    # Save final checkpoint
-    # logger.info("Saving final checkpoint")
-    # checkpoint_manager.save_checkpoint(
-    #     step=global_step,
-    #     state=state,
-    #     is_replicated=(num_devices > 1),
-    #     force=True
-    # )
-    # checkpoint_manager.wait_until_finished()
+    logger.info("Saving final checkpoint")
 
-    # Save loss/LR plots to TensorBoard
+    ckptr.save(
+        ckpt_dir / "_".join([model_name, dt.datetime.now().strftime("%Y%m%d%H%M")]),
+        args=ocp.args.StandardSave(state),
+    )
+    ckptr.wait_until_finished()
+
     datetime_str = dt.datetime.now().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
 
-    # Optionally save matplotlib plots (for backward compatibility)
     _, ax = plt.subplots()
     ax.plot(range(len(loss_history)), loss_history)
     ax.grid()
@@ -417,7 +390,6 @@ if __name__ == "__main__":
     plt.savefig(os.path.join(out_dir, img_base_name + "_lr.png"), bbox_inches="tight")
     plt.close()
 
-    # Generate final samples
     logger.info("Generating final samples")
     sample_base_name = f"sample_jax_{datetime_str}_"
     N_SAMPLE = 16
@@ -425,7 +397,7 @@ if __name__ == "__main__":
 
     samp = generate_samples_on_first_device(
         state,
-        rng,
+        rng_final_sample,
         num_devices,
         T,
         betas,
@@ -434,10 +406,8 @@ if __name__ == "__main__":
         posterior_variance,
     )
 
-    # Log final samples to TensorBoard
     tb_logger.log_images_grid("samples/final", samp, global_step, nrow=N_COLS)
 
-    # Save final samples as matplotlib plot
     _, axs = plt.subplots(
         nrows=N_SAMPLE // N_COLS + ((N_SAMPLE % N_COLS) > 0),
         ncols=N_COLS,

@@ -363,7 +363,7 @@ class SimpleUnet(nn.Module):
     time_emb_dim: int = 8
     downs: tuple = (16, 32, 64, 128)
     channels: int = 1
-    num_groups: int = 8
+    num_groups: int = 16
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):

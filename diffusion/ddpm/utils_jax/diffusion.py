@@ -5,7 +5,7 @@ from jax import numpy as jnp
 
 
 @jax.jit
-def get_index_from_list(vals, t, x_shape):
+def get_index_from_list(vals: jax.Array, t, x_shape):
     """
     Returns a specific index t of a passed list of values vals
     while considering the batch dimension.
@@ -31,7 +31,8 @@ def cosine_beta_schedule(timesteps: int, s: float = 0.008) -> jnp.array:
     alphas_cumprod = jnp.cos(((steps + s) / (1 + s)) * jnp.pi * 0.5) ** 2
     alphas_cumprod = alphas_cumprod / alphas_cumprod[0]
     betas = 1 - (alphas_cumprod[1:] / alphas_cumprod[:-1])
-    return jnp.clip(betas, 0, 0.999)
+    betas = jnp.clip(betas, 0, 0.999)
+    return betas
 
 
 @jax.jit
