@@ -10,6 +10,8 @@ from matplotlib import pyplot as plt
 import orbax.checkpoint as ocp
 from pathlib import Path
 
+# https://orbax.readthedocs.io/en/latest/guides/checkpoint/orbax_checkpoint_101.html
+
 from utils_jax.classes import UNetConv, UNet, SimpleUnet
 from utils.dataloader import get_dataloader, get_grain_dataloader, Data
 from utils_jax.training import (
@@ -63,6 +65,18 @@ def generate_samples_on_first_device(
     )[-1]
 
     return samples
+
+
+def get_unet(model_name, channels, base_dim):
+    if model_name == "UNet":
+        unet = UNet(channels=channels, base_dim=base_dim)
+    elif model_name == "UNetConv":
+        unet = UNetConv(channels=channels)
+    elif model_name == "SimpleUnet":
+        unet = SimpleUnet(channels=channels)
+    else:
+        NotImplemented
+    return unet
 
 
 if __name__ == "__main__":
@@ -133,7 +147,6 @@ if __name__ == "__main__":
 
     datetime_str = dt.datetime.now().strftime("%Y%m%d%H%M")
 
-
     # TPU detection and setup
     if args.use_tpu:
         tpu_config = detect_tpu_environment()
@@ -185,43 +198,34 @@ if __name__ == "__main__":
         dataloader = get_dataloader(BATCH_SIZE, device, Data.fashion_mnist)
         steps_per_epoch = len(dataloader)
 
-    if model_name == "UNet":
-        unet = UNet(channels=channels, base_dim=base_dim)
-    elif model_name == "UNetConv":
-        unet = UNetConv(channels=channels)
-    elif model_name == "SimpleUnet":
-        unet = SimpleUnet(channels=channels)
-    else:
-        NotImplemented
+    unet = get_unet(model_name, channels, base_dim)
+
+    config = SchedulerConfig(1, nepochs)
+    learning_rate_fn = create_learning_rate_fn(config, lr, steps_per_epoch)
 
     rng = random.PRNGKey(56)
     rng_init, rng_train, rng_timestep, rng_final_sample = random.split(rng, 4)
     del rng
 
-    ckpt_dir = Path("checkpoints").absolute()
-    ckptr = ocp.AsyncCheckpointer(ocp.StandardCheckpointHandler())
-    logger.info(f"Checkpoint directory: {ckpt_dir}")
-
-    # Setup TensorBoard logger
-    tb_log_dir = os.path.join(
-        os.getcwd(), "tb_logs", datetime_str
-    )
-    tb_logger = DDPMTensorBoardLogger(log_dir=tb_log_dir)
-    logger.info(f"TensorBoard logs: {tb_log_dir}")
-
-    config = SchedulerConfig(1, nepochs)
-
-    learning_rate_fn = create_learning_rate_fn(config, lr, steps_per_epoch)
-
     state = create_train_state(
         rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices
     )
     del rng_init
+
+    ckpt_dir = Path("checkpoints").absolute()
+    ckptr = ocp.AsyncCheckpointer(ocp.StandardCheckpointHandler())
+    logger.info(f"Checkpoint directory: {ckpt_dir}")
+
     if load_checkpoint and len(checkpoint_name):
         logger.info(f"Loading checkpoint : {checkpoint_name}")
         tree = jax.tree_util.tree_map(ocp.utils.to_shape_dtype_struct, state)
         state = ckptr.restore(ckpt_dir / checkpoint_name, tree)
         # print("Latest step: ", ckptr.latest_step())
+
+    # Setup TensorBoard logger
+    tb_log_dir = os.path.join(os.getcwd(), "tb_logs", datetime_str)
+    tb_logger = DDPMTensorBoardLogger(log_dir=tb_log_dir)
+    logger.info(f"TensorBoard logs: {tb_log_dir}")
 
     # Log parameter count (handle replicated state)
     if num_devices > 1:
@@ -290,12 +294,10 @@ if __name__ == "__main__":
                     "sqrt_one_minus_alphas_cumprod": sqrt_one_minus_alphas_cumprod,
                 }
 
-                # Run distributed training step
                 state, train_loss, current_lr = train_fn(
                     state, batch, diff_params, rng_train_batch, learning_rate_fn
                 )
 
-                # Extract first replica for logging
                 train_loss = float(train_loss[0])
                 current_lr = float(current_lr[0])
             else:
