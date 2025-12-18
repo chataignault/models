@@ -25,7 +25,6 @@ from utils.logger import get_logger
 from utils_jax.tpu_utils import (
     detect_tpu_environment,
     split_rng_for_devices,
-    unreplicate_first,
 )
 from utils_jax.tensorboard_logger import DDPMTensorBoardLogger
 
@@ -132,6 +131,9 @@ if __name__ == "__main__":
     load_checkpoint = args.load_checkpoint
     checkpoint_name = args.checkpoint_name
 
+    datetime_str = dt.datetime.now().strftime("%Y%m%d%H%M")
+
+
     # TPU detection and setup
     if args.use_tpu:
         tpu_config = detect_tpu_environment()
@@ -168,7 +170,6 @@ if __name__ == "__main__":
     posterior_variance = betas * (1.0 - alphas_cumprod_prev) / (1.0 - alphas_cumprod)
     sqrt_recip_alphas = 1.0 / jnp.sqrt(alphas)
 
-    # Initialize data pipeline
     if args.use_tpu and num_devices > 1:
         logger.info("Using Grain dataloader for TPU")
         dataloader = get_grain_dataloader(
@@ -203,7 +204,7 @@ if __name__ == "__main__":
 
     # Setup TensorBoard logger
     tb_log_dir = os.path.join(
-        os.getcwd(), "tb_logs", dt.datetime.now().strftime("%Y%m%d-%H%M%S")
+        os.getcwd(), "tb_logs", datetime_str
     )
     tb_logger = DDPMTensorBoardLogger(log_dir=tb_log_dir)
     logger.info(f"TensorBoard logs: {tb_log_dir}")
@@ -220,6 +221,7 @@ if __name__ == "__main__":
         logger.info(f"Loading checkpoint : {checkpoint_name}")
         tree = jax.tree_util.tree_map(ocp.utils.to_shape_dtype_struct, state)
         state = ckptr.restore(ckpt_dir / checkpoint_name, tree)
+        # print("Latest step: ", ckptr.latest_step())
 
     # Log parameter count (handle replicated state)
     if num_devices > 1:
@@ -365,15 +367,14 @@ if __name__ == "__main__":
 
         logger.info(f"Epoch {epoch} complete | Loss {train_loss:.7f}")
 
-    logger.info("Saving final checkpoint")
+    if nepochs > 0:
+        logger.info("Saving final checkpoint")
+        ckptr.save(
+            ckpt_dir / "_".join([model_name, datetime_str]),
+            args=ocp.args.StandardSave(state),
+        )
+        ckptr.wait_until_finished()
 
-    ckptr.save(
-        ckpt_dir / "_".join([model_name, dt.datetime.now().strftime("%Y%m%d%H%M")]),
-        args=ocp.args.StandardSave(state),
-    )
-    ckptr.wait_until_finished()
-
-    datetime_str = dt.datetime.now().strftime("%Y%m%d-%H%M")
     img_base_name = f"{script_name}_{datetime_str}"
 
     _, ax = plt.subplots()
