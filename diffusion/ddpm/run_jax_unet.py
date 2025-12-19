@@ -40,6 +40,8 @@ def generate_samples_on_first_device(
     alphas_cumprod,
     alphas_cumprod_prev,
     posterior_variance,
+    channels: int,
+    img_size: int,
 ):
     """Generate samples on first device only (for logging)."""
     # Unreplicate to first device if distributed
@@ -50,7 +52,7 @@ def generate_samples_on_first_device(
 
     rng, subrng = random.split(rng)
     num_samples = 16
-    sample_shape = (num_samples, 28, 28, 1)
+    sample_shape = (num_samples, img_size, img_size, channels)
 
     samples = sample(
         single_device_state,
@@ -95,28 +97,18 @@ if __name__ == "__main__":
     logger = get_logger(logger_name, log_format, date_format, log_file)
 
     parser = ArgumentParser(description="Run Attention Unet")
-    parser.add_argument("--device", type=str, default="cpu")
-    parser.add_argument("--model_name", type=str, default="UNet")
+    parser.add_argument("--device", type=str, default="cuda")
+    parser.add_argument("--model_name", type=str, default="SimpleUnet")
     parser.add_argument("--img_size", type=int, default=28)
     parser.add_argument("--base_dim", type=int, default=16)
     parser.add_argument("--channels", type=int, default=1)
+    parser.add_argument("--dataset", type=Data, default=Data.fashion_mnist)
     parser.add_argument("--batch_size", type=int, default=64)
     parser.add_argument("--nepochs", type=int, default=20)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--load-checkpoint", action="store_true")
     parser.add_argument("--checkpoint_name", type=str, default="")
-
-    # TPU-specific arguments
-    parser.add_argument(
-        "--use_tpu", type=bool, default=False, help="Use TPU if available"
-    )
-    parser.add_argument(
-        "--use_mixed_precision",
-        type=bool,
-        default=True,
-        help="Use bfloat16 mixed precision",
-    )
     parser.add_argument(
         "--checkpoint_interval",
         type=int,
@@ -129,6 +121,16 @@ if __name__ == "__main__":
         default=1200,
         help="Generate samples every N steps",
     )
+    # TPU-specific arguments
+    parser.add_argument(
+        "--use_tpu", type=bool, default=False, help="Use TPU if available"
+    )
+    parser.add_argument(
+        "--use_mixed_precision",
+        type=bool,
+        default=True,
+        help="Use bfloat16 mixed precision",
+    )
 
     args = parser.parse_args()
     logger.info(f"{args}")
@@ -136,6 +138,7 @@ if __name__ == "__main__":
     device = args.device
     model_name = args.model_name
     channels = args.channels
+    dataset = args.dataset
     base_dim = args.base_dim
     IMG_SIZE = args.img_size
     BATCH_SIZE = args.batch_size
@@ -195,7 +198,7 @@ if __name__ == "__main__":
         steps_per_epoch = 60000 // BATCH_SIZE  # FashionMNIST has ~60k training samples
     else:
         logger.info("Using PyTorch dataloader")
-        dataloader = get_dataloader(BATCH_SIZE, device, Data.fashion_mnist)
+        dataloader = get_dataloader(BATCH_SIZE, device, dataset)
         steps_per_epoch = len(dataloader)
 
     unet = get_unet(model_name, channels, base_dim)
@@ -211,8 +214,8 @@ if __name__ == "__main__":
         rng_init, unet, learning_rate_fn, train=False, num_devices=num_devices
     )
     del rng_init
-
     ckpt_dir = Path("checkpoints").absolute()
+
     ckptr = ocp.AsyncCheckpointer(ocp.StandardCheckpointHandler())
     logger.info(f"Checkpoint directory: {ckpt_dir}")
 
@@ -357,6 +360,8 @@ if __name__ == "__main__":
                     alphas_cumprod,
                     alphas_cumprod_prev,
                     posterior_variance,
+                    channels,
+                    IMG_SIZE,
                 )
                 tb_logger.log_images_grid(
                     "samples/generated", sample_images, global_step, nrow=4
@@ -407,6 +412,8 @@ if __name__ == "__main__":
         alphas_cumprod,
         alphas_cumprod_prev,
         posterior_variance,
+        channels,
+        IMG_SIZE,
     )
 
     tb_logger.log_images_grid("samples/final", samp, global_step, nrow=N_COLS)
