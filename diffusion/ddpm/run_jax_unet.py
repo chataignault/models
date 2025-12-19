@@ -207,7 +207,7 @@ if __name__ == "__main__":
     learning_rate_fn = create_learning_rate_fn(config, lr, steps_per_epoch)
 
     rng = random.PRNGKey(56)
-    rng_init, rng_train, rng_timestep, rng_final_sample = random.split(rng, 4)
+    rng_init, rng_train, rng_timestep, rng_sample = random.split(rng, 4)
     del rng
 
     state = create_train_state(
@@ -353,7 +353,7 @@ if __name__ == "__main__":
                 logger.info(f"Generating samples at step {global_step}")
                 sample_images = generate_samples_on_first_device(
                     state,
-                    rng,
+                    rng_sample,
                     num_devices,
                     T,
                     betas,
@@ -405,7 +405,7 @@ if __name__ == "__main__":
 
     samp = generate_samples_on_first_device(
         state,
-        rng_final_sample,
+        rng_sample,
         num_devices,
         T,
         betas,
@@ -427,8 +427,14 @@ if __name__ == "__main__":
     for i in range(N_SAMPLE):
         r, c = i // N_COLS, i % N_COLS
         # Denormalize for display
-        img_display = (samp[i, :, :, 0] + 1.0) / 2.0
-        axs[r, c].imshow(img_display, cmap="gray")
+        if channels == 3:
+            # RGB: use all 3 channels
+            img_display = (samp[i] + 1.0) / 2.0
+            axs[r, c].imshow(img_display)
+        else:
+            # Grayscale: use single channel
+            img_display = (samp[i, :, :, 0] + 1.0) / 2.0
+            axs[r, c].imshow(img_display, cmap="gray")
         axs[r, c].axis("off")
 
     plt.tight_layout()
