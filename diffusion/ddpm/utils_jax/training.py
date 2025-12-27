@@ -29,8 +29,13 @@ def create_learning_rate_fn(config, base_learning_rate, steps_per_epoch):
         decay_steps=cosine_epochs * steps_per_epoch,
         exponent=1,
     )
+    cte_fn = optax.constant_schedule(base_learning_rate)
     schedule_fn = optax.join_schedules(
-        schedules=[warmup_fn, cosine_fn],
+        schedules=[
+            # warmup_fn, 
+            cte_fn,
+            cosine_fn
+            ],
         boundaries=[config.warmup_epochs * steps_per_epoch],
     )
     return schedule_fn

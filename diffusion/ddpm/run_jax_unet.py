@@ -50,14 +50,13 @@ def generate_samples_on_first_device(
     else:
         single_device_state = state
 
-    rng, subrng = random.split(rng)
     num_samples = 16
     sample_shape = (num_samples, img_size, img_size, channels)
 
     samples = sample(
         single_device_state,
         sample_shape,
-        subrng,
+        rng,
         T,
         betas,
         alphas_cumprod,

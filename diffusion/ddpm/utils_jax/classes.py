@@ -361,9 +361,9 @@ class SimpleUnet(nn.Module):
     """A simplified variant of the UNet architecture in JAX/Flax."""
 
     time_emb_dim: int = 8
-    downs: tuple = (16, 32, 64, 128)
+    downs: tuple = (8, 16, 32, 64)
     channels: int = 1
-    num_groups: int = 16
+    num_groups: int = 8
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
