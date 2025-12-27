@@ -303,55 +303,43 @@ class InterBlock(nn.Module):
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
         h = x
 
-        # Handle upsampling path differently
         if self.up:
             # For upsampling, input has 2*in_ch from concatenation
             x = nn.Conv(2 * self.in_ch, (3, 3), padding="SAME")(x)
             x = nn.GroupNorm(num_groups=min(self.num_groups, 2 * self.in_ch))(x)
             x = nn.silu(x)
 
-            # Project time embedding to match conv output (2*in_ch)
             t_emb = nn.silu(nn.Dense(2 * self.in_ch)(t))
             t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, 2 * self.in_ch))
 
-            # Add time embedding
             x = x + t_emb
 
-            # Second conv
             x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
             x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
             x = nn.silu(x)
 
-            # Residual connection with squish conv (2*in_ch -> in_ch)
             h = nn.Conv(self.in_ch, (3, 3), padding="SAME")(h)
             x = x + h
 
-            # Upsample transform
             x_out = nn.ConvTranspose(
                 self.out_ch, (4, 4), strides=(2, 2), padding="SAME"
             )(x)
         else:
-            # First conv
             x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
             x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
             x = nn.silu(x)
 
-            # Project time embedding to match conv output (in_ch)
             t_emb = nn.silu(nn.Dense(self.in_ch)(t))
             t_emb = jnp.reshape(t_emb, (t_emb.shape[0], 1, 1, self.in_ch))
 
-            # Add time embedding
             x = x + t_emb
 
-            # Second conv
             x = nn.Conv(self.in_ch, (3, 3), padding="SAME")(x)
             x = nn.GroupNorm(num_groups=min(self.num_groups, self.in_ch))(x)
             x = nn.silu(x)
 
-            # Residual connection
             x = x + h
 
-            # Downsample transform
             x_out = nn.Conv(self.out_ch, (4, 4), strides=(2, 2), padding="SAME")(x)
 
         return x_out, x
@@ -361,9 +349,10 @@ class SimpleUnet(nn.Module):
     """A simplified variant of the UNet architecture in JAX/Flax."""
 
     time_emb_dim: int = 8
-    downs: tuple = (8, 16, 32, 64)
+    downs: tuple = (16, 32, 64, 128)
     channels: int = 1
     num_groups: int = 8
+    attention_layer: int = 1
 
     @nn.compact
     def __call__(self, x: jnp.ndarray, t: jnp.ndarray, train: bool):
@@ -385,16 +374,18 @@ class SimpleUnet(nn.Module):
         # Store residuals for skip connections
         x_down = [x]
 
-        # Downsampling path
         for i in range(len(self.downs) - 1):
             x, h = InterBlock(
                 self.downs[i], self.downs[i + 1], 4 * self.time_emb_dim, up=False
             )(x, t_emb, train)
             x_down.append(h)
+            if i == self.attention_layer:
+                x = AttentionBlockSimple(self.downs[i+1], self.downs[i+1], 4, 4 * self.time_emb_dim)(x, t_emb,train)
+                x = nn.GroupNorm(num_groups=min(self.num_groups, self.downs[-1]))(x)
+                x = nn.silu(x)
 
         x_down.append(x)
 
-        # Bottleneck
         h = x
         x = ResBlock(self.downs[-1], 4 * self.time_emb_dim)(x, t_emb, train)
         x = AttentionBlockSimple(self.downs[-1], 128, 8, 4 * self.time_emb_dim)(
@@ -405,7 +396,6 @@ class SimpleUnet(nn.Module):
         x = ResBlock(self.downs[-1], 4 * self.time_emb_dim)(x, t_emb, train)
         x = x + h
 
-        # Upsampling path
         for k in range(len(ups) - 1):
             residual = x_down[-(k + 1)]
             # Resize residual to match x shape if needed (for odd dimensions)
@@ -417,6 +407,10 @@ class SimpleUnet(nn.Module):
             x, _ = InterBlock(ups[k], ups[k + 1], 4 * self.time_emb_dim, up=True)(
                 x_extended, t_emb, train
             )
+            if k == self.attention_layer:
+                x = AttentionBlockSimple(ups[k+1], ups[k+1], 4, 4 * self.time_emb_dim)(x, t_emb,train)
+                x = nn.GroupNorm(num_groups=min(self.num_groups, self.downs[-1]))(x)
+                x = nn.silu(x)
 
         # Add the ultimate residual from the initial convolution
         residual_initial = x_down[0]
