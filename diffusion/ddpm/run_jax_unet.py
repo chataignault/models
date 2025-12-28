@@ -29,6 +29,12 @@ from utils_jax.tpu_utils import (
     split_rng_for_devices,
 )
 from utils_jax.tensorboard_logger import DDPMTensorBoardLogger
+from utils_jax.metrics import (
+    precompute_fid_statistics,
+    compute_fid_score,
+    generate_samples_for_fid,
+    check_pytorch_fid_available,
+)
 
 
 def generate_samples_on_first_device(
@@ -129,6 +135,41 @@ if __name__ == "__main__":
         type=bool,
         default=True,
         help="Use bfloat16 mixed precision",
+    )
+    # FID-related arguments
+    parser.add_argument(
+        "--compute_fid",
+        action="store_true",
+        help="Compute FID score during training",
+    )
+    parser.add_argument(
+        "--fid_interval",
+        type=int,
+        default=5,
+        help="Compute FID every N epochs",
+    )
+    parser.add_argument(
+        "--fid_num_samples",
+        type=int,
+        default=5000,
+        help="Number of samples to generate for FID computation",
+    )
+    parser.add_argument(
+        "--fid_batch_size",
+        type=int,
+        default=50,
+        help="Batch size for FID sample generation",
+    )
+    parser.add_argument(
+        "--fid_stats_path",
+        type=str,
+        default=None,
+        help="Path to precomputed FID statistics (auto-generated if not provided)",
+    )
+    parser.add_argument(
+        "--precompute_fid_stats_only",
+        action="store_true",
+        help="Only precompute FID statistics and exit (don't train)",
     )
 
     args = parser.parse_args()
@@ -238,6 +279,58 @@ if __name__ == "__main__":
         param_count = sum([p.size for p in jax.tree.leaves(state.params)])
 
     logger.info(f"Number of parameters: {param_count}")
+
+    # Precompute FID statistics if requested
+    fid_stats_path = None
+    rng_fid = None
+    if args.compute_fid or args.precompute_fid_stats_only:
+        if not check_pytorch_fid_available():
+            logger.warning(
+                "pytorch-fid not installed. FID computation disabled. "
+                "Install with: pip install pytorch-fid"
+            )
+            args.compute_fid = False
+        else:
+            logger.info("Precomputing FID statistics for real data...")
+
+            # Determine stats path
+            if args.fid_stats_path:
+                fid_stats_path = args.fid_stats_path
+            else:
+                stats_dir = os.path.join(os.getcwd(), "fid_stats")
+                os.makedirs(stats_dir, exist_ok=True)
+                fid_stats_path = os.path.join(
+                    stats_dir, f"{dataset.value}_fid_stats.npz"
+                )
+
+            # Only precompute if file doesn't exist or force recompute
+            if not os.path.exists(fid_stats_path) or args.precompute_fid_stats_only:
+                # Determine number of samples to use
+                if args.use_tpu and num_devices > 1:
+                    max_samples = steps_per_epoch * BATCH_SIZE
+                else:
+                    max_samples = len(dataloader) * BATCH_SIZE
+
+                fid_stats_path = precompute_fid_statistics(
+                    dataloader=dataloader,
+                    dataset_name=dataset.value,
+                    num_samples=min(50000, max_samples),
+                    batch_size=BATCH_SIZE,
+                    device=device,
+                    stats_path=fid_stats_path,
+                    channels=channels,
+                    is_grain=(args.use_tpu and num_devices > 1),
+                )
+                logger.info(f"FID statistics saved to: {fid_stats_path}")
+            else:
+                logger.info(f"Using existing FID statistics: {fid_stats_path}")
+
+            if args.precompute_fid_stats_only:
+                logger.info("FID statistics precomputed. Exiting.")
+                exit(0)
+
+            # Create RNG for FID sampling
+            rng_fid = random.split(rng_sample, 2)[1]
 
     # Select training function based on settings
     if num_devices > 1:
@@ -372,6 +465,47 @@ if __name__ == "__main__":
         #   pass
 
         logger.info(f"Epoch {epoch} complete | Loss {train_loss:.7f}")
+
+        # Compute FID if requested
+        if args.compute_fid and (epoch + 1) % args.fid_interval == 0:
+            logger.info(f"Computing FID score at epoch {epoch + 1}...")
+
+            try:
+                # Generate samples for FID
+                rng_fid, rng_fid_gen = random.split(rng_fid)
+                generated_samples = generate_samples_for_fid(
+                    state=state,
+                    rng=rng_fid_gen,
+                    num_samples=args.fid_num_samples,
+                    batch_size=args.fid_batch_size,
+                    num_devices=num_devices,
+                    T=T,
+                    betas=betas,
+                    alphas_cumprod=alphas_cumprod,
+                    alphas_cumprod_prev=alphas_cumprod_prev,
+                    posterior_variance=posterior_variance,
+                    channels=channels,
+                    img_size=IMG_SIZE,
+                )
+
+                # Compute FID score
+                fid_device = "cuda" if device == "cuda" else "cpu"
+                fid_score = compute_fid_score(
+                    generated_samples=generated_samples,
+                    real_stats_path=fid_stats_path,
+                    device=fid_device,
+                    batch_size=args.fid_batch_size,
+                )
+
+                logger.info(f"Epoch {epoch + 1} | FID Score: {fid_score:.4f}")
+
+                # Log to TensorBoard
+                tb_logger.log_scalar("eval/fid", fid_score, global_step)
+
+            except Exception as e:
+                logger.error(f"FID computation failed: {e}")
+                import traceback
+                traceback.print_exc()
 
     if nepochs > 0:
         logger.info("Saving final checkpoint")
